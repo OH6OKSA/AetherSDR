@@ -138,7 +138,28 @@ void MobileEngine::connectToRadio(int row)
     if (radio->port != 0) {
         info.port = radio->port;
     }
-    m_radioName = radio->nickname.isEmpty() ? radio->model : radio->nickname;
+    connectWithInfo(info, radio->nickname.isEmpty() ? radio->model : radio->nickname);
+}
+
+void MobileEngine::connectToAddress(const QString& host)
+{
+    const QHostAddress address(host.trimmed());
+    if (address.isNull()) {
+        setLastError(tr("“%1” is not an IP address.").arg(host.trimmed()));
+        return;
+    }
+    if (m_connectionState != QLatin1String("idle")) {
+        return;
+    }
+    RadioInfo info;
+    info.family = QStringLiteral("flex");
+    info.address = address;
+    connectWithInfo(info, address.toString());
+}
+
+void MobileEngine::connectWithInfo(const RadioInfo& info, const QString& displayName)
+{
+    m_radioName = displayName;
     setLastError({});
     setConnectionState(QStringLiteral("connecting"));
     m_session.radioModel().connectToRadio(info);

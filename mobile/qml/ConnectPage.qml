@@ -69,6 +69,26 @@ Page {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing
+            TextField {
+                id: addressField
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.touchTarget
+                placeholderText: qsTr("FlexRadio IP address, e.g. 192.168.1.50")
+                inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhNoPredictiveText
+                font.pixelSize: 18
+                onAccepted: Engine.connectToAddress(text)
+            }
+            Button {
+                text: qsTr("Connect")
+                Layout.preferredHeight: Theme.touchTarget
+                enabled: Engine.connectionState === "idle" && addressField.text.length > 0
+                onClicked: Engine.connectToAddress(addressField.text)
+            }
+        }
+
         Label {
             Layout.fillWidth: true
             visible: Engine.connectionState !== "idle" || Engine.lastError.length > 0

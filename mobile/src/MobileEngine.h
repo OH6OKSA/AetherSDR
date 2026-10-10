@@ -22,6 +22,7 @@ class PanadapterModel;
 class RadioDiscoverySource;
 class SliceModel;
 struct PcmFrame;
+struct RadioInfo;
 struct SpectrumDecodeScale;
 }
 
@@ -81,6 +82,9 @@ public:
     bool transmitting() const { return false; }
 
     Q_INVOKABLE void connectToRadio(int row);
+    // A FlexRadio by address, for networks where discovery broadcasts do not
+    // arrive (iOS needs a multicast entitlement to receive them).
+    Q_INVOKABLE void connectToAddress(const QString& host);
     // Development aid (--demo): connect once the simulator entry appears.
     void connectToDemoWhenListed();
     Q_INVOKABLE void disconnectRadio();
@@ -116,6 +120,7 @@ private:
     void sendPanDimensions(const QString& panId);
     void setConnectionState(const QString& state);
     void setLastError(const QString& error);
+    void connectWithInfo(const RadioInfo& info, const QString& displayName);
 
     RadioSession m_session;
     RadioListModel m_radios;

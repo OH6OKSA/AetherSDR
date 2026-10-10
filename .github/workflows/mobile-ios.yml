@@ -119,6 +119,14 @@ jobs:
           set -o pipefail
           cmake --build build-ios --target aethercore -- -k 0 2>&1 | tee build.log
 
+      - name: Build aether-mobile app (link, unsigned)
+        run: |
+          set -o pipefail
+          cmake --build build-ios --target aether-mobile -- -k 0 2>&1 | tee app.log
+          app="$(find build-ios/mobile -maxdepth 2 -name 'aether-mobile.app' -type d | head -1)"
+          test -n "$app" || { echo "ERROR: no aether-mobile.app produced"; exit 1; }
+          ditto -c -k --keepParent "$app" aether-mobile-unsigned.app.zip
+          ls -la aether-mobile-unsigned.app.zip
       - name: Summarize errors
         if: always()
         run: |
@@ -133,6 +141,10 @@ jobs:
             echo '```'
             grep -E "error:" build.log 2>/dev/null | sed -E 's#^.*/(src|third_party)/#\1/#' | sort -u | head -150 || true
             echo '```'
+            echo "App compile/link errors (first 150):"
+            echo '```'
+            grep -E "error:|Undefined symbols|ld: " app.log 2>/dev/null | sed -E 's#^.*/(src|mobile|third_party)/#\1/#' | sort -u | head -150 || true
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload logs
@@ -143,6 +155,14 @@ jobs:
           path: |
             configure.log
             build.log
+            app.log
             build-ios/CMakeCache.txt
             build-ios/CMakeFiles/CMakeConfigureLog.yaml
           if-no-files-found: ignore
+      - name: Upload unsigned app bundle
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aether-mobile-unsigned-app
+          path: aether-mobile-unsigned.app.zip
+          if-no-files-found: error
