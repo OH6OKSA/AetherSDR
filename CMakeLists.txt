@@ -30,6 +30,29 @@ option(USE_SYSTEM_SQLITE       "Use system sqlite3"      OFF)
 
 # Build features options
 
+# Engine-only build for a touch client: libaethercore without QtWidgets, the
+# desktop app, desktop peripherals (serial, HID, PortAudio, D-Bus) or features
+# whose dependencies have no mobile build. Always ON when targeting iOS. The
+# desktop-only feature switches below default to OFF under it.
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(_aether_mobile_default ON)
+else()
+    set(_aether_mobile_default OFF)
+endif()
+option(AETHER_MOBILE "Build the engine for a mobile touch client (no desktop app or desktop peripherals)" ${_aether_mobile_default})
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT AETHER_MOBILE)
+    message(FATAL_ERROR "iOS builds require AETHER_MOBILE=ON: the desktop app needs QtWidgets and desktop peripherals")
+endif()
+if(AETHER_MOBILE AND WIN32)
+    message(FATAL_ERROR "AETHER_MOBILE targets iOS, with Linux and macOS as development hosts; Windows is not supported")
+endif()
+if(AETHER_MOBILE)
+    set(_aether_desktop_feature_default OFF)
+    message(STATUS "AetherSDR: mobile engine build (AETHER_MOBILE) — desktop app and desktop-only features off")
+else()
+    set(_aether_desktop_feature_default ON)
+endif()
+
 option(REQUIRE_SERIALPORT "Fail if Qt6 SerialPort is not found (use for release builds)" OFF)
 option(REQUIRE_KEYCHAIN "Fail if Qt6Keychain is not found (use for release builds)" OFF)
 # ASR release guards: these features auto-detect and silently compile out if the
@@ -39,22 +62,22 @@ option(REQUIRE_ASR_ONNX "Fail if ONNX Runtime is not found (Silero VAD + speaker
 option(REQUIRE_ASR_GPU "Fail if no ASR GPU backend (Vulkan/Metal) is enabled (use for release builds)" OFF)
 option(REQUIRE_ASR_SHERPA "Fail if sherpa-onnx is not found (non-whisper ASR backend; use for release builds)" OFF)
 option(ENABLE_RADE "Build with RADE digital voice support (uses vendored Opus snapshot)" ON)
-option(ENABLE_DSTAR "Build the local D-STAR waveform helper (vendored smartsdr-dsp/ThumbDV)" ON)
-option(AETHER_GPU_SPECTRUM "Enable QRhi GPU spectrum rendering" ON)
+option(ENABLE_DSTAR "Build the local D-STAR waveform helper (vendored smartsdr-dsp/ThumbDV)" ${_aether_desktop_feature_default})
+option(AETHER_GPU_SPECTRUM "Enable QRhi GPU spectrum rendering" ${_aether_desktop_feature_default})
 option(ENABLE_SPECBLEACH "Enable NR4 spectral bleach noise reduction" ON)
-option(ENABLE_DFNR "Enable DFNR DeepFilterNet3 noise reduction" ON)
+option(ENABLE_DFNR "Enable DFNR DeepFilterNet3 noise reduction" ${_aether_desktop_feature_default})
 # ON by default (like the other NR engines) so the pre-compiled release images
 # all ship BNR — the runtime is download-on-demand, so this only compiles a small
 # dlopen wrapper (no NVIDIA SDK at build time). Compiled on Linux/Windows only
 # (see the platform gate below; macOS has no AFX runtime and uses DFNR). Pass
 # -DENABLE_NVIDIA_AFX=OFF to opt out.
-option(ENABLE_NVIDIA_AFX "Enable the NVIDIA Maxine AFX GPU denoiser (BNR; runtime-loaded, download-on-demand; NVIDIA RTX/GeForce, Linux/Windows)" ON)
+option(ENABLE_NVIDIA_AFX "Enable the NVIDIA Maxine AFX GPU denoiser (BNR; runtime-loaded, download-on-demand; NVIDIA RTX/GeForce, Linux/Windows)" ${_aether_desktop_feature_default})
 # ON by default so release images ship ASR. Weights are NOT bundled — they are
 # downloaded on first enable (RFC #4333), so this only compiles the vendored
 # whisper.cpp/ggml CPU engine. GPU/Metal backends are trimmed for now (Phase 1
 # is CPU-only); see third_party/whisper.cpp/AETHER_VENDORING.md. Opt out with
 # -DENABLE_ASR=OFF.
-option(ENABLE_ASR "Enable on-device speech-to-text (ASR) via vendored whisper.cpp" ON)
+option(ENABLE_ASR "Enable on-device speech-to-text (ASR) via vendored whisper.cpp" ${_aether_desktop_feature_default})
 # Windows-only fallback: consume prebuilt whisper/ggml/ggml-vulkan static libs
 # from the whisper-gpu-<ver> release asset instead of compiling from source.
 # The Windows installer workflow compiles the vendored tree (with the /O1
@@ -66,7 +89,7 @@ option(ENABLE_ASR "Enable on-device speech-to-text (ASR) via vendored whisper.cp
 # those patches only once the pack is rebuilt and re-pinned. Leave OFF.
 option(ASR_USE_PREBUILT_WHISPER_GPU
     "Windows fallback: consume the prebuilt whisper-gpu asset instead of building from source" OFF)
-option(ENABLE_MQTT "Enable MQTT client support" ON)
+option(ENABLE_MQTT "Enable MQTT client support" ${_aether_desktop_feature_default})
 
 # ── Sanitizers: ONE tree-wide switch ─────────────────────────────────────────
 # Applied through add_compile_options/add_link_options so it reaches EVERY
@@ -164,7 +187,7 @@ if(AETHER_SHARED_CORE)
 else()
     set(_aether_core_library_type STATIC)
 endif()
-option(ENABLE_RTL "Enable the experimental receive-only RTL-SDR backend" ON)
+option(ENABLE_RTL "Enable the experimental receive-only RTL-SDR backend" ${_aether_desktop_feature_default})
 # Which SSB modulator the Hermes-Lite 2 transmit path is BUILT with. There is
 # no runtime switch and there must not be one: two silent transmit paths are
 # worse than one, and Hl2TxDsp.cpp records that the prior TXA attempt failed
@@ -248,7 +271,7 @@ option(AETHER_EMBED_DFNR_MODEL
 
 # macOS: ensure Homebrew lib/include paths are in the search path
 # (universal builds with CMAKE_OSX_ARCHITECTURES may not search /opt/homebrew by default)
-if(APPLE)
+if(APPLE AND NOT IOS)
     execute_process(COMMAND brew --prefix OUTPUT_VARIABLE HOMEBREW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
     if(HOMEBREW_PREFIX)
         link_directories("${HOMEBREW_PREFIX}/lib")
@@ -353,13 +376,17 @@ endif()
 find_package(Qt6 6.12 REQUIRED COMPONENTS
     Core
     Concurrent
-    Widgets
-    OpenGL
-    OpenGLWidgets
     Network
     Multimedia
-    Test
 )
+if(NOT AETHER_MOBILE)
+    find_package(Qt6 6.12 REQUIRED COMPONENTS
+        Widgets
+        OpenGL
+        OpenGLWidgets
+        Test
+    )
+endif()
 # zlib is bundled under third_party/zlib (1.3.1) for parity with the
 # libmosquitto bundling pattern (#699) and per the constitution's
 # Technology Constraint preferring bundled libraries over package
@@ -382,7 +409,9 @@ endif()
 # GetCommModemStatus outside a WaitCommEvent completion).  Qt6::SerialPort
 # is still useful on Linux/macOS for pin polling, so the find_package call
 # stays platform-agnostic.
-if(REQUIRE_SERIALPORT)
+if(AETHER_MOBILE)
+    # No serial PTT/CW or serial amplifier links on a mobile client.
+elseif(REQUIRE_SERIALPORT)
     find_package(Qt6 REQUIRED COMPONENTS SerialPort)
 else()
     find_package(Qt6 QUIET COMPONENTS SerialPort)
@@ -398,7 +427,7 @@ if(Qt6WebSockets_FOUND)
 else()
     message(STATUS "Qt6::WebSockets not found — FreeDV Reporter spot source disabled")
 endif()
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT AETHER_MOBILE)
     find_package(Qt6 QUIET COMPONENTS DBus)
     if(Qt6DBus_FOUND)
         message(STATUS "Qt6::DBus found — sleep inhibition via D-Bus enabled")
@@ -462,7 +491,8 @@ if(WIN32)
     endif()
 else()
     find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
+    # Mobile clients play the sidetone through QAudioSink.
+    if(PkgConfig_FOUND AND NOT AETHER_MOBILE)
         pkg_check_modules(PORTAUDIO portaudio-2.0)
     endif()
 endif()
@@ -1214,7 +1244,9 @@ set(MODEL_SOURCES
 # Vendored QGeoView (LGPL-3.0) — slippy-map widget for the common
 # mapping engine (PSK Reporter map, future APRS map). Patched per
 # third_party/QGeoView/AETHERSDR-PATCHES.md.
-add_subdirectory(third_party/QGeoView/lib EXCLUDE_FROM_ALL)
+if(NOT AETHER_MOBILE)
+    add_subdirectory(third_party/QGeoView/lib EXCLUDE_FROM_ALL)
+endif()
 
 set(GUI_SOURCES
     src/gui/ControlAvailabilityRegistry.cpp
@@ -1679,41 +1711,48 @@ target_link_libraries(aethercore PRIVATE aether::wdsp)
 # remain temporarily in src/core while call sites migrate. A library keeps the
 # desktop executable and the automation test harnesses on the same linkage path
 # without pulling QtWidgets into the headless engine.
-add_library(aetherdesktop_support STATIC
-    src/gui/PeripheralAuthStore.cpp
-    src/gui/TxPointerAction.cpp
-    src/core/AutomationServer.cpp
-    src/core/SettingsHelpers.cpp
-    src/core/ShortcutManager.cpp
-    src/core/ThemeManager.cpp
-    src/core/ThemeSeedGenerated.cpp
-)
-target_link_libraries(aetherdesktop_support PUBLIC
-    aethercore
-    Qt6::Widgets
-)
+# Later blocks that configure these two targets test if(TARGET AetherSDR).
+if(NOT AETHER_MOBILE)
+    add_library(aetherdesktop_support STATIC
+        src/gui/PeripheralAuthStore.cpp
+        src/gui/TxPointerAction.cpp
+        src/core/AutomationServer.cpp
+        src/core/SettingsHelpers.cpp
+        src/core/ShortcutManager.cpp
+        src/core/ThemeManager.cpp
+        src/core/ThemeSeedGenerated.cpp
+    )
+    target_link_libraries(aetherdesktop_support PUBLIC
+        aethercore
+        Qt6::Widgets
+    )
 
-add_executable(AetherSDR
-    src/main.cpp
-    src/QtPlatformChoice.cpp  # start-up log lines: the Qt platform plugin and any fallback
-    ${GUI_SOURCES}
-    ${RESOURCES}
-    ${DFNR_RESOURCES}
-)
-target_link_libraries(AetherSDR PRIVATE
-    aetherdesktop_support
-)
+    add_executable(AetherSDR
+        src/main.cpp
+        src/QtPlatformChoice.cpp  # start-up log lines: the Qt platform plugin and any fallback
+        ${GUI_SOURCES}
+        ${RESOURCES}
+        ${DFNR_RESOURCES}
+    )
+    target_link_libraries(AetherSDR PRIVATE
+        aetherdesktop_support
+    )
+endif()
 
-add_executable(aetherd
-    src/aetherd/main.cpp
-    src/aetherd/CredentialStartup.cpp
-    src/aetherd/GrantAdminClient.cpp
-)
-target_link_libraries(aetherd PRIVATE
-    aethercore
-    Qt6::Core
-    Qt6::Network
-)
+# A daemon has no place on iOS; a Linux AETHER_MOBILE build keeps it as the
+# headless proof that the mobile engine links on its own.
+if(NOT IOS)
+    add_executable(aetherd
+        src/aetherd/main.cpp
+        src/aetherd/CredentialStartup.cpp
+        src/aetherd/GrantAdminClient.cpp
+    )
+    target_link_libraries(aetherd PRIVATE
+        aethercore
+        Qt6::Core
+        Qt6::Network
+    )
+endif()
 if(WIN32)
     # ole32/oleaut32: WindowsFirewall reads the firewall policy over COM;
     # shell32: its Fix runs netsh through a UAC prompt.
@@ -2187,10 +2226,12 @@ add_custom_target(aether_build_identity ALL
     VERBATIM)
 # AutomationServer.cpp (ping) lives in aetherdesktop_support; the About dialog
 # and Copy Assist's ASR fault stamp are in the executable.
-foreach(_aether_build_id_consumer aetherdesktop_support AetherSDR)
-    add_dependencies(${_aether_build_id_consumer} aether_build_identity)
-    target_include_directories(${_aether_build_id_consumer} PRIVATE "${AETHER_BUILD_ID_DIR}")
-endforeach()
+if(TARGET AetherSDR)
+    foreach(_aether_build_id_consumer aetherdesktop_support AetherSDR)
+        add_dependencies(${_aether_build_id_consumer} aether_build_identity)
+        target_include_directories(${_aether_build_id_consumer} PRIVATE "${AETHER_BUILD_ID_DIR}")
+    endforeach()
+endif()
 
 # Reproducible-builds.org SOURCE_DATE_EPOCH support.  When a distro
 # packager (Debian, Arch, NixOS, openSUSE, Fedora, etc.) sets
@@ -2361,14 +2402,19 @@ if((UNIX OR WIN32) AND ENABLE_DSTAR)
 endif()
 
 # Windows: GUI app (no console window) + icon resource
-if(WIN32)
+if(WIN32 AND TARGET AetherSDR)
     set_target_properties(AetherSDR PROPERTIES WIN32_EXECUTABLE TRUE)
     # MainWindow::applyWindowsFrameColor (DwmSetWindowAttribute).
     target_link_libraries(AetherSDR PRIVATE dwmapi)
 endif()
 
-# macOS app bundle
 if(APPLE)
+    target_link_libraries(aethercore PRIVATE "-framework AVFoundation" "-framework Accelerate" "-framework Foundation") # core: MacNRFilter/VirtualAudioBridge/AppActivity
+    target_sources(aethercore PRIVATE src/core/MacNRFilter.cpp)
+endif()
+
+# macOS app bundle
+if(APPLE AND TARGET AetherSDR)
     target_sources(AetherSDR PRIVATE src/MacStartupAbortGuard.cpp)
     target_sources(AetherSDR PRIVATE src/gui/mac/NativeWindowTitle.mm)
     target_link_libraries(AetherSDR PRIVATE "-framework AppKit")
@@ -2381,8 +2427,6 @@ if(APPLE)
         MACOSX_BUNDLE_ICON_FILE "AetherSDR.icns"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist.in"
     )
-    target_link_libraries(aethercore PRIVATE "-framework AVFoundation" "-framework Accelerate" "-framework Foundation") # core: MacNRFilter/VirtualAudioBridge/AppActivity
-    target_sources(aethercore PRIVATE src/core/MacNRFilter.cpp)
 
     # Generate AetherSDR.icns at build time from docs/assets/logo-circle.png so local
     # builds get an app icon without any extra setup (sips and iconutil are
@@ -2409,7 +2453,7 @@ if(APPLE)
     )
     target_sources(AetherSDR PRIVATE "${ICNS_PATH}")
     set_source_files_properties("${ICNS_PATH}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
-elseif(WIN32)
+elseif(WIN32 AND TARGET AetherSDR)
     # Windows application icon (taskbar, Start Menu, Alt-Tab)
     set(WIN_RC "${CMAKE_SOURCE_DIR}/packaging/windows/AetherSDR.rc")
     if(EXISTS "${WIN_RC}")
@@ -2462,12 +2506,14 @@ if(WIN32)
     target_link_libraries(aethercore PRIVATE iphlpapi version)
 endif()
 
-target_link_libraries(AetherSDR PRIVATE
-    qgeoview           # gui/map only
-    Qt6::OpenGL
-    Qt6::OpenGLWidgets
-    ${CMAKE_DL_LIBS}   # dlopen/dlsym for tolerant X11 error handler (#1839)
-)
+if(TARGET AetherSDR)
+    target_link_libraries(AetherSDR PRIVATE
+        qgeoview           # gui/map only
+        Qt6::OpenGL
+        Qt6::OpenGLWidgets
+        ${CMAKE_DL_LIBS}   # dlopen/dlsym for tolerant X11 error handler (#1839)
+    )
+endif()
 
 # PUBLIC, not PRIVATE: tests/hl2_txdsp_test.cpp asserts a different
 # opposite-sideband floor for each modulator and has to know which one it
@@ -2495,10 +2541,12 @@ if(Qt6WebSockets_FOUND)
     target_sources(aethercore PRIVATE
         src/core/FreeDvClient.cpp
     )
-    target_sources(AetherSDR PRIVATE
-        src/gui/FreeDvReporterDialog.cpp
-        src/gui/FreeDvReporterModel.cpp
-    )
+    if(TARGET AetherSDR)
+        target_sources(AetherSDR PRIVATE
+            src/gui/FreeDvReporterDialog.cpp
+            src/gui/FreeDvReporterModel.cpp
+        )
+    endif()
     target_link_libraries(aethercore PUBLIC Qt6::WebSockets)
 endif()
 
@@ -2517,7 +2565,7 @@ if(Qt6Keychain_FOUND)
     # step — windeployqt, which stages qt6keychain.dll for the installer, isn't
     # involved — so the DLL needs to land next to the exe or the app fails to
     # start with "qt6keychain.dll was not found".
-    if(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/third_party/qtkeychain/bin/qt6keychain.dll")
+    if(WIN32 AND TARGET AetherSDR AND EXISTS "${CMAKE_SOURCE_DIR}/third_party/qtkeychain/bin/qt6keychain.dll")
         add_custom_command(TARGET AetherSDR POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${CMAKE_SOURCE_DIR}/third_party/qtkeychain/bin/qt6keychain.dll"
@@ -2531,7 +2579,7 @@ if(Qt6Keychain_FOUND)
     # rpath keeps the ad-hoc signature valid — no install_name_tool).
     # macdeployqt still handles release DMGs; copy_if_different is a no-op
     # for it.
-    if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/third_party/qtkeychain/lib/libqt6keychain.1.dylib")
+    if(APPLE AND TARGET AetherSDR AND EXISTS "${CMAKE_SOURCE_DIR}/third_party/qtkeychain/lib/libqt6keychain.1.dylib")
         set_property(TARGET AetherSDR APPEND PROPERTY
             BUILD_RPATH "@executable_path/../Frameworks")
         add_custom_command(TARGET AetherSDR POST_BUILD
@@ -2683,8 +2731,10 @@ target_compile_definitions(aethercore PUBLIC HAVE_MIDI) # gui MidiMappingDialog 
 target_sources(aethercore PRIVATE
     src/core/MidiControlManager.cpp
     src/core/MidiSettings.cpp)
-target_sources(AetherSDR PRIVATE
-    src/gui/MidiMappingDialog.cpp)
+if(TARGET AetherSDR)
+    target_sources(AetherSDR PRIVATE
+        src/gui/MidiMappingDialog.cpp)
+endif()
 if (USE_SYSTEM_RTMIDI)
     find_package(PkgConfig REQUIRED)
     if(PkgConfig_FOUND)
@@ -2735,7 +2785,7 @@ if(WIN32)
         message(WARNING "hidapi not found. Run scripts/setup/setup-hidapi.ps1 to download it. "
                         "USB HID device support (Stream Deck, etc.) will be disabled.")
     endif()
-else()
+elseif(NOT AETHER_MOBILE)
     if(PkgConfig_FOUND)
         pkg_check_modules(HIDAPI hidapi-hidraw)
         if(NOT HIDAPI_FOUND)
@@ -2819,9 +2869,11 @@ target_sources(aethercore PRIVATE
     src/core/UlanziDialMappings.cpp # pill->action document owner (ulanzi_mapping_migration_test)
     src/core/UlanziDialMappings.h
     src/core/backends/IRadioBackend.h)  # aetherd RFC step 2.1: radio-facing seam (§5.5); header-only Q_OBJECT
-target_sources(AetherSDR PRIVATE
-    src/gui/UlanziDialMapperDialog.cpp
-    src/gui/UlanziDialMapperDialog.h)
+if(TARGET AetherSDR)
+    target_sources(AetherSDR PRIVATE
+        src/gui/UlanziDialMapperDialog.cpp
+        src/gui/UlanziDialMapperDialog.h)
+endif()
 if(UNIX AND NOT APPLE)
     target_sources(aethercore PRIVATE
         src/core/EvdevEncoderManager.cpp
@@ -3365,6 +3417,9 @@ endif()
 # sources compiled into aethercore keep their per-source -w COMPILE_FLAGS,
 # which land after these target options and win (unchanged from monolith).
 foreach(_aether_tgt aethercore aetherdesktop_support AetherSDR aetherd)
+    if(NOT TARGET ${_aether_tgt})
+        continue()
+    endif()
     if(MSVC)
         target_compile_options(${_aether_tgt} PRIVATE /W3 /Zc:__cplusplus /permissive- /utf-8 /bigobj)
     else()
@@ -3389,83 +3444,91 @@ endforeach()
 # It is include()d rather than add_subdirectory()'d so that relative paths inside
 # it keep resolving against the repository root. The header of that file explains
 # why that matters and why it should not be "tidied up" into a subdirectory.
-enable_testing()
-include(tests/tests.cmake)
+# The test harnesses link QtTest and, for the gui tests, QtWidgets; a mobile
+# engine build is verified by the desktop build of the same sources.
+if(NOT AETHER_MOBILE)
+    enable_testing()
+    include(tests/tests.cmake)
+endif()
 
 
 # ── Install rules ────────────────────────────────────────────────────────────
 include(GNUInstallDirs)
 
-if(LINUX AND NOT DEFINED CMAKE_INSTALL_RPATH_USE_LINK_PATH)
-    # Keep pinned or non-system Qt loadable after install; explicit builder overrides win.
-    set_property(TARGET AetherSDR PROPERTY INSTALL_RPATH_USE_LINK_PATH TRUE)
-endif()
-
-if(APPLE)
-    install(TARGETS AetherSDR
-        BUNDLE DESTINATION .
-    )
-    # BUNDLE installation copies the existing app directory. Remove the
-    # superseded helper if an incremental build tree still contains it.
-    install(CODE [[
-        file(REMOVE
-            "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/aether-dstar-waveform"
-            "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/aether-dstar-waveform.exe"
-            "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/ThumbDV.cfg"
-            "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/AetherDV.cfg")
-    ]])
-    if(TARGET aether-dv-waveform)
-        install(PROGRAMS "$<TARGET_FILE:aether-dv-waveform>"
-            DESTINATION AetherSDR.app/Contents/MacOS
-        )
-        # The manifest is not a Mach-O; keep it out of MacOS/ (codesign) — see
-        # the POST_BUILD note above.
-        install(FILES third_party/smartsdr-dsp/config/AetherDV.cfg
-            DESTINATION AetherSDR.app/Contents/Resources
-        )
+# The desktop app is the only installed artefact; a mobile build packages its
+# app bundle through Xcode instead.
+if(TARGET AetherSDR)
+    if(LINUX AND NOT DEFINED CMAKE_INSTALL_RPATH_USE_LINK_PATH)
+        # Keep pinned or non-system Qt loadable after install; explicit builder overrides win.
+        set_property(TARGET AetherSDR PROPERTY INSTALL_RPATH_USE_LINK_PATH TRUE)
     endif()
-else()
-    install(TARGETS AetherSDR
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-    if(TARGET aether-dv-waveform)
-        install(TARGETS aether-dv-waveform
+
+    if(APPLE)
+        install(TARGETS AetherSDR
+            BUNDLE DESTINATION .
+        )
+        # BUNDLE installation copies the existing app directory. Remove the
+        # superseded helper if an incremental build tree still contains it.
+        install(CODE [[
+            file(REMOVE
+                "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/aether-dstar-waveform"
+                "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/aether-dstar-waveform.exe"
+                "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/ThumbDV.cfg"
+                "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/AetherSDR.app/Contents/MacOS/AetherDV.cfg")
+        ]])
+        if(TARGET aether-dv-waveform)
+            install(PROGRAMS "$<TARGET_FILE:aether-dv-waveform>"
+                DESTINATION AetherSDR.app/Contents/MacOS
+            )
+            # The manifest is not a Mach-O; keep it out of MacOS/ (codesign) — see
+            # the POST_BUILD note above.
+            install(FILES third_party/smartsdr-dsp/config/AetherDV.cfg
+                DESTINATION AetherSDR.app/Contents/Resources
+            )
+        endif()
+    else()
+        install(TARGETS AetherSDR
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
-        install(FILES third_party/smartsdr-dsp/config/AetherDV.cfg
-            DESTINATION ${CMAKE_INSTALL_BINDIR}
-        )
-        if(LINUX)
-            install(FILES packaging/linux/70-aethersdr-thumbdv.rules
+        if(TARGET aether-dv-waveform)
+            install(TARGETS aether-dv-waveform
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+            install(FILES third_party/smartsdr-dsp/config/AetherDV.cfg
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+            if(LINUX)
+                install(FILES packaging/linux/70-aethersdr-thumbdv.rules
+                    DESTINATION lib/udev/rules.d
+                )
+            endif()
+        endif()
+        if(LINUX AND HIDAPI_FOUND)
+            install(FILES packaging/linux/70-aethersdr-ctr2.rules
                 DESTINATION lib/udev/rules.d
             )
         endif()
-    endif()
-    if(LINUX AND HIDAPI_FOUND)
-        install(FILES packaging/linux/70-aethersdr-ctr2.rules
-            DESTINATION lib/udev/rules.d
+        if(LINUX AND AETHER_BACKEND_RTL)
+            install(FILES packaging/linux/70-rtl-sdr.rules
+                DESTINATION lib/udev/rules.d
+            )
+        endif()
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/packaging/linux/AetherSDR.desktop
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
+        )
+        install(FILES docs/assets/logo-circle-256.png
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps
+            RENAME aethersdr.png
+        )
+        install(FILES packaging/linux/io.github.aethersdr.aethersdr.metainfo.xml
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
+        )
+        # Install the man page uncompressed; distro packaging compresses man pages
+        # per its own policy (Debian/Arch re-gzip, so shipping a .gz would clash).
+        install(FILES packaging/linux/aethersdr.1
+            DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
         )
     endif()
-    if(LINUX AND AETHER_BACKEND_RTL)
-        install(FILES packaging/linux/70-rtl-sdr.rules
-            DESTINATION lib/udev/rules.d
-        )
-    endif()
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/packaging/linux/AetherSDR.desktop
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
-    )
-    install(FILES docs/assets/logo-circle-256.png
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps
-        RENAME aethersdr.png
-    )
-    install(FILES packaging/linux/io.github.aethersdr.aethersdr.metainfo.xml
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
-    )
-    # Install the man page uncompressed; distro packaging compresses man pages
-    # per its own policy (Debian/Arch re-gzip, so shipping a .gz would clash).
-    install(FILES packaging/linux/aethersdr.1
-        DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
-    )
 endif()
 
 # Stage 3's headless boundary is structural: neither the engine library nor
@@ -3522,7 +3585,9 @@ function(aether_assert_no_qtwidgets root_target)
 endfunction()
 
 aether_assert_no_qtwidgets(aethercore)
-aether_assert_no_qtwidgets(aetherd)
+if(TARGET aetherd)
+    aether_assert_no_qtwidgets(aetherd)
+endif()
 
 # CPack Configuration
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
