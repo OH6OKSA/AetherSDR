@@ -183,6 +183,7 @@ private:
     void scheduleTrafficSave();
     void cancelSerialProbe();
     void startNextSerialProbe();
+    bool serialProbeRunning() const;
     void finishSerialProbe(bool verified, const QString& detail);
     void autoSelectVerifiedSerial();
     int serialDeviceIndex(const QString& path) const;
@@ -193,7 +194,9 @@ private:
     quint64 m_nextTrafficId{1};
     QString m_trafficPersistencePath;
     QTimer m_saveTimer;
+#if QT_CONFIG(process)
     QProcess m_serialProbe;
+#endif
     QStringList m_serialProbeQueue;
     QString m_activeSerialProbePath;
     QString m_serialProbeForcedError;

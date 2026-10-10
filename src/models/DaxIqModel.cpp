@@ -67,6 +67,7 @@ bool makeOwnedFifo(const QString& path)
 // QProcess::startDetached so we KNOW the module loaded (and can unload by index).
 quint32 runPactlSync(const QStringList& args)
 {
+#if QT_CONFIG(process)
     QProcess proc;
     proc.start(QStringLiteral("pactl"), args);
     if (!proc.waitForFinished(5000)) {
@@ -81,6 +82,11 @@ quint32 runPactlSync(const QStringList& args)
     bool ok = false;
     const quint32 idx = proc.readAllStandardOutput().trimmed().toUInt(&ok);
     return ok ? idx : 0;
+#else
+    // No child processes (iOS), so no PulseAudio module to load.
+    Q_UNUSED(args);
+    return 0;
+#endif
 }
 
 } // namespace

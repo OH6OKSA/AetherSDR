@@ -60,7 +60,6 @@ DigitalVoiceWaveformProcess& DigitalVoiceWaveformProcess::instance()
 DigitalVoiceWaveformProcess::DigitalVoiceWaveformProcess(QObject* parent)
     : QObject(parent)
 {
-    m_process.setProcessChannelMode(QProcess::SeparateChannels);
     m_rxStartupWatchdog.setSingleShot(true);
     m_rxStartupWatchdog.setInterval(8000);
 
@@ -81,6 +80,8 @@ DigitalVoiceWaveformProcess::DigitalVoiceWaveformProcess(QObject* parent)
             this,
             [this](int) { updateRxStartupWatchdog(); });
 
+#if QT_CONFIG(process)
+    m_process.setProcessChannelMode(QProcess::SeparateChannels);
     connect(&m_process, &QProcess::started, this, [this] {
         setState(State::Starting, tr("Registering %1")
             .arg(activeModeName()));
@@ -126,6 +127,25 @@ DigitalVoiceWaveformProcess::DigitalVoiceWaveformProcess(QObject* parent)
             fail(tr("Failed to start digital voice service: %1").arg(m_process.errorString()));
         }
     });
+#endif
+}
+
+bool DigitalVoiceWaveformProcess::helperRunning() const
+{
+#if QT_CONFIG(process)
+    return m_process.state() != QProcess::NotRunning;
+#else
+    return false;
+#endif
+}
+
+void DigitalVoiceWaveformProcess::killHelper()
+{
+#if QT_CONFIG(process)
+    if (m_process.state() != QProcess::NotRunning) {
+        m_process.kill();
+    }
+#endif
 }
 
 QString DigitalVoiceWaveformProcess::stateName(State state)
@@ -236,8 +256,7 @@ bool DigitalVoiceWaveformProcess::startForRadio(const QHostAddress& radioAddress
     if (isActive()) {
         return m_mode == mode;
     }
-    if (m_state == State::Stopping
-            || m_process.state() != QProcess::NotRunning) {
+    if (m_state == State::Stopping || helperRunning()) {
         return false;
     }
 
@@ -303,6 +322,10 @@ bool DigitalVoiceWaveformProcess::startForRadio(const QHostAddress& radioAddress
         return false;
     }
 
+#if !QT_CONFIG(process)
+    fail(tr("The digital voice helper cannot be started on this platform"));
+    return false;
+#else
     const DigitalVoiceModeDescriptor& descriptor =
         DigitalVoiceModeRegistry::descriptor(mode);
     setState(State::Starting, tr("Starting"));
@@ -337,13 +360,12 @@ bool DigitalVoiceWaveformProcess::startForRadio(const QHostAddress& radioAddress
         if (startGeneration != m_startGeneration || m_state != State::Starting) {
             return;
         }
-        if (m_process.state() != QProcess::NotRunning) {
-            m_process.kill();
-        }
+        killHelper();
         fail(tr("Timed out while registering %1 with the radio")
             .arg(activeModeName()));
     });
     return true;
+#endif
 }
 
 void DigitalVoiceWaveformProcess::stop()
@@ -351,7 +373,7 @@ void DigitalVoiceWaveformProcess::stop()
     if (m_state == State::Stopped || m_state == State::Stopping) {
         return;
     }
-    if (m_state == State::Failed && m_process.state() == QProcess::NotRunning) {
+    if (m_state == State::Failed && !helperRunning()) {
         setState(State::Stopped, tr("Stopped"));
         return;
     }
@@ -363,10 +385,11 @@ void DigitalVoiceWaveformProcess::stop()
     // Waiting for QProcess::finished() races the radio's automatic DSTR -> DFM
     // status, which can release the claim before we recover the saved mode.
     deactivateModeAndRequestRestore();
-    if (m_process.state() == QProcess::NotRunning) {
+    if (!helperRunning()) {
         setState(State::Stopped, tr("Stopped"));
         return;
     }
+#if QT_CONFIG(process)
     const quint64 stopGeneration = ++m_stopGeneration;
     m_process.terminate();
     // Do not block the GUI thread waiting for the helper to exit. Its shutdown
@@ -379,6 +402,7 @@ void DigitalVoiceWaveformProcess::stop()
         qCWarning(lcWaveform) << "DigitalVoiceWaveformProcess: terminate timed out; killing process";
         m_process.kill();
     });
+#endif
 }
 
 void DigitalVoiceWaveformProcess::stopAndWait()
@@ -388,7 +412,7 @@ void DigitalVoiceWaveformProcess::stopAndWait()
     if (m_state == State::Stopped) {
         return;
     }
-    if (m_state == State::Failed && m_process.state() == QProcess::NotRunning) {
+    if (m_state == State::Failed && !helperRunning()) {
         setState(State::Stopped, tr("Stopped"));
         return;
     }
@@ -396,11 +420,12 @@ void DigitalVoiceWaveformProcess::stopAndWait()
     resetTelemetry(false);
     setState(State::Stopping, tr("Stopping"));
     deactivateModeAndRequestRestore();
-    if (m_process.state() == QProcess::NotRunning) {
+    if (!helperRunning()) {
         setState(State::Stopped, tr("Stopped"));
         return;
     }
 
+#if QT_CONFIG(process)
     m_process.terminate();
     if (!m_process.waitForFinished(1500)) {
         qCWarning(lcWaveform) << "DigitalVoiceWaveformProcess: terminate timed out; killing process";
@@ -412,6 +437,7 @@ void DigitalVoiceWaveformProcess::stopAndWait()
             return;
         }
     }
+#endif
     setState(State::Stopped, tr("Stopped"));
 }
 
@@ -436,9 +462,7 @@ void DigitalVoiceWaveformProcess::fail(const QString& message)
     m_registrationVerified = false;
     deactivateModeAndRequestRestore();
     resetTelemetry(false);
-    if (m_process.state() != QProcess::NotRunning) {
-        m_process.kill();
-    }
+    killHelper();
     qCWarning(lcWaveform) << "DigitalVoiceWaveformProcess:" << message;
     setState(State::Failed, message);
 }
@@ -476,6 +500,7 @@ QStringList DigitalVoiceWaveformProcess::launchArguments(const QHostAddress& rad
     return args;
 }
 
+#if QT_CONFIG(process)
 void DigitalVoiceWaveformProcess::drainOutput(QProcess::ProcessChannel channel, bool flush)
 {
     m_process.setReadChannel(channel);
@@ -489,6 +514,7 @@ void DigitalVoiceWaveformProcess::drainOutput(QProcess::ProcessChannel channel, 
     }
     processLines(lines);
 }
+#endif
 
 void DigitalVoiceWaveformProcess::processLines(const QList<QByteArray>& lines)
 {
