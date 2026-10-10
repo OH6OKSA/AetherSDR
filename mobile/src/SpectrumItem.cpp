@@ -1,0 +1,187 @@
+#include "SpectrumItem.h"
+
+#include "MobileEngine.h"
+
+#include <QPainter>
+#include <QPainterPath>
+
+#include <algorithm>
+#include <cstring>
+
+namespace AetherSDR::mobile {
+
+namespace {
+
+constexpr float kTraceMinDbm = -130.0f;
+constexpr float kTraceMaxDbm = -40.0f;
+constexpr float kRangeSmoothing = 0.05f;
+constexpr float kMinimumSpan = 10.0f;
+
+} // namespace
+
+SpectrumItem::SpectrumItem(QQuickItem* parent)
+    : QQuickPaintedItem(parent)
+{
+    setOpaquePainting(true);
+    setFillColor(QColor(QStringLiteral("#0b0f14")));
+}
+
+void SpectrumItem::setEngine(MobileEngine* engine)
+{
+    if (engine == m_engine) {
+        return;
+    }
+    if (m_engine) {
+        disconnect(m_engine, nullptr, this, nullptr);
+    }
+    m_engine = engine;
+    if (m_engine) {
+        connect(m_engine, &MobileEngine::spectrumFrame, this, &SpectrumItem::onSpectrum);
+        connect(m_engine, &MobileEngine::waterfallRow, this, &SpectrumItem::onWaterfallRow);
+        reportPixels();
+    }
+    emit engineChanged();
+}
+
+void SpectrumItem::setSpectrumFraction(double fraction)
+{
+    fraction = std::clamp(fraction, 0.1, 0.9);
+    if (qFuzzyCompare(fraction, m_spectrumFraction)) {
+        return;
+    }
+    m_spectrumFraction = fraction;
+    reportPixels();
+    update();
+    emit spectrumFractionChanged();
+}
+
+void SpectrumItem::geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry)
+{
+    QQuickPaintedItem::geometryChange(newGeometry, oldGeometry);
+    reportPixels();
+}
+
+void SpectrumItem::reportPixels()
+{
+    const int w = static_cast<int>(width());
+    const int specH = static_cast<int>(height() * m_spectrumFraction);
+    const int wfH = static_cast<int>(height()) - specH;
+    if (w <= 0 || specH <= 0 || wfH <= 0) {
+        return;
+    }
+    if (m_waterfall.width() != w || m_waterfall.height() != wfH) {
+        QImage resized(w, wfH, QImage::Format_RGB32);
+        resized.fill(Qt::black);
+        m_waterfall = resized;
+    }
+    if (m_engine) {
+        m_engine->setPanPixels(w, specH);
+    }
+}
+
+void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
+{
+    m_spectrum = binsDbm;
+    update();
+}
+
+void SpectrumItem::onWaterfallRow(const QVector<float>& bins)
+{
+    if (bins.isEmpty() || m_waterfall.isNull()) {
+        return;
+    }
+    // Noise floor ≈ 20th percentile, top ≈ 99th; smoothed across rows so the
+    // picture does not pump with every strong signal.
+    QVector<float> sorted = bins;
+    std::sort(sorted.begin(), sorted.end());
+    const float floor = sorted.at(sorted.size() / 5);
+    const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 99 / 100));
+    const float span = std::max(kMinimumSpan, (top - floor) * 1.5f);
+    if (!m_rangeSeeded) {
+        m_floor = floor;
+        m_span = span;
+        m_rangeSeeded = true;
+    } else {
+        m_floor += (floor - m_floor) * kRangeSmoothing;
+        m_span += (span - m_span) * kRangeSmoothing;
+    }
+
+    const int w = m_waterfall.width();
+    const int h = m_waterfall.height();
+    const qsizetype rowBytes = m_waterfall.bytesPerLine();
+    uchar* bits = m_waterfall.bits();
+    std::memmove(bits + rowBytes, bits, rowBytes * (h - 1));
+    auto* row = reinterpret_cast<QRgb*>(bits);
+    const qsizetype n = bins.size();
+    for (int x = 0; x < w; ++x) {
+        const qsizetype i = std::min<qsizetype>(n - 1, static_cast<qsizetype>(x) * n / w);
+        row[x] = colourFor((bins.at(i) - m_floor) / m_span);
+    }
+    update();
+}
+
+QRgb SpectrumItem::colourFor(float v) const
+{
+    v = std::clamp(v, 0.0f, 1.0f);
+    // black → blue → cyan → yellow → red → white
+    struct Stop { float at; int r; int g; int b; };
+    static constexpr Stop kStops[] = {
+        {0.00f, 0, 0, 0}, {0.25f, 0, 0, 160}, {0.45f, 0, 170, 220},
+        {0.65f, 240, 230, 0}, {0.85f, 230, 30, 0}, {1.00f, 255, 255, 255},
+    };
+    for (size_t i = 1; i < std::size(kStops); ++i) {
+        if (v <= kStops[i].at) {
+            const Stop& a = kStops[i - 1];
+            const Stop& b = kStops[i];
+            const float t = (v - a.at) / (b.at - a.at);
+            return qRgb(static_cast<int>(a.r + (b.r - a.r) * t),
+                        static_cast<int>(a.g + (b.g - a.g) * t),
+                        static_cast<int>(a.b + (b.b - a.b) * t));
+        }
+    }
+    return qRgb(255, 255, 255);
+}
+
+void SpectrumItem::paint(QPainter* painter)
+{
+    const qreal w = width();
+    const qreal specH = height() * m_spectrumFraction;
+
+    if (!m_waterfall.isNull()) {
+        painter->drawImage(QPointF(0, specH), m_waterfall);
+    }
+
+    painter->setPen(QColor(255, 255, 255, 25));
+    for (int i = 1; i < 9; ++i) {
+        const qreal y = specH * i / 9.0;
+        painter->drawLine(QPointF(0, y), QPointF(w, y));
+    }
+
+    if (m_spectrum.size() > 1) {
+        QPainterPath path;
+        const qsizetype n = m_spectrum.size();
+        for (qsizetype i = 0; i < n; ++i) {
+            const qreal x = w * i / (n - 1);
+            const float norm = (m_spectrum.at(i) - kTraceMinDbm) / (kTraceMaxDbm - kTraceMinDbm);
+            const qreal y = specH * (1.0 - std::clamp(norm, 0.0f, 1.0f));
+            if (i == 0) {
+                path.moveTo(x, y);
+            } else {
+                path.lineTo(x, y);
+            }
+        }
+        QPainterPath fill = path;
+        fill.lineTo(w, specH);
+        fill.lineTo(0, specH);
+        fill.closeSubpath();
+        painter->fillPath(fill, QColor(63, 182, 255, 50));
+        painter->setPen(QPen(QColor(63, 182, 255), 1.5));
+        painter->drawPath(path);
+    }
+
+    // Centre line marks the pan centre; the slice marker is drawn in QML.
+    painter->setPen(QColor(255, 255, 255, 60));
+    painter->drawLine(QPointF(0, specH), QPointF(w, specH));
+}
+
+} // namespace AetherSDR::mobile

@@ -1,0 +1,72 @@
+#include "MobileEngine.h"
+
+#include "core/AppSettings.h"
+#include "core/QtAudioBackendGuard.h"
+#include "models/Nr2SettingsModel.h"
+
+#include <QCommandLineParser>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQuickStyle>
+#include <QQuickWindow>
+#include <QTimer>
+
+int main(int argc, char* argv[])
+{
+    AetherSDR::QtAudioBackendGuard::applyAtStartup();
+
+    QGuiApplication app(argc, argv);
+    // Settings and config paths derive from these names; the mobile client
+    // keeps its own settings, apart from a desktop install on the same host.
+    QGuiApplication::setApplicationName(QStringLiteral("AetherSDR-Mobile"));
+    QGuiApplication::setOrganizationName(QStringLiteral("AetherSDR"));
+    QGuiApplication::setApplicationVersion(QStringLiteral(AETHERSDR_VERSION));
+
+    QCommandLineParser parser;
+    parser.addHelpOption();
+    parser.addVersionOption();
+    const QCommandLineOption demoOption(QStringLiteral("demo"),
+        QStringLiteral("Connect to the built-in demo radio as soon as it is listed."));
+    parser.addOption(demoOption);
+    const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
+        QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
+        QStringLiteral("file"));
+    const QCommandLineOption screenshotDelayOption(QStringLiteral("screenshot-delay"),
+        QStringLiteral("Delay before --screenshot, in milliseconds."), QStringLiteral("ms"),
+        QStringLiteral("8000"));
+    parser.addOption(screenshotOption);
+    parser.addOption(screenshotDelayOption);
+    parser.process(app);
+
+    // Settings load before any model or the AudioEngine is constructed.
+    AetherSDR::AppSettings::instance().load();
+    static_cast<void>(AetherSDR::Nr2SettingsModel::instance());
+    AetherSDR::AppSettings::instance().initializeGuiClientIdentity();
+
+    QQuickStyle::setStyle(QStringLiteral("Basic"));
+
+    AetherSDR::mobile::MobileEngine engine;
+
+    QQmlApplicationEngine qml;
+    QObject::connect(&qml, &QQmlApplicationEngine::objectCreationFailed, &app,
+                     [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
+    qml.loadFromModule("AetherMobile", "Main");
+
+    if (parser.isSet(demoOption)) {
+        engine.connectToDemoWhenListed();
+    }
+
+    if (parser.isSet(screenshotOption)) {
+        const QString path = parser.value(screenshotOption);
+        QObject::connect(&engine, &AetherSDR::mobile::MobileEngine::connectionStateChanged, &engine,
+                         [&engine] { engine.setMuted(true); });
+        QTimer::singleShot(parser.value(screenshotDelayOption).toInt(), &app, [&qml, path] {
+            auto* window = qml.rootObjects().isEmpty()
+                ? nullptr : qobject_cast<QQuickWindow*>(qml.rootObjects().constFirst());
+            const bool saved = window && window->grabWindow().save(path);
+            QCoreApplication::exit(saved ? 0 : 2);
+        });
+    }
+
+    return app.exec();
+}

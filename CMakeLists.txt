@@ -3444,6 +3444,10 @@ endforeach()
 # It is include()d rather than add_subdirectory()'d so that relative paths inside
 # it keep resolving against the repository root. The header of that file explains
 # why that matters and why it should not be "tidied up" into a subdirectory.
+if(AETHER_MOBILE)
+    add_subdirectory(mobile)
+endif()
+
 # The test harnesses link QtTest and, for the gui tests, QtWidgets; a mobile
 # engine build is verified by the desktop build of the same sources.
 if(NOT AETHER_MOBILE)
