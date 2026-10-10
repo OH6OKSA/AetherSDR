@@ -59,7 +59,7 @@ alone. MSVC flags and `Release` builds are unaffected.
 | Option | Default | Purpose and prerequisites |
 |---|---|---|
 | `ENABLE_DEEPFIST_EXPERIMENT` | OFF | Build the experimental DeepFist CW receive decoder. Requires ONNX Runtime at configure time (configuration fails without it) and a separate verified model bundle at runtime; see below. |
-| `ENABLE_RTL` | ON | Build the experimental receive-only RTL-SDR USB backend when both `librtlsdr` and single-precision FFTW (`fftw3f`) are found. Missing either disables the backend. |
+| `ENABLE_RTL` | ON (OFF when `AETHER_MOBILE`) | Build the experimental receive-only RTL-SDR USB backend when both `librtlsdr` and single-precision FFTW (`fftw3f`) are found. Missing either disables the backend. |
 | `AETHER_HL2_TX_TXA` | ON | Select WDSP's TXA chain for the Hermes-Lite 2 SSB transmit modulator. OFF builds the in-tree phasing modulator. This choice has no runtime toggle. |
 
 **DeepFist:** enabling `-DENABLE_DEEPFIST_EXPERIMENT=ON` alone does not supply its
@@ -82,17 +82,23 @@ receive/transmit limits. Compiling a backend does not establish hardware support
 | Option | Default | Purpose and prerequisites |
 |---|---|---|
 | `ENABLE_RADE` | ON | RADE digital voice using the vendored RADE/Opus sources. |
-| `ENABLE_DSTAR` | ON | Local D-STAR waveform helper using vendored smartsdr-dsp/ThumbDV support. |
+| `ENABLE_DSTAR` | ON (OFF when `AETHER_MOBILE`) | Local D-STAR waveform helper using vendored smartsdr-dsp/ThumbDV support. |
 | `ENABLE_SPECBLEACH` | ON | NR4 spectral noise reduction. MSVC builds also need `clang-cl`; otherwise CMake disables it. |
-| `ENABLE_DFNR` | ON | DFNR DeepFilterNet3 noise reduction. Run `scripts/setup/setup-deepfilter.sh` (Windows: `setup-deepfilter.ps1`) before configuring. A missing library disables it. |
-| `ENABLE_NVIDIA_AFX` | ON | BNR NVIDIA Maxine AFX GPU denoiser wrapper on x86-64 Linux/Windows. Operation needs a compatible NVIDIA GPU and the runtime/model pack, downloaded on demand. |
-| `ENABLE_ASR` | ON | On-device speech recognition through whisper.cpp. Speech model weights are downloaded separately. |
+| `ENABLE_DFNR` | ON (OFF when `AETHER_MOBILE`) | DFNR DeepFilterNet3 noise reduction. Run `scripts/setup/setup-deepfilter.sh` (Windows: `setup-deepfilter.ps1`) before configuring. A missing library disables it. |
+| `ENABLE_NVIDIA_AFX` | ON (OFF when `AETHER_MOBILE`) | BNR NVIDIA Maxine AFX GPU denoiser wrapper on x86-64 Linux/Windows. Operation needs a compatible NVIDIA GPU and the runtime/model pack, downloaded on demand. |
+| `ENABLE_ASR` | ON (OFF when `AETHER_MOBILE`) | On-device speech recognition through whisper.cpp. Speech model weights are downloaded separately. |
 | `ENABLE_ASR_METAL` | ON | ASR Metal acceleration on macOS. Declared only on macOS with ASR enabled; elsewhere the switch does not exist and `-D` produces only an unused-variable warning. |
 | `ENABLE_ASR_VULKAN` | ON | ASR Vulkan acceleration when the GPU build dependencies are found. Declared only on non-macOS platforms with ASR enabled; on macOS the switch does not exist. |
 | `ENABLE_ASR_METAL_PRECOMPILE` | ON | Precompile Metal kernels on macOS. Declared only for vendored whisper builds (`USE_SYSTEM_LIBWHISPER=OFF`) with ASR enabled. Needs the offline Metal toolchain; a missing compiler warns and falls back to shader source unless `REQUIRE_ASR_GPU` is ON. |
-| `AETHER_GPU_SPECTRUM` | ON | QRhi spectrum/waterfall rendering. Needs Qt ShaderTools (configuration fails without it) and private QtGui headers; missing private headers select the CPU build. See [GPU spectrum rendering](docs/BUILDING.md#gpu-spectrum-rendering). |
-| `ENABLE_MQTT` | ON | MQTT client support using bundled libmosquitto or the selected system library. |
+| `AETHER_GPU_SPECTRUM` | ON (OFF when `AETHER_MOBILE`) | QRhi spectrum/waterfall rendering. Needs Qt ShaderTools (configuration fails without it) and private QtGui headers; missing private headers select the CPU build. See [GPU spectrum rendering](docs/BUILDING.md#gpu-spectrum-rendering). |
+| `ENABLE_MQTT` | ON (OFF when `AETHER_MOBILE`) | MQTT client support using bundled libmosquitto or the selected system library. |
 | `MQTT_TLS` | ON | MQTT TLS support. The bundled library uses OpenSSL when found; OFF omits TLS. |
+
+## Mobile engine build
+
+| Option | Default | Purpose and prerequisites |
+|---|---|---|
+| `AETHER_MOBILE` | OFF; ON when targeting iOS | Build `libaethercore` for a mobile touch client. The desktop app, `aetherdesktop_support`, QGeoView and the test harnesses are not configured, so QtWidgets, QtOpenGL and QtTest are not required. Serial, HID, PortAudio and D-Bus are not probed. The desktop-only feature switches marked above default to OFF. `aetherd` is still built on Linux and macOS as a headless link check. iOS refuses `AETHER_MOBILE=OFF`, and Windows refuses `AETHER_MOBILE=ON`. |
 
 ## Packaging and dependency selection
 
