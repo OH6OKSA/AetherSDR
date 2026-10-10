@@ -72,14 +72,21 @@ private:
     QStringList launchArguments(const QHostAddress& radioAddress,
                                 const QString& effectiveMyCall,
                                 const DigitalVoiceModeDescriptor& mode) const;
+    // Without QProcess support (iOS) no helper is ever started or running.
+    bool helperRunning() const;
+    void killHelper();
+#if QT_CONFIG(process)
     void drainOutput(QProcess::ProcessChannel channel, bool flush = false);
+#endif
     void processLines(const QList<QByteArray>& lines);
     void updateMetrics(DigitalVoiceWaveformMetrics metrics);
     void resetTelemetry(bool advanceGeneration);
     void setHealth(DigitalVoiceWaveformHealth health);
     void updateRxStartupWatchdog();
 
+#if QT_CONFIG(process)
     QProcess m_process;
+#endif
     QTimer m_rxStartupWatchdog;
     State m_state{State::Stopped};
     QString m_statusText;
