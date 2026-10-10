@@ -1,0 +1,148 @@
+name: Mobile iOS engine
+
+# Compile-only check that libaethercore builds for iOS arm64 (AETHER_MOBILE).
+# Runs on mobile/** branches and on demand; no signing, no app bundle yet.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['mobile/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+# Same Qt pin as cmake/qt-pin.env (tools/check_qt_pin.py does not cover this
+# file yet; keep the two values in step by hand).
+env:
+  QT_VERSION: '6.12.0'
+  QT_PACKAGE_REVISION: '202609280346'
+  AQTINSTALL_VERSION: '3.3.0'
+  PY7ZR_VERSION: '1.1.3'
+  FFTW_VERSION: '3.3.10'
+  FFTW_SHA256: '56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467'
+  IOS_DEPLOYMENT_TARGET: '17.0'
+
+jobs:
+  ios-engine:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: command -v ninja || brew install ninja
+
+      - name: Select Xcode
+        run: |
+          set -o pipefail
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+
+      - name: Restore Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/Qt
+          key: qt-${{ env.QT_VERSION }}-${{ env.QT_PACKAGE_REVISION }}-ios+macos-aqt${{ env.AQTINSTALL_VERSION }}-mm.ws
+
+      - name: Install Qt (iOS + macOS host) via aqtinstall
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        run: |
+          set -o pipefail
+          python3 -m venv "$RUNNER_TEMP/aqtvenv"
+          "$RUNNER_TEMP/aqtvenv/bin/pip" install -q "aqtinstall==${AQTINSTALL_VERSION}" "py7zr==${PY7ZR_VERSION}"
+          "$RUNNER_TEMP/aqtvenv/bin/aqt" install-qt mac ios "$QT_VERSION" ios --autodesktop \
+            -m qtmultimedia qtwebsockets \
+            --outputdir "${{ github.workspace }}/Qt"
+
+      - name: Export Qt environment
+        run: |
+          set -o pipefail
+          QT_IOS="${{ github.workspace }}/Qt/$QT_VERSION/ios"
+          QT_HOST="${{ github.workspace }}/Qt/$QT_VERSION/macos"
+          ls "${{ github.workspace }}/Qt/$QT_VERSION/"
+          test -x "$QT_IOS/bin/qt-cmake" || { echo "ERROR: no qt-cmake at $QT_IOS"; exit 1; }
+          echo "QT_IOS=$QT_IOS" >> "$GITHUB_ENV"
+          echo "QT_HOST=$QT_HOST" >> "$GITHUB_ENV"
+
+      - name: Restore FFTW (iOS arm64)
+        id: cache-fftw
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/fftw-ios
+          key: fftw-${{ env.FFTW_VERSION }}-ios-arm64-${{ env.IOS_DEPLOYMENT_TARGET }}-v1
+
+      # WDSP and NR2 need double precision; NR4 (libspecbleach) needs float.
+      - name: Build FFTW for iOS arm64
+        if: steps.cache-fftw.outputs.cache-hit != 'true'
+        run: |
+          set -o pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o fftw.tar.gz "https://www.fftw.org/fftw-${FFTW_VERSION}.tar.gz"
+          echo "${FFTW_SHA256}  fftw.tar.gz" | shasum -a 256 -c -
+          tar xzf fftw.tar.gz
+          for prec in double float; do
+            extra=""
+            if [ "$prec" = float ]; then extra="-DENABLE_FLOAT=ON -DENABLE_NEON=ON"; fi
+            cmake -S "fftw-${FFTW_VERSION}" -B "fftw-build-$prec" -G Ninja \
+              -DCMAKE_SYSTEM_NAME=iOS \
+              -DCMAKE_OSX_ARCHITECTURES=arm64 \
+              -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+              -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF \
+              -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/fftw-ios" $extra
+            cmake --build "fftw-build-$prec" --parallel
+            cmake --install "fftw-build-$prec"
+          done
+          ls -la "$RUNNER_TEMP/fftw-ios/lib"
+
+      - name: Configure (iOS, AETHER_MOBILE)
+        run: |
+          set -o pipefail
+          export PKG_CONFIG_LIBDIR="$RUNNER_TEMP/fftw-ios/lib/pkgconfig"
+          "$QT_IOS/bin/qt-cmake" -S . -B build-ios -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQT_HOST_PATH="$QT_HOST" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET" \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/fftw-ios" \
+            -DCMAKE_FIND_ROOT_PATH="$RUNNER_TEMP/fftw-ios" \
+            -DAETHER_USE_PINNED_QT=OFF \
+            2>&1 | tee configure.log
+
+      - name: Build aethercore (keep going)
+        run: |
+          set -o pipefail
+          cmake --build build-ios --target aethercore -- -k 0 2>&1 | tee build.log
+
+      - name: Summarize errors
+        if: always()
+        run: |
+          {
+            echo "## iOS aethercore build"
+            echo
+            echo "Configure errors:"
+            echo '```'
+            grep -E "CMake Error|FATAL" configure.log 2>/dev/null | head -50 || true
+            echo '```'
+            echo "Compile errors (unique, first 150):"
+            echo '```'
+            grep -E "error:" build.log 2>/dev/null | sed -E 's#^.*/(src|third_party)/#\1/#' | sort -u | head -150 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-engine-logs
+          path: |
+            configure.log
+            build.log
+            build-ios/CMakeCache.txt
+            build-ios/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
