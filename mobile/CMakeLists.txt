@@ -50,6 +50,9 @@ else()
 endif()
 
 if(IOS)
+    # Audio goes through the Darwin multimedia backend; the FFmpeg plugin
+    # would need FFmpeg frameworks the app neither ships nor uses.
+    qt_import_plugins(aether-mobile EXCLUDE Qt6::QFFmpegMediaPlugin)
     set_target_properties(aether-mobile PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.aethersdr.mobile"
