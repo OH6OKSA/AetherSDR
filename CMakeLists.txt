@@ -2884,7 +2884,7 @@ if(WIN32)
         src/core/UlanziDialWindowsManager.cpp
         src/core/UlanziDialWindowsManager.h)
 endif()
-if(APPLE)
+if(APPLE AND NOT IOS)
     target_sources(aethercore PRIVATE
         src/core/UlanziDialMacOSManager.cpp
         src/core/UlanziDialMacOSManager.h)

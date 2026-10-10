@@ -239,6 +239,7 @@ DStarModel::DStarModel(QObject* parent, bool autoSelectSerial)
             [this](int) { emit serviceChanged(); },
             Qt::QueuedConnection);
 
+#if QT_CONFIG(process)
     m_serialProbe.setProcessChannelMode(QProcess::MergedChannels);
     connect(&m_serialProbe,
             qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
@@ -268,6 +269,7 @@ DStarModel::DStarModel(QObject* parent, bool autoSelectSerial)
                     .arg(m_serialProbe.errorString()));
         }
     });
+#endif
     connect(&process, &DigitalVoiceWaveformProcess::stateChanged, this,
             [this](DigitalVoiceWaveformProcess::State) {
         if (!DigitalVoiceWaveformProcess::instance().registrationVerified()) {
@@ -820,6 +822,7 @@ void DStarModel::cancelSerialProbe()
     m_serialProbeQueue.clear();
     m_activeSerialProbePath.clear();
     m_serialProbeForcedError.clear();
+#if QT_CONFIG(process)
     if (m_serialProbe.state() != QProcess::NotRunning) {
         m_serialProbe.kill();
         m_serialProbe.waitForFinished(500);
@@ -827,12 +830,21 @@ void DStarModel::cancelSerialProbe()
     if (m_serialProbe.isOpen()) {
         m_serialProbe.readAll();
     }
+#endif
+}
+
+bool DStarModel::serialProbeRunning() const
+{
+#if QT_CONFIG(process)
+    return m_serialProbe.state() != QProcess::NotRunning;
+#else
+    return false;
+#endif
 }
 
 void DStarModel::startNextSerialProbe()
 {
-    if (!m_activeSerialProbePath.isEmpty()
-        || m_serialProbe.state() != QProcess::NotRunning) {
+    if (!m_activeSerialProbePath.isEmpty() || serialProbeRunning()) {
         return;
     }
     if (m_serialProbeQueue.isEmpty()) {
@@ -859,6 +871,12 @@ void DStarModel::startNextSerialProbe()
         return;
     }
 
+#if !QT_CONFIG(process)
+    m_activeSerialProbePath = path;
+    finishSerialProbe(false,
+        tr("ThumbDV verification needs a helper process, which this platform cannot start."));
+    return;
+#else
     m_activeSerialProbePath = path;
     m_serialProbeForcedError.clear();
     m_activeSerialProbeGeneration = m_serialProbeGeneration;
@@ -886,6 +904,7 @@ void DStarModel::startNextSerialProbe()
             tr("Timed out waiting for a DV3000 response.");
         m_serialProbe.kill();
     });
+#endif
 }
 
 void DStarModel::finishSerialProbe(bool verified, const QString& detail)
