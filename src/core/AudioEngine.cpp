@@ -56,7 +56,7 @@
 #include "Resampler.h"
 #include "TxVoiceProcessor.h"
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include <CoreAudio/CoreAudio.h>
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -404,7 +404,7 @@ void logAudioOpenFailure(const QString& path,
     AudioSummaryLogger::logOpenFailure(summary);
 }
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 AudioObjectPropertyAddress macAudioAddress(AudioObjectPropertySelector selector,
                                            AudioObjectPropertyScope scope = kAudioObjectPropertyScopeGlobal)
 {
@@ -8931,7 +8931,7 @@ bool AudioEngine::startTxStream(const QHostAddress& radioAddress, quint16 radioP
 #else
     bool txBluetoothHfp = false;
     int  txPreferredOverride = 0;
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     // CoreAudio-HAL detection the factory can't derive from QAudioDevice: if this
     // is a Bluetooth-HFP capture route, put its native low rate first (#2615).
     if (const auto nativeRate = macBluetoothNativeInputRate(dev)) {
