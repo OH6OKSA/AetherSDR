@@ -76,6 +76,7 @@ Page {
                 id: addressField
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.touchTarget
+                text: Engine.lastAddress
                 placeholderText: qsTr("FlexRadio IP address, e.g. 192.168.1.50")
                 inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhNoPredictiveText
                 font.pixelSize: 18

@@ -141,6 +141,7 @@ public:
     [[nodiscard]] DataLiveness dataLiveness() const;
     TunerModel&       tunerModel()       { return m_tunerModel; }
     TransmitModel&    transmitModel()    { return m_transmitModel; }
+    const TransmitModel& transmitModel() const { return m_transmitModel; }
     EqualizerModel&   equalizerModel()   { return m_equalizerModel; }
     TnfModel&         tnfModel()         { return m_tnfModel; }
     SpotModel&        spotModel()        { return m_spotModel; }

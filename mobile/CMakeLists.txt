@@ -18,8 +18,14 @@ qt_add_executable(aether-mobile
     src/RadioListModel.h
     src/SpectrumItem.cpp
     src/SpectrumItem.h
+    src/ScreenAwake.h
     ${AETHER_MOBILE_RESOURCES}
 )
+if(IOS)
+    target_sources(aether-mobile PRIVATE ios/ScreenAwake.mm)
+else()
+    target_sources(aether-mobile PRIVATE src/ScreenAwake.cpp)
+endif()
 
 # Must precede qt_add_qml_module, which reads it when writing the qmldir.
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -32,6 +38,7 @@ qt_add_qml_module(aether-mobile
         qml/ConnectPage.qml
         qml/OperatePage.qml
         qml/Theme.qml
+        qml/FrequencyDialog.qml
 )
 
 # The generated QML type registrations include the headers by bare name.

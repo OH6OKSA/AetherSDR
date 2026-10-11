@@ -127,8 +127,11 @@ jobs:
           cmake --build build-ios --target aether-mobile -- -k 0 2>&1 | tee app.log
           app="$(find build-ios/mobile -maxdepth 2 -name 'aether-mobile.app' -type d | head -1)"
           test -n "$app" || { echo "ERROR: no aether-mobile.app produced"; exit 1; }
-          ditto -c -k --keepParent "$app" aether-mobile-unsigned.app.zip
-          ls -la aether-mobile-unsigned.app.zip
+          # An .ipa is the bundle under Payload/; sideloading tools re-sign it
+          # with the installer's own Apple ID.
+          rm -rf Payload && mkdir Payload && cp -R "$app" Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload aether-mobile-unsigned.ipa
+          ls -la aether-mobile-unsigned.ipa
       - name: Summarize errors
         if: always()
         run: |
@@ -165,6 +168,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: aether-mobile-unsigned-app
-          path: aether-mobile-unsigned.app.zip
+          name: aether-mobile-unsigned-ipa
+          path: aether-mobile-unsigned.ipa
           if-no-files-found: error

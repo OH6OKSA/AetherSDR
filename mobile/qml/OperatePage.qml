@@ -53,6 +53,8 @@ Page {
                     color: Theme.text
                     font.pixelSize: 56
                     font.family: "monospace"
+                    // Tap for direct entry.
+                    TapHandler { onTapped: freqDialog.open() }
                 }
                 Label {
                     text: Engine.mode
@@ -71,6 +73,23 @@ Page {
                         from: -130
                         to: -20
                         value: Engine.sMeterDbm
+                    }
+                }
+            }
+
+            // Band stack (Flex): restores the band's last frequency and mode.
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spacing / 2
+                visible: Engine.bandsAvailable
+                Repeater {
+                    model: Engine.bands
+                    delegate: Button {
+                        required property string modelData
+                        text: modelData
+                        width: 72
+                        height: Theme.touchTarget
+                        onClicked: Engine.selectBand(modelData)
                     }
                 }
             }
@@ -135,7 +154,7 @@ Page {
                         text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000 ? modelData / 1000 + " kHz" : modelData + " Hz")
                         Layout.preferredHeight: Theme.touchTarget
                         Layout.fillWidth: true
-                        onClicked: Engine.frequencyMhz = Engine.frequencyMhz + modelData / 1e6
+                        onClicked: Engine.tuneTo(Engine.frequencyMhz + modelData / 1e6)
                     }
                 }
             }
@@ -165,6 +184,29 @@ Page {
                 }
             }
 
+            Label {
+                text: qsTr("Filter  %1 Hz").arg(Engine.filterHigh - Engine.filterLow)
+                color: Theme.textDim
+                font.pixelSize: 16
+                visible: Engine.filterPresets.length > 0
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Engine.filterPresets.length > 0
+                Repeater {
+                    model: Engine.filterPresets
+                    delegate: Button {
+                        required property int modelData
+                        text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
+                        checkable: true
+                        checked: Math.abs((Engine.filterHigh - Engine.filterLow) - modelData) < 60
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.touchTarget
+                        onClicked: Engine.setFilterWidth(modelData)
+                    }
+                }
+            }
+
             Label { text: qsTr("AF gain"); color: Theme.textDim; font.pixelSize: 16 }
             RowLayout {
                 Slider {
@@ -189,6 +231,20 @@ Page {
                 color: Theme.textDim
                 wrapMode: Text.Wrap
             }
+            Button {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.touchTarget
+                visible: Engine.canUseDeviceMicrophone
+                text: qsTr("Use this device's microphone")
+                onClicked: Engine.useDeviceMicrophone()
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: Engine.lastError.length > 0
+                text: Engine.lastError
+                color: Theme.warning
+                wrapMode: Text.Wrap
+            }
 
             Button {
                 id: ptt
@@ -210,4 +266,6 @@ Page {
             }
         }
     }
+
+    FrequencyDialog { id: freqDialog }
 }

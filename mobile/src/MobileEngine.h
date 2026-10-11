@@ -2,7 +2,10 @@
 
 #include "RadioListModel.h"
 
+#include "core/TxCoordinator.h"
+#include "core/backends/RadioCapabilities.h"
 #include "models/RadioSession.h"
+#include "models/TxController.h"
 
 #include <QObject>
 #include <QPointer>
@@ -46,8 +49,15 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QString sMeterText READ sMeterText NOTIFY sMeterChanged)
     Q_PROPERTY(double panCenterMhz READ panCenterMhz NOTIFY panGeometryChanged)
     Q_PROPERTY(double panBandwidthMhz READ panBandwidthMhz NOTIFY panGeometryChanged)
-    Q_PROPERTY(bool transmitAvailable READ transmitAvailable CONSTANT)
-    Q_PROPERTY(QString transmitUnavailableReason READ transmitUnavailableReason CONSTANT)
+    Q_PROPERTY(int filterLow READ filterLow NOTIFY filterChanged)
+    Q_PROPERTY(int filterHigh READ filterHigh NOTIFY filterChanged)
+    Q_PROPERTY(QList<int> filterPresets READ filterPresets NOTIFY modeChanged)
+    Q_PROPERTY(QStringList bands READ bands CONSTANT)
+    Q_PROPERTY(bool bandsAvailable READ bandsAvailable NOTIFY connectionStateChanged)
+    Q_PROPERTY(QString lastAddress READ lastAddress NOTIFY lastAddressChanged)
+    Q_PROPERTY(bool transmitAvailable READ transmitAvailable NOTIFY transmitStateChanged)
+    Q_PROPERTY(QString transmitUnavailableReason READ transmitUnavailableReason NOTIFY transmitStateChanged)
+    Q_PROPERTY(bool canUseDeviceMicrophone READ canUseDeviceMicrophone NOTIFY transmitStateChanged)
     Q_PROPERTY(bool transmitting READ transmitting NOTIFY transmittingChanged)
 
 public:
@@ -76,10 +86,20 @@ public:
     double panCenterMhz() const;
     double panBandwidthMhz() const;
 
-    // TX stays unavailable until the mic path and TxController wiring land.
-    bool transmitAvailable() const { return false; }
+    int filterLow() const;
+    int filterHigh() const;
+    // Passband widths (Hz) offered for the current mode.
+    QList<int> filterPresets() const;
+    QStringList bands() const;
+    bool bandsAvailable() const;
+    QString lastAddress() const;
+
+    // PTT is offered only when connected, the radio can transmit and its mic
+    // input is this device (mic_selection=PC); the reason says which is missing.
+    bool transmitAvailable() const;
     QString transmitUnavailableReason() const;
-    bool transmitting() const { return false; }
+    bool canUseDeviceMicrophone() const;
+    bool transmitting() const;
 
     Q_INVOKABLE void connectToRadio(int row);
     // A FlexRadio by address, for networks where discovery broadcasts do not
@@ -88,7 +108,17 @@ public:
     // Development aid (--demo): connect once the simulator entry appears.
     void connectToDemoWhenListed();
     Q_INVOKABLE void disconnectRadio();
+    // Hold-to-talk: true keys through the local TxController, false releases
+    // that same input. Every disconnect or loss of foreground also releases.
     Q_INVOKABLE void setPtt(bool down);
+    // Switch the radio's transmit audio input to this device's microphone.
+    Q_INVOKABLE void useDeviceMicrophone();
+    // Tune, recentring the pan when the target lies outside it.
+    Q_INVOKABLE void tuneTo(double mhz);
+    // Band change through the radio's band stack (Flex), which restores the
+    // last frequency and mode used on that band.
+    Q_INVOKABLE void selectBand(const QString& band);
+    Q_INVOKABLE void setFilterWidth(int widthHz);
     // The spectrum view reports its size so the radio sends matching frames.
     Q_INVOKABLE void setPanPixels(int width, int height);
 
@@ -103,6 +133,9 @@ signals:
     void sMeterChanged();
     void panGeometryChanged();
     void transmittingChanged();
+    void transmitStateChanged();
+    void filterChanged();
+    void lastAddressChanged();
     // Frames of the active panadapter only. Spectrum bins are dBm.
     // Waterfall rows are intensities on a backend-dependent scale.
     void spectrumFrame(const QVector<float>& binsDbm);
@@ -121,6 +154,12 @@ private:
     void setConnectionState(const QString& state);
     void setLastError(const QString& error);
     void connectWithInfo(const RadioInfo& info, const QString& displayName);
+    void wireTransmit();
+    void wireTxPacketSink();
+    void applyTxAudioCapabilities(bool connected, const RadioCapabilities& caps);
+    void startDeviceMicrophoneCapture();
+    void stopDeviceMicrophoneCapture();
+    void releasePtt(const char* reason);
 
     RadioSession m_session;
     RadioListModel m_radios;
@@ -130,6 +169,12 @@ private:
     QList<QMetaObject::Connection> m_rxAudioConnections;
     QList<QMetaObject::Connection> m_sliceConnections;
     QList<QMetaObject::Connection> m_panConnections;
+    QMetaObject::Connection m_txSinkConnection;
+    TxCoordinator::Producer m_microphoneProducer;
+    TxController::Input m_pttInput;
+    bool m_pttHeld{false};
+    bool m_connected{false};
+    RadioCapabilities m_caps;
     QPointer<SliceModel> m_slice;
     QPointer<PanadapterModel> m_pan;
     QString m_connectionState{QStringLiteral("idle")};

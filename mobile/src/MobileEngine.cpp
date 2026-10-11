@@ -1,6 +1,9 @@
 #include "MobileEngine.h"
 
+#include "ScreenAwake.h"
+
 #include "core/AppActivity.h"
+#include "core/AppSettings.h"
 #include "core/AudioEngine.h"
 #include "core/RadioDiscovery.h"
 #include "core/backends/IRadioBackend.h"
@@ -9,8 +12,12 @@
 #include "models/MeterModel.h"
 #include "models/PanadapterModel.h"
 #include "models/SliceModel.h"
+#include "models/TransmitModel.h"
+#include "models/XvtrPolicy.h"
 
+#include <QGuiApplication>
 #include <QHostAddress>
+#include <QPermissions>
 #include <QJSEngine>
 #include <QLoggingCategory>
 #include <QThread>
@@ -28,6 +35,10 @@ namespace {
 MobileEngine* s_instance = nullptr;
 
 constexpr double kS9Dbm = -73.0;
+// The radio's remote_audio_tx VITA-49 port (FlexLib).
+constexpr quint16 kRadioTxAudioPort = 4991;
+const QString kLastAddressKey = QStringLiteral("MobileLastRadioAddress");
+const QString kDeviceMicSelection = QStringLiteral("PC");
 constexpr double kDbPerSUnit = 6.0;
 
 } // namespace
@@ -54,7 +65,19 @@ MobileEngine::MobileEngine(QObject* parent)
             setConnectionState(QStringLiteral("idle"));
         }
     });
-    connect(&rm, &RadioModel::backendRebuilt, this, &MobileEngine::wireRxAudio);
+    connect(&rm, &RadioModel::backendRebuilt, this, [this] {
+        releasePtt("backend rebuilt");
+        wireRxAudio();
+        wireTxPacketSink();
+    });
+    wireTransmit();
+    // Losing the foreground (call, app switch, lock) must never leave the
+    // transmitter keyed.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state != Qt::ApplicationActive) {
+            releasePtt("application inactive");
+        }
+    });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
     connect(&rm, &RadioModel::sliceRemoved, this, [this](int) { selectActiveSlice(); });
     connect(&rm, &RadioModel::panadapterAdded, this, [this](PanadapterModel* pan) {
@@ -93,6 +116,8 @@ MobileEngine::MobileEngine(QObject* parent)
 MobileEngine::~MobileEngine()
 {
     s_instance = nullptr;
+    releasePtt("shutdown");
+    setKeepScreenAwake(false);
     if (m_discovery) {
         m_discovery->stop();
     }
@@ -154,6 +179,9 @@ void MobileEngine::connectToAddress(const QString& host)
     RadioInfo info;
     info.family = QStringLiteral("flex");
     info.address = address;
+    AppSettings::instance().setValue(kLastAddressKey, address.toString());
+    AppSettings::instance().save();
+    emit lastAddressChanged();
     connectWithInfo(info, address.toString());
 }
 
@@ -189,30 +217,328 @@ void MobileEngine::connectToDemoWhenListed()
 
 void MobileEngine::disconnectRadio()
 {
-    setPtt(false);
+    releasePtt("operator disconnect");
     m_session.radioModel().disconnectFromRadio();
 }
 
-void MobileEngine::setPtt(bool down)
+QString MobileEngine::lastAddress() const
 {
-    // No keying path exists yet; a release must never be lost once it does.
-    Q_UNUSED(down);
+    return AppSettings::instance().value(kLastAddressKey).toString();
+}
+
+// ---- transmit -------------------------------------------------------------
+
+void MobileEngine::wireTransmit()
+{
+    RadioModel& rm = m_session.radioModel();
+    // Host-routed PCM has no continuous contract: stamp it at PTT admission.
+    const TxCoordinator::Producer hostProducer = rm.registerTxProducer(m_audio);
+    connect(&rm, &RadioModel::localTransmitEngaged, this, [this, hostProducer] {
+        const TxCoordinator::Context context = m_session.radioModel().captureTxMedia(hostProducer);
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, context] {
+            audio->setHostMicrophoneContext(context);
+        }, Qt::QueuedConnection);
+    });
+
+    // The radio always forces Opus on remote_audio_tx (SmartSDR v1.4.0.0).
+    connect(&rm, &RadioModel::remoteTxStreamReady, this, [this](quint32 streamId) {
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, streamId] {
+            audio->setRemoteTxStreamId(streamId);
+            audio->setOpusTxEnabled(true);
+        }, Qt::QueuedConnection);
+        if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
+            startDeviceMicrophoneCapture();
+        } else {
+            stopDeviceMicrophoneCapture();
+        }
+        emit transmitStateChanged();
+    });
+    connect(&rm, &RadioModel::txAudioStreamReady, this, [this](quint32 streamId) {
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, streamId] {
+            audio->setTxStreamId(streamId);
+            audio->setOpusTxEnabled(true);
+        }, Qt::QueuedConnection);
+        if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
+            startDeviceMicrophoneCapture();
+        }
+    });
+    connect(&rm.transmitModel(), &TransmitModel::micStateChanged, this, [this] {
+        if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
+            startDeviceMicrophoneCapture();
+        } else {
+            releasePtt("mic input left this device");
+            stopDeviceMicrophoneCapture();
+        }
+        emit transmitStateChanged();
+    });
+    connect(&rm.transmitModel(), &TransmitModel::micInputListChanged, this, &MobileEngine::transmitStateChanged);
+    connect(&rm.transmitModel(), &TransmitModel::transmittingChanged, this, &MobileEngine::transmittingChanged);
+    connect(&rm, &RadioModel::capabilitiesChanged, this, &MobileEngine::applyTxAudioCapabilities);
+    wireTxPacketSink();
+}
+
+void MobileEngine::wireTxPacketSink()
+{
+    disconnect(m_txSinkConnection);
+    PanadapterStream* ps = m_session.radioModel().panStream();
+    if (!ps) {
+        return;
+    }
+    // Every TX packet passes the coordinator's dispatch fence before it
+    // reaches the radio; a stale or revoked context sends nothing.
+    m_txSinkConnection = connect(m_audio, &AudioEngine::txPacketReady, ps,
+        [ps](const QByteArray& packet, const TxCoordinator::Context& context) {
+            const TxCoordinator::Dispatch dispatch = context.beginDispatch(TxCoordinator::monotonicMs());
+            if (dispatch) {
+                ps->sendToRadio(packet);
+            }
+        });
+}
+
+void MobileEngine::applyTxAudioCapabilities(bool connected, const RadioCapabilities& caps)
+{
+    m_caps = caps;
+    const bool pcAudioRequired = caps.takesTxAudioOverSeam && caps.canTransmit && caps.hostModulates;
+    const bool pcAudioEnabled = pcAudioRequired
+        || AppSettings::instance().value(QStringLiteral("PcAudioEnabled"), QStringLiteral("True")).toString()
+               == QLatin1String("True");
+    RadioModel& rm = m_session.radioModel();
+    if (!m_microphoneProducer.valid()) {
+        m_microphoneProducer = rm.registerTxProducer(m_audio, true);
+    }
+    const TxCoordinator::Context microphone = connected
+        ? rm.captureTxMedia(m_microphoneProducer) : TxCoordinator::Context{};
+    AudioEngine* audio = m_audio;
+    const QHostAddress address = rm.radioAddress();
+    QMetaObject::invokeMethod(audio, [audio, connected, caps, pcAudioEnabled, address, microphone] {
+        audio->setMicrophoneContext(microphone);
+        audio->applyBackendAudioCapabilities(connected, caps, pcAudioEnabled, address);
+    });
+    if (connected) {
+        rm.notePcAudioEnabled(pcAudioEnabled);
+    }
+    emit transmitStateChanged();
+}
+
+void MobileEngine::startDeviceMicrophoneCapture()
+{
+    QMicrophonePermission permission;
+    switch (qApp->checkPermission(permission)) {
+    case Qt::PermissionStatus::Undetermined:
+        qApp->requestPermission(permission, this, [this](const QPermission& result) {
+            if (result.status() == Qt::PermissionStatus::Granted) {
+                startDeviceMicrophoneCapture();
+            } else {
+                setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
+            }
+            emit transmitStateChanged();
+        });
+        return;
+    case Qt::PermissionStatus::Denied:
+        setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
+        return;
+    case Qt::PermissionStatus::Granted:
+        break;
+    }
+    const int gain = AppSettings::instance().value(QStringLiteral("PcMicGain"), 100).toInt();
+    const QHostAddress address = m_session.radioModel().radioAddress();
+    AudioEngine* audio = m_audio;
+    QMetaObject::invokeMethod(audio, [audio, gain, address] {
+        audio->setPcMicGain(gain);
+        if (!audio->isTxStreaming() && audio->hasAnyTxStream()) {
+            audio->startTxStream(address, kRadioTxAudioPort);
+        }
+    }, Qt::QueuedConnection);
+}
+
+void MobileEngine::stopDeviceMicrophoneCapture()
+{
+    AudioEngine* audio = m_audio;
+    QMetaObject::invokeMethod(audio, [audio] {
+        if (audio->isTxStreaming()) {
+            audio->stopTxStream();
+        }
+    }, Qt::QueuedConnection);
+}
+
+bool MobileEngine::transmitAvailable() const
+{
+    return m_connected && m_caps.canTransmit
+        && m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection;
+}
+
+bool MobileEngine::canUseDeviceMicrophone() const
+{
+    const TransmitModel& tm = m_session.radioModel().transmitModel();
+    return m_connected && m_caps.canTransmit && tm.micSelection() != kDeviceMicSelection
+        && tm.micInputList().contains(kDeviceMicSelection);
 }
 
 QString MobileEngine::transmitUnavailableReason() const
 {
-    return tr("Transmit is not available in this prototype yet: the microphone path is not wired.");
+    if (!m_connected) {
+        return tr("Not connected.");
+    }
+    if (!m_caps.canTransmit) {
+        return tr("This radio is receive-only.");
+    }
+    const QString mic = m_session.radioModel().transmitModel().micSelection();
+    if (mic != kDeviceMicSelection) {
+        return tr("The radio takes transmit audio from its %1 input. Switch it to this device's microphone to transmit from here.")
+            .arg(mic);
+    }
+    return {};
+}
+
+bool MobileEngine::transmitting() const
+{
+    return m_session.radioModel().transmitModel().isTransmitting();
+}
+
+void MobileEngine::useDeviceMicrophone()
+{
+    if (canUseDeviceMicrophone()) {
+        m_session.radioModel().transmitModel().setMicSelection(kDeviceMicSelection);
+    }
+}
+
+void MobileEngine::setPtt(bool down)
+{
+    if (!down) {
+        releasePtt("operator release");
+        return;
+    }
+    if (m_pttHeld || !transmitAvailable()) {
+        return;
+    }
+    m_pttInput = m_session.radioModel().localTxController()->capture(TxController::Activity::Mox);
+    m_pttHeld = true;
+    if (!m_pttInput.start()) {
+        m_pttHeld = false;
+        m_pttInput.stop();
+        setLastError(tr("The radio did not accept the transmit request."));
+    }
+}
+
+void MobileEngine::releasePtt(const char* reason)
+{
+    if (!m_pttHeld) {
+        return;
+    }
+    m_pttHeld = false;
+    m_pttInput.stop();
+    qCInfo(lcMobile) << "PTT released:" << reason;
+}
+
+// ---- tuning, bands, filters ------------------------------------------------
+
+void MobileEngine::tuneTo(double mhz)
+{
+    if (!m_slice || mhz <= 0.0) {
+        return;
+    }
+    const bool insidePan = m_pan && m_pan->bandwidthMhz() > 0.0
+        && std::abs(mhz - m_pan->centerMhz()) < m_pan->bandwidthMhz() / 2.0;
+    if (insidePan) {
+        m_slice->setFrequency(mhz);
+    } else {
+        m_slice->tuneAndRecenter(mhz);
+    }
+}
+
+QStringList MobileEngine::bands() const
+{
+    return {QStringLiteral("160m"), QStringLiteral("80m"), QStringLiteral("60m"), QStringLiteral("40m"),
+            QStringLiteral("30m"), QStringLiteral("20m"), QStringLiteral("17m"), QStringLiteral("15m"),
+            QStringLiteral("12m"), QStringLiteral("10m"), QStringLiteral("6m")};
+}
+
+bool MobileEngine::bandsAvailable() const
+{
+    return m_connected && m_session.radioModel().usesFlexCommandPlane();
+}
+
+void MobileEngine::selectBand(const QString& band)
+{
+    RadioModel& rm = m_session.radioModel();
+    if (!bandsAvailable() || !m_pan) {
+        return;
+    }
+    const auto result = XvtrPolicy::resolveBandStackKey(band, {}, rm.capabilities());
+    if (!result.isSupported()) {
+        setLastError(result.unsupportedReason);
+        return;
+    }
+    rm.requestPanBand(m_pan->panId(), result.key);
+}
+
+int MobileEngine::filterLow() const
+{
+    return m_slice ? m_slice->filterLow() : 0;
+}
+
+int MobileEngine::filterHigh() const
+{
+    return m_slice ? m_slice->filterHigh() : 0;
+}
+
+QList<int> MobileEngine::filterPresets() const
+{
+    const QString m = mode();
+    if (m == QLatin1String("CW") || m == QLatin1String("CWL")) {
+        return {100, 250, 500, 1000};
+    }
+    if (m == QLatin1String("AM") || m == QLatin1String("SAM") || m == QLatin1String("DSB")) {
+        return {6000, 8000, 10000};
+    }
+    if (m == QLatin1String("FM") || m == QLatin1String("NFM") || m == QLatin1String("DFM")) {
+        return {};
+    }
+    if (m == QLatin1String("DIGU") || m == QLatin1String("DIGL") || m == QLatin1String("RTTY")) {
+        return {500, 1500, 3000};
+    }
+    return {1800, 2400, 2700, 3000};
+}
+
+void MobileEngine::setFilterWidth(int widthHz)
+{
+    if (!m_slice || widthHz <= 0) {
+        return;
+    }
+    // Edge placement per mode, as VfoWidget/rigctld place a passband width.
+    const QString m = m_slice->mode();
+    int lo = 95;
+    int hi = widthHz;
+    if (m == QLatin1String("CW") || m == QLatin1String("CWL") || m == QLatin1String("AM")
+        || m == QLatin1String("SAM") || m == QLatin1String("DSB")) {
+        lo = -widthHz / 2;
+        hi = widthHz / 2;
+    } else if (m == QLatin1String("LSB") || m == QLatin1String("DIGL")) {
+        lo = -widthHz;
+        hi = -95;
+    }
+    m_slice->setFilterWidth(lo, hi);
 }
 
 void MobileEngine::onConnectionStateChanged(bool connected)
 {
+    m_connected = connected;
     if (connected) {
         wireRxAudio();
+        wireTxPacketSink();
         startAudio();
+        setKeepScreenAwake(true);
         setConnectionState(QStringLiteral("connected"));
         selectActiveSlice();
+        emit transmitStateChanged();
         return;
     }
+    releasePtt("radio disconnected");
+    stopDeviceMicrophoneCapture();
+    setKeepScreenAwake(false);
     stopAudio();
     bindSlice(nullptr);
     bindPan(nullptr);
@@ -296,12 +622,14 @@ void MobileEngine::bindSlice(SliceModel* slice)
         m_sliceConnections.append(connect(slice, &SliceModel::modeListChanged, this, &MobileEngine::modesChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::audioGainChanged, this, &MobileEngine::afGainChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::audioMuteChanged, this, &MobileEngine::mutedChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::filterChanged, this, &MobileEngine::filterChanged));
     }
     emit frequencyChanged();
     emit modeChanged();
     emit modesChanged();
     emit afGainChanged();
     emit mutedChanged();
+    emit filterChanged();
 }
 
 void MobileEngine::bindPan(PanadapterModel* pan)
