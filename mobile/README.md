@@ -56,3 +56,27 @@ The .ipa is unsigned. Install it in one of two ways:
   which the iPad installs from the TestFlight app. With this route you can
   also request the multicast entitlement that LAN discovery needs on iOS.
   Without it, connect by IP address.
+
+### Turning on TestFlight (once the Apple Developer account is active)
+
+1. **Bundle ID.** In developer.apple.com → Certificates, IDs & Profiles →
+   Identifiers, register an App ID such as `fi.example.aethersdr`.
+2. **App record.** In App Store Connect → Apps → "+" → New App, choose
+   iOS, the bundle ID from step 1 and any name and SKU.
+3. **API key.** In App Store Connect → Users and Access → Integrations →
+   App Store Connect API, create a key with the *App Manager* role. Note
+   the Issuer ID and Key ID, and download the `.p8` file. Apple allows the
+   download only once.
+4. **Team ID.** Copy it from developer.apple.com → Membership details.
+5. **GitHub.** In the fork, open Settings → Secrets and variables → Actions:
+   - Secrets: `APPLE_TEAM_ID`, `APPSTORE_API_KEY_ID`,
+     `APPSTORE_API_ISSUER_ID`, and `APPSTORE_API_KEY_P8` (paste the whole
+     `.p8` file, including the BEGIN/END lines).
+   - Variable: `AETHER_MOBILE_BUNDLE_ID` set to the bundle ID from step 1.
+
+The next push to a `mobile/**` branch, or a manual run of the workflow,
+archives, signs and uploads the build. After Apple finishes processing it
+(usually 5–30 minutes), add testers in App Store Connect → TestFlight.
+Testers install the TestFlight app and accept the invitation. Each tester
+enters their own radio's IP address in the app.
+
