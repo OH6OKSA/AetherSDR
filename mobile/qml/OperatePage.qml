@@ -198,6 +198,20 @@ Page {
                     engine: Engine
                 }
 
+                // Filter passband: a translucent band from the slice's low to
+                // high filter edge (Hz offsets from the carrier, so it sits
+                // on the correct side for USB/LSB and centred for CW/AM).
+                Rectangle {
+                    visible: Engine.panBandwidthMhz > 0 && Engine.filterHigh > Engine.filterLow
+                    readonly property real pxPerMhz: parent.width / Engine.panBandwidthMhz
+                    x: (Engine.frequencyMhz + Engine.filterLow / 1e6 - Engine.panCenterMhz) * pxPerMhz
+                       + parent.width / 2
+                    width: Math.max(2, (Engine.filterHigh - Engine.filterLow) / 1e6 * pxPerMhz)
+                    height: parent.height
+                    color: Theme.warning
+                    opacity: 0.18
+                }
+
                 // Slice marker: where the active slice sits inside the pan.
                 Rectangle {
                     visible: Engine.panBandwidthMhz > 0
