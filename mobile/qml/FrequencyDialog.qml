@@ -27,6 +27,26 @@ Dialog {
     }
 
     onAboutToShow: entry = ""
+    // Typed digits work too on a hardware keyboard.
+    onOpened: keyCatcher.forceActiveFocus()
+
+    Item {
+        id: keyCatcher
+        Keys.onPressed: (event) => {
+            if (event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
+                dialog.digit(event.text)
+            } else if (event.key === Qt.Key_Period || event.key === Qt.Key_Comma) {
+                if (dialog.entry.indexOf(".") < 0) dialog.digit(".")
+            } else if (event.key === Qt.Key_Backspace) {
+                dialog.entry = dialog.entry.slice(0, -1)
+            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                dialog.commit()
+            } else {
+                return
+            }
+            event.accepted = true
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent

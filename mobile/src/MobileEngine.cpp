@@ -519,6 +519,98 @@ void MobileEngine::selectBand(const QString& band)
     rm.requestPanBand(m_pan->panId(), result.key);
 }
 
+void MobileEngine::tuneBySteps(int steps)
+{
+    if (!m_slice || steps == 0) {
+        return;
+    }
+    const qint64 step = stepHz();
+    const qint64 hz = std::llround(m_slice->frequency() * 1e6);
+    // Land on the grid first, then move: 14.074 37 +1 step(100) -> 14.074 40.
+    qint64 base = (hz / step) * step;
+    if (steps < 0 && base != hz) {
+        base += step;
+    }
+    tuneTo(static_cast<double>(base + steps * step) / 1e6);
+}
+
+void MobileEngine::tuneToSnapped(double mhz)
+{
+    const qint64 step = stepHz();
+    tuneTo(static_cast<double>(std::llround(mhz * 1e6 / step) * step) / 1e6);
+}
+
+void MobileEngine::zoom(double factor)
+{
+    if (!m_pan || !m_slice || factor <= 0.0) {
+        return;
+    }
+    double bandwidth = m_pan->bandwidthMhz() * factor;
+    if (m_pan->bandwidthLimitsKnown()) {
+        bandwidth = std::clamp(bandwidth, m_pan->minBandwidthMhz(), m_pan->maxBandwidthMhz());
+    }
+    m_session.radioModel().requestPanCenter(m_pan->panId(), m_slice->frequency(), bandwidth);
+}
+
+int MobileEngine::stepHz() const
+{
+    return m_slice && m_slice->stepHz() > 0 ? m_slice->stepHz() : 100;
+}
+
+bool MobileEngine::nr() const
+{
+    return m_slice && m_slice->nrOn();
+}
+
+void MobileEngine::setNr(bool on)
+{
+    if (m_slice) {
+        m_slice->setNr(on);
+    }
+}
+
+bool MobileEngine::nb() const
+{
+    return m_slice && m_slice->nbOn();
+}
+
+void MobileEngine::setNb(bool on)
+{
+    if (m_slice) {
+        m_slice->setNb(on);
+    }
+}
+
+bool MobileEngine::anf() const
+{
+    return m_slice && m_slice->anfOn();
+}
+
+void MobileEngine::setAnf(bool on)
+{
+    if (m_slice) {
+        m_slice->setAnf(on);
+    }
+}
+
+QString MobileEngine::agcMode() const
+{
+    return m_slice ? m_slice->agcMode() : QString();
+}
+
+void MobileEngine::setAgcMode(const QString& mode)
+{
+    if (m_slice && mode != m_slice->agcMode()) {
+        m_slice->setAgcMode(mode);
+    }
+}
+
+QStringList MobileEngine::agcModes() const
+{
+    // SmartSDR slice agc_mode values.
+    return {QStringLiteral("off"), QStringLiteral("slow"), QStringLiteral("med"), QStringLiteral("fast")};
+}
+
 int MobileEngine::filterLow() const
 {
     return m_slice ? m_slice->filterLow() : 0;
@@ -668,6 +760,11 @@ void MobileEngine::bindSlice(SliceModel* slice)
         m_sliceConnections.append(connect(slice, &SliceModel::audioGainChanged, this, &MobileEngine::afGainChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::audioMuteChanged, this, &MobileEngine::mutedChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::filterChanged, this, &MobileEngine::filterChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::nrChanged, this, &MobileEngine::dspChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::nbChanged, this, &MobileEngine::dspChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::anfChanged, this, &MobileEngine::dspChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::agcModeChanged, this, &MobileEngine::dspChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::stepChanged, this, &MobileEngine::stepChanged));
     }
     emit frequencyChanged();
     emit modeChanged();
@@ -675,6 +772,8 @@ void MobileEngine::bindSlice(SliceModel* slice)
     emit afGainChanged();
     emit mutedChanged();
     emit filterChanged();
+    emit dspChanged();
+    emit stepChanged();
 }
 
 void MobileEngine::bindPan(PanadapterModel* pan)

@@ -59,6 +59,12 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QString transmitUnavailableReason READ transmitUnavailableReason NOTIFY transmitStateChanged)
     Q_PROPERTY(bool canUseDeviceMicrophone READ canUseDeviceMicrophone NOTIFY transmitStateChanged)
     Q_PROPERTY(bool transmitting READ transmitting NOTIFY transmittingChanged)
+    Q_PROPERTY(bool nr READ nr WRITE setNr NOTIFY dspChanged)
+    Q_PROPERTY(bool nb READ nb WRITE setNb NOTIFY dspChanged)
+    Q_PROPERTY(bool anf READ anf WRITE setAnf NOTIFY dspChanged)
+    Q_PROPERTY(QString agcMode READ agcMode WRITE setAgcMode NOTIFY dspChanged)
+    Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
+    Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
     Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
     Q_PROPERTY(int micGain READ micGain WRITE setMicGain NOTIFY micGainChanged)
     Q_PROPERTY(double micLevelDbfs READ micLevelDbfs NOTIFY txMetersChanged)
@@ -107,6 +113,17 @@ public:
     QString transmitUnavailableReason() const;
     bool canUseDeviceMicrophone() const;
     bool transmitting() const;
+    bool nr() const;
+    void setNr(bool on);
+    bool nb() const;
+    void setNb(bool on);
+    bool anf() const;
+    void setAnf(bool on);
+    QString agcMode() const;
+    void setAgcMode(const QString& mode);
+    QStringList agcModes() const;
+    // The active slice's tuning step (radio-reported), Hz.
+    int stepHz() const;
     // Radio RF power setting (Flex rfpower, 0..100).
     int rfPower() const;
     void setRfPower(int power);
@@ -137,6 +154,12 @@ public:
     // last frequency and mode used on that band.
     Q_INVOKABLE void selectBand(const QString& band);
     Q_INVOKABLE void setFilterWidth(int widthHz);
+    // Tune by whole tuning steps, landing on the step grid.
+    Q_INVOKABLE void tuneBySteps(int steps);
+    // Tune to a point on the display, rounded to the tuning step.
+    Q_INVOKABLE void tuneToSnapped(double mhz);
+    // Multiply the pan span by factor (<1 zooms in), centred on the slice.
+    Q_INVOKABLE void zoom(double factor);
     // The spectrum view reports its size so the radio sends matching frames.
     Q_INVOKABLE void setPanPixels(int width, int height);
 
@@ -157,6 +180,8 @@ signals:
     void rfPowerChanged();
     void micGainChanged();
     void txMetersChanged();
+    void dspChanged();
+    void stepChanged();
     // Frames of the active panadapter only. Spectrum bins are dBm.
     // Waterfall rows are intensities on a backend-dependent scale.
     void spectrumFrame(const QVector<float>& binsDbm);
