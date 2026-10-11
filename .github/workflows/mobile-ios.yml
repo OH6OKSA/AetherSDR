@@ -29,7 +29,8 @@ env:
 
 jobs:
   ios-engine:
-    runs-on: macos-15
+    # App Store Connect accepts only uploads built with Xcode 26 / the iOS 26 SDK.
+    runs-on: macos-26
     timeout-minutes: 150
     env:
       # TestFlight signing switches on once these repository secrets exist:
@@ -47,7 +48,7 @@ jobs:
       - name: Select Xcode
         run: |
           set -o pipefail
-          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-path
 
