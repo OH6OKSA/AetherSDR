@@ -39,6 +39,10 @@ int main(int argc, char* argv[])
         QStringLiteral("8000"));
     parser.addOption(screenshotOption);
     parser.addOption(screenshotDelayOption);
+    const QCommandLineOption sizeOption(QStringLiteral("size"),
+        QStringLiteral("Window size in points, e.g. 1024x768, to check other iPad layouts."),
+        QStringLiteral("WxH"));
+    parser.addOption(sizeOption);
     parser.process(app);
 
     // Settings load before any model or the AudioEngine is constructed.
@@ -54,6 +58,13 @@ int main(int argc, char* argv[])
     QObject::connect(&qml, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     qml.loadFromModule("AetherMobile", "Main");
+
+    if (parser.isSet(sizeOption) && !qml.rootObjects().isEmpty()) {
+        const QStringList wh = parser.value(sizeOption).split(QLatin1Char('x'));
+        if (auto* window = qobject_cast<QQuickWindow*>(qml.rootObjects().constFirst()); window && wh.size() == 2) {
+            window->resize(wh.at(0).toInt(), wh.at(1).toInt());
+        }
+    }
 
     if (parser.isSet(demoOption)) {
         engine.connectToDemoWhenListed();

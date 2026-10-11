@@ -73,6 +73,8 @@ void SpectrumItem::reportPixels()
         QImage resized(w, wfH, QImage::Format_RGB32);
         resized.fill(Qt::black);
         m_waterfall = resized;
+        // Rows at the new width come at a new scale; re-learn the range.
+        m_rangeSeeded = false;
     }
     if (m_engine) {
         m_engine->setPanPixels(w, specH);

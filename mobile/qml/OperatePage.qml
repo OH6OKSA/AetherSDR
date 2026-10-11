@@ -49,6 +49,12 @@ Page {
     }
     background: Rectangle { color: Theme.background }
 
+    // Layout adapts from the 12.9" iPad Pro (1366x1024 pt) down to 1024x768
+    // and portrait: smaller type below 1200 pt, controls stacked under the
+    // spectrum in portrait, and a scrolling control column so nothing is cut.
+    readonly property bool compact: width < 1200
+    readonly property bool portrait: height > width
+
     function formatMhz(mhz) {
         // 14.074.500 style: MHz . kHz . Hz
         const hz = Math.round(mhz * 1e6)
@@ -77,23 +83,26 @@ Page {
         }
     }
 
-    RowLayout {
+    GridLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacing
-        spacing: Theme.spacing
+        columnSpacing: Theme.spacing
+        rowSpacing: Theme.spacing
+        columns: page.portrait ? 1 : 2
 
-        // Left: frequency, S-meter and the panadapter area.
+        // Left (top in portrait): frequency, S-meter and the panadapter area.
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.spacing
+            Layout.minimumHeight: 320
+            spacing: page.compact ? Theme.spacing / 2 : Theme.spacing
 
             RowLayout {
-                spacing: 2 * Theme.spacing
+                spacing: page.compact ? Theme.spacing : 2 * Theme.spacing
                 Label {
                     text: page.formatMhz(Engine.frequencyMhz)
                     color: Theme.text
-                    font.pixelSize: 56
+                    font.pixelSize: page.compact ? 40 : 56
                     font.family: "monospace"
                     // Tap for direct entry.
                     TapHandler { onTapped: freqDialog.open() }
@@ -101,17 +110,17 @@ Page {
                 Label {
                     text: Engine.mode
                     color: Theme.accent
-                    font.pixelSize: 32
+                    font.pixelSize: page.compact ? 24 : 32
                 }
                 Item { Layout.fillWidth: true }
                 ColumnLayout {
                     Label {
                         text: Engine.sMeterText
                         color: Theme.text
-                        font.pixelSize: 22
+                        font.pixelSize: page.compact ? 16 : 22
                     }
                     ProgressBar {
-                        Layout.preferredWidth: 260
+                        Layout.preferredWidth: page.compact ? 150 : 260
                         from: -130
                         to: -20
                         value: Engine.sMeterDbm
@@ -126,14 +135,14 @@ Page {
                 spacing: Theme.spacing / 2
                 Button {
                     text: "−"
-                    width: 56
+                    width: page.compact ? 48 : 56
                     height: Theme.touchTarget
                     font.pixelSize: 22
                     onClicked: Engine.zoom(2.0)
                 }
                 Button {
                     text: "+"
-                    width: 56
+                    width: page.compact ? 48 : 56
                     height: Theme.touchTarget
                     font.pixelSize: 22
                     onClicked: Engine.zoom(0.5)
@@ -144,7 +153,7 @@ Page {
                     delegate: Button {
                         required property string modelData
                         text: modelData
-                        width: 72
+                        width: page.compact ? 58 : 72
                         height: Theme.touchTarget
                         visible: Engine.bandsAvailable
                         onClicked: Engine.selectBand(modelData)
@@ -253,7 +262,9 @@ Page {
                     model: [-1000, -100, -10, 10, 100, 1000]
                     delegate: Button {
                         required property int modelData
-                        text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000 ? modelData / 1000 + " kHz" : modelData + " Hz")
+                        text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000
+                              ? modelData / 1000 + (page.compact ? "k" : " kHz")
+                              : modelData + (page.compact ? "" : " Hz"))
                         Layout.preferredHeight: Theme.touchTarget
                         Layout.fillWidth: true
                         onClicked: Engine.tuneTo(Engine.frequencyMhz + modelData / 1e6)
@@ -263,11 +274,25 @@ Page {
             }
         }
 
-        // Right: controls and PTT.
+        // Right (bottom in portrait): controls scroll when they do not fit;
+        // PTT stays pinned below them.
         ColumnLayout {
-            Layout.preferredWidth: 320
-            Layout.fillHeight: true
+            Layout.preferredWidth: page.portrait ? -1 : Math.max(280, Math.min(360, page.width * 0.28))
+            Layout.fillWidth: page.portrait
+            Layout.fillHeight: !page.portrait
+            Layout.preferredHeight: page.portrait ? page.height * 0.42 : -1
             spacing: Theme.spacing
+
+          ScrollView {
+            id: controlsScroll
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+
+          ColumnLayout {
+            width: controlsScroll.availableWidth
+            spacing: page.compact ? Theme.spacing / 2 : Theme.spacing
 
             Label { text: qsTr("Mode"); color: Theme.textDim; font.pixelSize: 16 }
             GridLayout {
@@ -360,8 +385,6 @@ Page {
                 }
             }
 
-            Item { Layout.fillHeight: true }
-
             // Transmit settings and meters; dimmed until the radio can transmit.
             ColumnLayout {
                 Layout.fillWidth: true
@@ -444,11 +467,13 @@ Page {
                 color: Theme.warning
                 wrapMode: Text.Wrap
             }
+          }
+          }
 
             Button {
                 id: ptt
                 Layout.fillWidth: true
-                Layout.preferredHeight: 3 * Theme.touchTarget
+                Layout.preferredHeight: (page.compact ? 2 : 3) * Theme.touchTarget
                 enabled: Engine.transmitAvailable
                 text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 focusPolicy: Qt.NoFocus
