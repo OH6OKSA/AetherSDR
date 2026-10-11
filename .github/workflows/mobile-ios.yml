@@ -220,6 +220,8 @@ jobs:
 
       - name: Upload logs
         if: always()
+        # Diagnostics only: an artifact-service outage must not fail the build.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ios-engine-logs
