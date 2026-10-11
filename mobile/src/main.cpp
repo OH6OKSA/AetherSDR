@@ -28,6 +28,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption demoOption(QStringLiteral("demo"),
         QStringLiteral("Connect to the built-in demo radio as soon as it is listed."));
     parser.addOption(demoOption);
+    const QCommandLineOption connectOption(QStringLiteral("connect"),
+        QStringLiteral("Connect to the FlexRadio at <address> on start."), QStringLiteral("address"));
+    parser.addOption(connectOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -54,6 +57,8 @@ int main(int argc, char* argv[])
 
     if (parser.isSet(demoOption)) {
         engine.connectToDemoWhenListed();
+    } else if (parser.isSet(connectOption)) {
+        engine.connectToAddress(parser.value(connectOption));
     }
 
     if (parser.isSet(screenshotOption)) {
