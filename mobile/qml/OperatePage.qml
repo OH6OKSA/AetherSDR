@@ -147,7 +147,18 @@ Page {
                     font.pixelSize: 22
                     onClicked: Engine.zoom(0.5)
                 }
-                Item { width: Theme.spacing; height: 1 }
+                Label {
+                    // Current span, so a zoom is visibly confirmed.
+                    height: Theme.touchTarget
+                    width: page.compact ? 64 : 80
+                    verticalAlignment: Text.AlignVCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    color: Theme.textDim
+                    font.pixelSize: 15
+                    text: Engine.panBandwidthMhz >= 1
+                          ? Engine.panBandwidthMhz.toFixed(1) + " MHz"
+                          : Math.round(Engine.panBandwidthMhz * 1000) + " kHz"
+                }
                 Repeater {
                     model: Engine.bands
                     delegate: Button {
@@ -234,9 +245,18 @@ Page {
                 PinchHandler {
                     target: null
                     rotationAxis.enabled: false
+                    // A second finger takes the gesture over from the one-finger
+                    // tuning drag.
+                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                    // activeScale is back to 1 by the time active turns false, so
+                    // remember the last value seen during the gesture.
+                    property real lastScale: 1.0
+                    onActiveScaleChanged: if (active) lastScale = activeScale
                     onActiveChanged: {
-                        if (!active && activeScale > 0) {
-                            Engine.zoom(1.0 / activeScale)
+                        if (active) {
+                            lastScale = 1.0
+                        } else if (lastScale > 0 && Math.abs(lastScale - 1.0) > 0.05) {
+                            Engine.zoom(1.0 / lastScale)
                         }
                     }
                 }

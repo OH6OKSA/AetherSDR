@@ -542,14 +542,26 @@ void MobileEngine::tuneToSnapped(double mhz)
 
 void MobileEngine::zoom(double factor)
 {
-    if (!m_pan || !m_slice || factor <= 0.0) {
+    if (factor <= 0.0) {
+        return;
+    }
+    if (!m_pan || m_pan->bandwidthMhz() <= 0.0) {
+        setLastError(tr("Zoom is not available: no panadapter is bound yet."));
+        qCWarning(lcMobile) << "zoom refused: no bound pan";
         return;
     }
     double bandwidth = m_pan->bandwidthMhz() * factor;
-    if (m_pan->bandwidthLimitsKnown()) {
+    if (m_pan->bandwidthLimitsKnown() && m_pan->minBandwidthMhz() < m_pan->maxBandwidthMhz()) {
         bandwidth = std::clamp(bandwidth, m_pan->minBandwidthMhz(), m_pan->maxBandwidthMhz());
     }
-    m_session.radioModel().requestPanCenter(m_pan->panId(), m_slice->frequency(), bandwidth);
+    // Centre on the slice so the zoom closes in on what is being heard.
+    const double center = m_slice ? m_slice->frequency() : m_pan->centerMhz();
+    const bool sent = m_session.radioModel().requestPanCenter(m_pan->panId(), center, bandwidth);
+    qCInfo(lcMobile) << "zoom pan" << m_pan->panId() << "bandwidth" << m_pan->bandwidthMhz()
+                     << "->" << bandwidth << "sent" << sent;
+    if (!sent && qFuzzyCompare(bandwidth, m_pan->bandwidthMhz())) {
+        setLastError(tr("Already at the radio's span limit."));
+    }
 }
 
 int MobileEngine::stepHz() const
