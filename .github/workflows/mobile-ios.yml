@@ -178,9 +178,14 @@ jobs:
           printf '%s\n' "$API_KEY_P8" > "$key"
           auth=(-allowProvisioningUpdates -authenticationKeyPath "$key"
                 -authenticationKeyID "$API_KEY_ID" -authenticationKeyIssuerID "$API_ISSUER_ID")
+          # Archive unsigned: an automatically signed archive uses a
+          # development profile, which needs registered devices. Export
+          # signs for App Store Connect with cloud-managed distribution
+          # signing, which needs none.
           xcodebuild -project build-xcode/AetherSDR.xcodeproj -scheme aether-mobile \
             -configuration Release -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/aether-mobile.xcarchive" archive "${auth[@]}" \
+            -archivePath "$RUNNER_TEMP/aether-mobile.xcarchive" archive \
+            CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee xcode-archive.log | grep -E "error:|ARCHIVE" || true
           test -d "$RUNNER_TEMP/aether-mobile.xcarchive"
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
