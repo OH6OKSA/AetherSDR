@@ -100,6 +100,14 @@ receive/transmit limits. Compiling a backend does not establish hardware support
 |---|---|---|
 | `AETHER_MOBILE` | OFF; ON when targeting iOS | Build `libaethercore` for a mobile touch client. The desktop app, `aetherdesktop_support`, QGeoView and the test harnesses are not configured, so QtWidgets, QtOpenGL and QtTest are not required. Serial, HID, PortAudio and D-Bus are not probed. The desktop-only feature switches marked above default to OFF. `aetherd` is still built on Linux and macOS as a headless link check. iOS refuses `AETHER_MOBILE=OFF`, and Windows refuses `AETHER_MOBILE=ON`. |
 
+iOS signing identity of `aether-mobile`. These settings are read only when `AETHER_MOBILE` is ON:
+
+| Setting | Default | Values and purpose |
+|---|---|---|
+| `AETHER_MOBILE_BUNDLE_ID` | `com.aethersdr.mobile` | iOS bundle identifier. It must be an identifier that the signing Apple team owns, for example `fi.example.aethersdr`. |
+| `AETHER_MOBILE_BUILD_NUMBER` | `1` | `CFBundleVersion`. TestFlight requires a larger value for every upload, so CI passes the run number. |
+| `AETHER_MOBILE_TEAM_ID` | Empty | Apple Developer Team ID. When set, Xcode builds sign automatically with that team. When empty, the bundle is unsigned. |
+
 ## Packaging and dependency selection
 
 | Option | Default | Purpose |

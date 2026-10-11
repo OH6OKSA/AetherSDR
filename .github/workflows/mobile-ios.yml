@@ -30,7 +30,14 @@ env:
 jobs:
   ios-engine:
     runs-on: macos-15
-    timeout-minutes: 90
+    timeout-minutes: 150
+    env:
+      # TestFlight signing switches on once these repository secrets exist:
+      # APPLE_TEAM_ID, APPSTORE_API_KEY_ID, APPSTORE_API_ISSUER_ID,
+      # APPSTORE_API_KEY_P8 (the .p8 file's contents). The bundle ID comes
+      # from the repository variable AETHER_MOBILE_BUNDLE_ID.
+      HAS_SIGNING: ${{ secrets.APPLE_TEAM_ID != '' && secrets.APPSTORE_API_KEY_ID != '' && secrets.APPSTORE_API_ISSUER_ID != '' && secrets.APPSTORE_API_KEY_P8 != '' }}
+      BUNDLE_ID: ${{ vars.AETHER_MOBILE_BUNDLE_ID || 'com.aethersdr.mobile' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -132,6 +139,65 @@ jobs:
           rm -rf Payload && mkdir Payload && cp -R "$app" Payload/
           ditto -c -k --sequesterRsrc --keepParent Payload aether-mobile-unsigned.ipa
           ls -la aether-mobile-unsigned.ipa
+      - name: Configure Xcode project (iOS app)
+        run: |
+          set -o pipefail
+          export PKG_CONFIG_LIBDIR="$RUNNER_TEMP/fftw-ios/lib/pkgconfig"
+          team=""
+          if [ "$HAS_SIGNING" = "true" ]; then team="${{ secrets.APPLE_TEAM_ID }}"; fi
+          "$QT_IOS/bin/qt-cmake" -S . -B build-xcode -G Xcode \
+            -DQT_HOST_PATH="$QT_HOST" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET" \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/fftw-ios" \
+            -DCMAKE_FIND_ROOT_PATH="$RUNNER_TEMP/fftw-ios" \
+            -DCMAKE_XCODE_GENERATE_SCHEME=ON \
+            -DAETHER_USE_PINNED_QT=OFF \
+            -DAETHER_MOBILE_BUNDLE_ID="$BUNDLE_ID" \
+            -DAETHER_MOBILE_BUILD_NUMBER="${{ github.run_number }}" \
+            -DAETHER_MOBILE_TEAM_ID="$team" \
+            2>&1 | tee xcode-configure.log
+      - name: Archive (unsigned check, no secrets)
+        if: env.HAS_SIGNING != 'true'
+        run: |
+          set -o pipefail
+          xcodebuild -project build-xcode/AetherSDR.xcodeproj -scheme aether-mobile \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/aether-mobile.xcarchive" archive \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcode-archive.log | grep -E "error:|warning: .*aether-mobile|ARCHIVE" || true
+          test -d "$RUNNER_TEMP/aether-mobile.xcarchive/Products/Applications/aether-mobile.app"
+      - name: Archive, sign and upload to TestFlight
+        if: env.HAS_SIGNING == 'true'
+        env:
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          key="$RUNNER_TEMP/AuthKey_${API_KEY_ID}.p8"
+          printf '%s\n' "$API_KEY_P8" > "$key"
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$key"
+                -authenticationKeyID "$API_KEY_ID" -authenticationKeyIssuerID "$API_ISSUER_ID")
+          xcodebuild -project build-xcode/AetherSDR.xcodeproj -scheme aether-mobile \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/aether-mobile.xcarchive" archive "${auth[@]}" \
+            2>&1 | tee xcode-archive.log | grep -E "error:|ARCHIVE" || true
+          test -d "$RUNNER_TEMP/aether-mobile.xcarchive"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/aether-mobile.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" "${auth[@]}" 2>&1 | tee xcode-export.log
+          rm -f "$key"
+          echo "Uploaded build ${{ github.run_number }} of $BUNDLE_ID to App Store Connect (TestFlight)." >> "$GITHUB_STEP_SUMMARY"
       - name: Summarize errors
         if: always()
         run: |
@@ -161,6 +227,9 @@ jobs:
             configure.log
             build.log
             app.log
+            xcode-configure.log
+            xcode-archive.log
+            xcode-export.log
             build-ios/CMakeCache.txt
             build-ios/CMakeFiles/CMakeConfigureLog.yaml
           if-no-files-found: ignore

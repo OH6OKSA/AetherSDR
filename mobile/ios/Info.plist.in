@@ -39,6 +39,24 @@
     </array>
     <key>UILaunchScreen</key>
     <dict/>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconName</key>
+            <string>AppIcon</string>
+        </dict>
+    </dict>
+    <key>CFBundleIcons~ipad</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconName</key>
+            <string>AppIcon</string>
+        </dict>
+    </dict>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>NSLocalNetworkUsageDescription</key>
     <string>AetherSDR connects to your radio on the local network.</string>
     <key>NSMicrophoneUsageDescription</key>

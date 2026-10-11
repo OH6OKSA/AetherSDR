@@ -56,17 +56,35 @@ else()
     target_compile_options(aether-mobile PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+# Signing identity of the iOS app. The bundle ID must be one the signing
+# Apple team owns; the build number must grow with every TestFlight upload.
+set(AETHER_MOBILE_BUNDLE_ID "com.aethersdr.mobile" CACHE STRING "iOS bundle identifier of aether-mobile")
+set(AETHER_MOBILE_BUILD_NUMBER "1" CACHE STRING "iOS CFBundleVersion of aether-mobile")
+set(AETHER_MOBILE_TEAM_ID "" CACHE STRING "Apple Developer Team ID that signs aether-mobile (empty: unsigned)")
+
 if(IOS)
     # Audio goes through the Darwin multimedia backend; the FFmpeg plugin
     # would need FFmpeg frameworks the app neither ships nor uses.
     qt_import_plugins(aether-mobile EXCLUDE Qt6::QFFmpegMediaPlugin)
+    target_sources(aether-mobile PRIVATE ios/Assets.xcassets)
+    set_source_files_properties(ios/Assets.xcassets PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(aether-mobile PROPERTIES
         MACOSX_BUNDLE TRUE
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.aethersdr.mobile"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${AETHER_MOBILE_BUNDLE_ID}"
         MACOSX_BUNDLE_BUNDLE_NAME "AetherSDR"
-        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${AETHER_MOBILE_BUILD_NUMBER}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist.in"
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${AETHER_MOBILE_BUNDLE_ID}"
         XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "2"
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+        XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION "${AETHER_MOBILE_BUILD_NUMBER}"
+        XCODE_ATTRIBUTE_MARKETING_VERSION "${PROJECT_VERSION}"
     )
+    if(AETHER_MOBILE_TEAM_ID)
+        set_target_properties(aether-mobile PROPERTIES
+            XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${AETHER_MOBILE_TEAM_ID}"
+            XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+        )
+    endif()
 endif()
