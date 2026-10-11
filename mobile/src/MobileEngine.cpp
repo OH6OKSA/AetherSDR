@@ -66,7 +66,7 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::backendRebuilt, this, [this] {
-        releasePtt("backend rebuilt");
+        releasePtt(QStringLiteral("backend rebuilt"));
         wireRxAudio();
         wireTxPacketSink();
     });
@@ -75,7 +75,7 @@ MobileEngine::MobileEngine(QObject* parent)
     // transmitter keyed.
     connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
         if (state != Qt::ApplicationActive) {
-            releasePtt("application inactive");
+            releasePtt(QStringLiteral("application inactive"));
         }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
@@ -116,7 +116,7 @@ MobileEngine::MobileEngine(QObject* parent)
 MobileEngine::~MobileEngine()
 {
     s_instance = nullptr;
-    releasePtt("shutdown");
+    releasePtt(QStringLiteral("shutdown"));
     setKeepScreenAwake(false);
     if (m_discovery) {
         m_discovery->stop();
@@ -217,7 +217,7 @@ void MobileEngine::connectToDemoWhenListed()
 
 void MobileEngine::disconnectRadio()
 {
-    releasePtt("operator disconnect");
+    releasePtt(QStringLiteral("operator disconnect"));
     m_session.radioModel().disconnectFromRadio();
 }
 
@@ -269,7 +269,7 @@ void MobileEngine::wireTransmit()
         if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
             startDeviceMicrophoneCapture();
         } else {
-            releasePtt("mic input left this device");
+            releasePtt(QStringLiteral("mic input left this device"));
             stopDeviceMicrophoneCapture();
         }
         emit transmitStateChanged();
@@ -449,13 +449,17 @@ void MobileEngine::useDeviceMicrophone()
     }
 }
 
-void MobileEngine::setPtt(bool down)
+void MobileEngine::setPtt(bool down, const QString& reason)
 {
     if (!down) {
-        releasePtt("operator release");
+        releasePtt(reason.isEmpty() ? QStringLiteral("operator release") : reason);
         return;
     }
-    if (m_pttHeld || !transmitAvailable()) {
+    if (m_pttHeld) {
+        return;
+    }
+    if (!transmitAvailable()) {
+        qCInfo(lcMobile) << "PTT press ignored:" << transmitUnavailableReason();
         return;
     }
     m_pttInput = m_session.radioModel().localTxController()->capture(TxController::Activity::Mox);
@@ -463,18 +467,21 @@ void MobileEngine::setPtt(bool down)
     if (!m_pttInput.start()) {
         m_pttHeld = false;
         m_pttInput.stop();
+        qCWarning(lcMobile) << "PTT start refused by the TX controller";
         setLastError(tr("The radio did not accept the transmit request."));
+        return;
     }
+    qCInfo(lcMobile) << "PTT keyed";
 }
 
-void MobileEngine::releasePtt(const char* reason)
+void MobileEngine::releasePtt(const QString& reason)
 {
     if (!m_pttHeld) {
         return;
     }
     m_pttHeld = false;
     m_pttInput.stop();
-    qCInfo(lcMobile) << "PTT released:" << reason;
+    qCInfo(lcMobile).noquote() << "PTT released:" << reason;
 }
 
 // ---- tuning, bands, filters ------------------------------------------------
@@ -685,7 +692,7 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         emit rfPowerChanged();
         return;
     }
-    releasePtt("radio disconnected");
+    releasePtt(QStringLiteral("radio disconnected"));
     stopDeviceMicrophoneCapture();
     setKeepScreenAwake(false);
     stopAudio();

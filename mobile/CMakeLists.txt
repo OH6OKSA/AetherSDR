@@ -19,6 +19,8 @@ qt_add_executable(aether-mobile
     src/SpectrumItem.cpp
     src/SpectrumItem.h
     src/ScreenAwake.h
+    src/LogBuffer.cpp
+    src/LogBuffer.h
     ${AETHER_MOBILE_RESOURCES}
 )
 if(IOS)
@@ -39,6 +41,7 @@ qt_add_qml_module(aether-mobile
         qml/OperatePage.qml
         qml/Theme.qml
         qml/FrequencyDialog.qml
+        qml/LogPage.qml
 )
 
 # The generated QML type registrations include the headers by bare name.

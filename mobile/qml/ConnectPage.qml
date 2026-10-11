@@ -11,11 +11,16 @@ Page {
         anchors.margins: 2 * Theme.spacing
         spacing: Theme.spacing
 
-        Label {
-            text: qsTr("AetherSDR")
-            color: Theme.text
-            font.pixelSize: 34
-            font.bold: true
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                text: qsTr("AetherSDR")
+                color: Theme.text
+                font.pixelSize: 34
+                font.bold: true
+                Layout.fillWidth: true
+            }
+            Button { text: qsTr("Log"); onClicked: logPage.open() }
         }
         Label {
             text: Engine.radios.count > 0
@@ -109,4 +114,6 @@ Page {
             wrapMode: Text.Wrap
         }
     }
+
+    LogPage { id: logPage }
 }

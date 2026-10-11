@@ -145,7 +145,8 @@ public:
     Q_INVOKABLE void disconnectRadio();
     // Hold-to-talk: true keys through the local TxController, false releases
     // that same input. Every disconnect or loss of foreground also releases.
-    Q_INVOKABLE void setPtt(bool down);
+    // `reason` names the release in the log ("released", "touch cancelled").
+    Q_INVOKABLE void setPtt(bool down, const QString& reason = QString());
     // Switch the radio's transmit audio input to this device's microphone.
     Q_INVOKABLE void useDeviceMicrophone();
     // Tune, recentring the pan when the target lies outside it.
@@ -205,7 +206,7 @@ private:
     void applyTxAudioCapabilities(bool connected, const RadioCapabilities& caps);
     void startDeviceMicrophoneCapture();
     void stopDeviceMicrophoneCapture();
-    void releasePtt(const char* reason);
+    void releasePtt(const QString& reason);
 
     RadioSession m_session;
     RadioListModel m_radios;

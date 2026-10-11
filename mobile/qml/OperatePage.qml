@@ -37,14 +37,14 @@ Page {
     Keys.onReleased: (event) => {
         if (event.key === Qt.Key_Space && !event.isAutoRepeat) {
             page.spacePtt = false
-            Engine.setPtt(false)
+            Engine.setPtt(false, "space released")
             event.accepted = true
         }
     }
     onActiveFocusChanged: {
         if (!activeFocus && spacePtt) {
             spacePtt = false
-            Engine.setPtt(false)
+            Engine.setPtt(false, "page lost keyboard focus")
         }
     }
     background: Rectangle { color: Theme.background }
@@ -77,6 +77,11 @@ Page {
                 Layout.fillWidth: true
             }
             ToolButton {
+                text: qsTr("Log")
+                focusPolicy: Qt.NoFocus
+                onClicked: logPage.open()
+            }
+            ToolButton {
                 text: qsTr("Disconnect")
                 onClicked: Engine.disconnectRadio()
             }
@@ -84,8 +89,14 @@ Page {
     }
 
     GridLayout {
+        id: grid
         anchors.fill: parent
-        anchors.margins: Theme.spacing
+        // Stay clear of the home indicator and rounded corners: iOS defers or
+        // cancels touches at the screen edges, which would end a held PTT.
+        anchors.leftMargin: Theme.spacing + grid.SafeArea.margins.left
+        anchors.rightMargin: Theme.spacing + grid.SafeArea.margins.right
+        anchors.topMargin: Theme.spacing
+        anchors.bottomMargin: Theme.spacing + Math.max(grid.SafeArea.margins.bottom, 12)
         columnSpacing: Theme.spacing
         rowSpacing: Theme.spacing
         columns: page.portrait ? 1 : 2
@@ -494,7 +505,9 @@ Page {
                 id: ptt
                 Layout.fillWidth: true
                 Layout.preferredHeight: (page.compact ? 2 : 3) * Theme.touchTarget
-                enabled: Engine.transmitAvailable
+                // Stays enabled while held: disabling a pressed button cancels
+                // the press, which would unkey mid-transmission.
+                enabled: Engine.transmitAvailable || pressed
                 text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 focusPolicy: Qt.NoFocus
                 font.pixelSize: 32
@@ -506,11 +519,13 @@ Page {
                 }
                 // Hold to transmit; release (or losing the touch) always unkeys.
                 onPressed: Engine.setPtt(true)
-                onReleased: Engine.setPtt(false)
-                onCanceled: Engine.setPtt(false)
+                onReleased: Engine.setPtt(false, "button released")
+                onCanceled: Engine.setPtt(false, "touch cancelled by the system")
             }
         }
     }
+
+    LogPage { id: logPage }
 
     FrequencyDialog {
         id: freqDialog

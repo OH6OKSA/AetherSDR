@@ -1,3 +1,4 @@
+#include "LogBuffer.h"
 #include "MobileEngine.h"
 
 #include "core/AppSettings.h"
@@ -16,6 +17,7 @@ int main(int argc, char* argv[])
     AetherSDR::QtAudioBackendGuard::applyAtStartup();
 
     QGuiApplication app(argc, argv);
+    AetherSDR::mobile::LogBuffer::install();
     // Settings and config paths derive from these names; the mobile client
     // keeps its own settings, apart from a desktop install on the same host.
     QGuiApplication::setApplicationName(QStringLiteral("AetherSDR-Mobile"));
