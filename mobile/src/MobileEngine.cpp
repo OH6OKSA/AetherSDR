@@ -276,6 +276,20 @@ void MobileEngine::wireTransmit()
     });
     connect(&rm.transmitModel(), &TransmitModel::micInputListChanged, this, &MobileEngine::transmitStateChanged);
     connect(&rm.transmitModel(), &TransmitModel::transmittingChanged, this, &MobileEngine::transmittingChanged);
+    connect(&rm.transmitModel(), &TransmitModel::rfPowerChanged, this, &MobileEngine::rfPowerChanged);
+    connect(&rm.meterModel(), &MeterModel::micMetersChanged, this,
+            [this](float micLevel, float, float micPeak, float) {
+        m_micLevelDbfs = micLevel;
+        m_micPeakDbfs = micPeak;
+        emit txMetersChanged();
+    });
+    connect(&rm.meterModel(), &MeterModel::txMetersChanged, this,
+            [this](float fwdPower, float swr, bool swrValid) {
+        m_forwardPowerW = fwdPower;
+        m_swr = swr;
+        m_swrValid = swrValid;
+        emit txMetersChanged();
+    });
     connect(&rm, &RadioModel::capabilitiesChanged, this, &MobileEngine::applyTxAudioCapabilities);
     wireTxPacketSink();
 }
@@ -396,6 +410,36 @@ QString MobileEngine::transmitUnavailableReason() const
 bool MobileEngine::transmitting() const
 {
     return m_session.radioModel().transmitModel().isTransmitting();
+}
+
+int MobileEngine::rfPower() const
+{
+    return m_session.radioModel().transmitModel().rfPower();
+}
+
+void MobileEngine::setRfPower(int power)
+{
+    if (m_connected && m_caps.canTransmit) {
+        m_session.radioModel().transmitModel().setRfPower(std::clamp(power, 0, 100));
+    }
+}
+
+int MobileEngine::micGain() const
+{
+    return AppSettings::instance().value(QStringLiteral("PcMicGain"), 100).toInt();
+}
+
+void MobileEngine::setMicGain(int gain)
+{
+    gain = std::clamp(gain, 0, 100);
+    if (gain == micGain()) {
+        return;
+    }
+    AppSettings::instance().setValue(QStringLiteral("PcMicGain"), gain);
+    AppSettings::instance().save();
+    AudioEngine* audio = m_audio;
+    QMetaObject::invokeMethod(audio, [audio, gain] { audio->setPcMicGain(gain); }, Qt::QueuedConnection);
+    emit micGainChanged();
 }
 
 void MobileEngine::useDeviceMicrophone()
@@ -534,6 +578,7 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         setConnectionState(QStringLiteral("connected"));
         selectActiveSlice();
         emit transmitStateChanged();
+        emit rfPowerChanged();
         return;
     }
     releasePtt("radio disconnected");

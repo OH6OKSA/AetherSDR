@@ -59,6 +59,13 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QString transmitUnavailableReason READ transmitUnavailableReason NOTIFY transmitStateChanged)
     Q_PROPERTY(bool canUseDeviceMicrophone READ canUseDeviceMicrophone NOTIFY transmitStateChanged)
     Q_PROPERTY(bool transmitting READ transmitting NOTIFY transmittingChanged)
+    Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
+    Q_PROPERTY(int micGain READ micGain WRITE setMicGain NOTIFY micGainChanged)
+    Q_PROPERTY(double micLevelDbfs READ micLevelDbfs NOTIFY txMetersChanged)
+    Q_PROPERTY(double micPeakDbfs READ micPeakDbfs NOTIFY txMetersChanged)
+    Q_PROPERTY(double forwardPowerW READ forwardPowerW NOTIFY txMetersChanged)
+    Q_PROPERTY(double swr READ swr NOTIFY txMetersChanged)
+    Q_PROPERTY(bool swrValid READ swrValid NOTIFY txMetersChanged)
 
 public:
     explicit MobileEngine(QObject* parent = nullptr);
@@ -100,6 +107,17 @@ public:
     QString transmitUnavailableReason() const;
     bool canUseDeviceMicrophone() const;
     bool transmitting() const;
+    // Radio RF power setting (Flex rfpower, 0..100).
+    int rfPower() const;
+    void setRfPower(int power);
+    // Client-side gain on this device's microphone, 0..100 (PcMicGain).
+    int micGain() const;
+    void setMicGain(int gain);
+    double micLevelDbfs() const { return m_micLevelDbfs; }
+    double micPeakDbfs() const { return m_micPeakDbfs; }
+    double forwardPowerW() const { return m_forwardPowerW; }
+    double swr() const { return m_swr; }
+    bool swrValid() const { return m_swrValid; }
 
     Q_INVOKABLE void connectToRadio(int row);
     // A FlexRadio by address, for networks where discovery broadcasts do not
@@ -136,6 +154,9 @@ signals:
     void transmitStateChanged();
     void filterChanged();
     void lastAddressChanged();
+    void rfPowerChanged();
+    void micGainChanged();
+    void txMetersChanged();
     // Frames of the active panadapter only. Spectrum bins are dBm.
     // Waterfall rows are intensities on a backend-dependent scale.
     void spectrumFrame(const QVector<float>& binsDbm);
@@ -175,6 +196,11 @@ private:
     bool m_pttHeld{false};
     bool m_connected{false};
     RadioCapabilities m_caps;
+    double m_micLevelDbfs{-100.0};
+    double m_micPeakDbfs{-100.0};
+    double m_forwardPowerW{0.0};
+    double m_swr{1.0};
+    bool m_swrValid{false};
     QPointer<SliceModel> m_slice;
     QPointer<PanadapterModel> m_pan;
     QString m_connectionState{QStringLiteral("idle")};
