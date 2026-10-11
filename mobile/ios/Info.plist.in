@@ -59,6 +59,8 @@
     <false/>
     <key>NSLocalNetworkUsageDescription</key>
     <string>AetherSDR connects to your radio on the local network.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>AetherSDR does not use the camera. The audio library it includes contains camera functions, so iOS requires this notice.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>AetherSDR sends your voice to the radio when you transmit.</string>
     <key>UIBackgroundModes</key>
