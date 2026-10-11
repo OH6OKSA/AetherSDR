@@ -92,6 +92,14 @@ Page {
 
         Label {
             Layout.fillWidth: true
+            text: qsTr("Enter your own radio's IP address. SmartSDR's radio chooser and your router's device list both show it. This device must reach the radio on the same network or over a VPN. The address is remembered on this device only.")
+            color: Theme.textDim
+            font.pixelSize: 14
+            wrapMode: Text.Wrap
+        }
+
+        Label {
+            Layout.fillWidth: true
             visible: Engine.connectionState !== "idle" || Engine.lastError.length > 0
             text: Engine.connectionState === "connecting"
                   ? qsTr("Connecting…")

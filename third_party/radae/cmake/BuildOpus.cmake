@@ -29,7 +29,9 @@ set(OPUS_CMAKE_ARGS
 if (CMAKE_C_COMPILER)
 list(APPEND OPUS_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
 endif ()
-if (CMAKE_MAKE_PROGRAM)
+# Under the Xcode generator CMAKE_MAKE_PROGRAM is xcodebuild, which the
+# single-config child below does not use.
+if (CMAKE_MAKE_PROGRAM AND NOT CMAKE_GENERATOR STREQUAL "Xcode")
 list(APPEND OPUS_CMAKE_ARGS -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM})
 endif ()
 if (DEFINED CMAKE_TOOLCHAIN_FILE AND NOT "${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
@@ -159,10 +161,17 @@ elseif(APPLE AND BUILD_OSX_UNIVERSAL)
 
 # ── Unix/Linux/macOS single-arch: CMake build ────────────────────────────
 else()
+    # An Xcode child would write libopus.a under per-SDK directories
+    # (Release-iphoneos/); a single-config generator keeps it at BINARY_DIR.
+    set(_opus_generator)
+    if(CMAKE_GENERATOR STREQUAL "Xcode")
+        set(_opus_generator CMAKE_GENERATOR "Unix Makefiles")
+    endif()
     ExternalProject_Add(build_opus
         DOWNLOAD_EXTRACT_TIMESTAMP NO
         URL "${OPUS_PREPARED_ARCHIVE}"
         URL_HASH ${OPUS_PREPARED_ARCHIVE_HASH}
+        ${_opus_generator}
         CMAKE_ARGS
             ${OPUS_CMAKE_ARGS}
         INSTALL_COMMAND ""
