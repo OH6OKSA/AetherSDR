@@ -77,6 +77,11 @@ Page {
                 Layout.fillWidth: true
             }
             ToolButton {
+                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("Controls")
+                focusPolicy: Qt.NoFocus
+                onClicked: Engine.controlsVisible = !Engine.controlsVisible
+            }
+            ToolButton {
                 text: qsTr("Log")
                 focusPolicy: Qt.NoFocus
                 onClicked: logPage.open()
@@ -207,14 +212,16 @@ Page {
         // Right (bottom in portrait): controls scroll when they do not fit;
         // PTT stays pinned below them.
         ColumnLayout {
-            Layout.preferredWidth: page.portrait ? -1 : Math.max(280, Math.min(360, page.width * 0.28))
+            Layout.preferredWidth: page.portrait ? -1
+                : Engine.controlsVisible ? Math.max(280, Math.min(360, page.width * 0.28)) : 160
             Layout.fillWidth: page.portrait
             Layout.fillHeight: !page.portrait
-            Layout.preferredHeight: page.portrait ? page.height * 0.42 : -1
+            Layout.preferredHeight: page.portrait && Engine.controlsVisible ? page.height * 0.42 : -1
             spacing: Theme.spacing
 
           ScrollView {
             id: controlsScroll
+            visible: Engine.controlsVisible
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -404,6 +411,12 @@ Page {
             }
           }
           }
+
+            // With the panel hidden, keep PTT at the bottom of its strip.
+            Item {
+                visible: !Engine.controlsVisible && !page.portrait
+                Layout.fillHeight: true
+            }
 
             AppButton {
                 id: ptt

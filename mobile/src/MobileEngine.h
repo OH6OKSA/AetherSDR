@@ -56,6 +56,7 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QStringList bands READ bands CONSTANT)
     Q_PROPERTY(bool bandsAvailable READ bandsAvailable NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastAddress READ lastAddress NOTIFY lastAddressChanged)
+    Q_PROPERTY(bool controlsVisible READ controlsVisible WRITE setControlsVisible NOTIFY controlsVisibleChanged)
     Q_PROPERTY(bool transmitAvailable READ transmitAvailable NOTIFY transmitStateChanged)
     Q_PROPERTY(QString transmitUnavailableReason READ transmitUnavailableReason NOTIFY transmitStateChanged)
     Q_PROPERTY(bool canUseDeviceMicrophone READ canUseDeviceMicrophone NOTIFY transmitStateChanged)
@@ -107,6 +108,10 @@ public:
     QStringList bands() const;
     bool bandsAvailable() const;
     QString lastAddress() const;
+    // Whether the operate page shows its control panel or gives the spectrum
+    // the room (PTT always stays). Remembered on the device.
+    bool controlsVisible() const;
+    void setControlsVisible(bool visible);
 
     // PTT is offered only when connected, the radio can transmit and its mic
     // input is this device (mic_selection=PC); the reason says which is missing.
@@ -179,6 +184,7 @@ signals:
     void transmitStateChanged();
     void filterChanged();
     void lastAddressChanged();
+    void controlsVisibleChanged();
     void rfPowerChanged();
     void micGainChanged();
     void txMetersChanged();

@@ -39,6 +39,7 @@ constexpr double kS9Dbm = -73.0;
 // The radio's remote_audio_tx VITA-49 port (FlexLib).
 constexpr quint16 kRadioTxAudioPort = 4991;
 const QString kLastAddressKey = QStringLiteral("MobileLastRadioAddress");
+const QString kControlsVisibleKey = QStringLiteral("MobileControlsVisible");
 const QString kDeviceMicSelection = QStringLiteral("PC");
 constexpr int kPanPixelsSettleMs = 400;
 constexpr int kMinPanYPixels = 200;
@@ -234,6 +235,22 @@ void MobileEngine::disconnectRadio()
 QString MobileEngine::lastAddress() const
 {
     return AppSettings::instance().value(kLastAddressKey).toString();
+}
+
+bool MobileEngine::controlsVisible() const
+{
+    return AppSettings::instance().value(kControlsVisibleKey, QStringLiteral("True")).toString()
+        == QLatin1String("True");
+}
+
+void MobileEngine::setControlsVisible(bool visible)
+{
+    if (visible == controlsVisible()) {
+        return;
+    }
+    AppSettings::instance().setValue(kControlsVisibleKey, visible ? QStringLiteral("True") : QStringLiteral("False"));
+    AppSettings::instance().save();
+    emit controlsVisibleChanged();
 }
 
 // ---- transmit -------------------------------------------------------------

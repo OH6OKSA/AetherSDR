@@ -37,6 +37,10 @@ int main(int argc, char* argv[])
         QStringLiteral("With --demo: set the demo slice to <mode> after connecting (screenshots)."),
         QStringLiteral("mode"));
     parser.addOption(modeOption);
+    const QCommandLineOption controlsOption(QStringLiteral("controls"),
+        QStringLiteral("Show or hide the operate page's control panel: visible or hidden (remembered)."),
+        QStringLiteral("state"));
+    parser.addOption(controlsOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -59,6 +63,10 @@ int main(int argc, char* argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     AetherSDR::mobile::MobileEngine engine;
+
+    if (parser.isSet(controlsOption)) {
+        engine.setControlsVisible(parser.value(controlsOption) != QLatin1String("hidden"));
+    }
 
     QQmlApplicationEngine qml;
     QObject::connect(&qml, &QQmlApplicationEngine::objectCreationFailed, &app,

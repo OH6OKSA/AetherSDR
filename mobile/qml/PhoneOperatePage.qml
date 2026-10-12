@@ -11,6 +11,11 @@ Page {
     background: Rectangle { color: Theme.background }
 
     readonly property bool landscape: width > height
+    // Landscape spectrum width: 56 % with the control panel, everything but
+    // a PTT strip without it.
+    readonly property int pttStripWidth: 120
+    readonly property int receiveWidth: Math.round(Engine.controlsVisible
+        ? grid.width * 0.56 : grid.width - pttStripWidth - grid.columnSpacing)
 
     function formatMhz(mhz) {
         const hz = Math.round(mhz * 1e6)
@@ -38,6 +43,11 @@ Page {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
+            ToolButton {
+                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("Controls")
+                focusPolicy: Qt.NoFocus
+                onClicked: Engine.controlsVisible = !Engine.controlsVisible
+            }
             ToolButton { text: qsTr("Log"); focusPolicy: Qt.NoFocus; onClicked: logPage.open() }
             ToolButton { text: qsTr("Disconnect"); onClicked: Engine.disconnectRadio() }
         }
@@ -60,8 +70,8 @@ Page {
         ColumnLayout {
             Layout.fillWidth: !page.landscape
             Layout.fillHeight: true
-            Layout.preferredWidth: page.landscape ? Math.round(grid.width * 0.56) : -1
-            Layout.maximumWidth: page.landscape ? Math.round(grid.width * 0.56) : Number.POSITIVE_INFINITY
+            Layout.preferredWidth: page.landscape ? page.receiveWidth : -1
+            Layout.maximumWidth: page.landscape ? page.receiveWidth : Number.POSITIVE_INFINITY
             spacing: Theme.spacing / 2
 
             RowLayout {
@@ -145,11 +155,12 @@ Page {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: page.landscape
-            Layout.preferredHeight: page.landscape ? -1 : page.height * 0.40
+            Layout.preferredHeight: page.landscape || !Engine.controlsVisible ? -1 : page.height * 0.40
             spacing: Theme.spacing / 2
 
             TabBar {
                 id: tabs
+                visible: Engine.controlsVisible
                 Layout.fillWidth: true
                 TabButton { text: qsTr("Mode") }
                 TabButton { text: qsTr("DSP") }
@@ -158,6 +169,7 @@ Page {
             }
 
             StackLayout {
+                visible: Engine.controlsVisible
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 currentIndex: tabs.currentIndex
@@ -321,9 +333,17 @@ Page {
                 }
             }
 
+            // With the panel hidden in landscape, push PTT to the bottom of
+            // its strip.
+            Item {
+                visible: page.landscape && !Engine.controlsVisible
+                Layout.fillHeight: true
+            }
+
             Label {
                 Layout.fillWidth: true
-                visible: Engine.lastError.length > 0 || !Engine.transmitAvailable
+                visible: (Engine.lastError.length > 0 || !Engine.transmitAvailable)
+                         && (Engine.controlsVisible || !page.landscape)
                 text: Engine.lastError.length > 0 ? Engine.lastError : Engine.transmitUnavailableReason
                 color: Engine.lastError.length > 0 ? Theme.warning : Theme.textDim
                 font.pixelSize: 12
@@ -342,7 +362,7 @@ Page {
             AppButton {
                 id: ptt
                 Layout.fillWidth: true
-                Layout.preferredHeight: 64
+                Layout.preferredHeight: page.landscape && !Engine.controlsVisible ? 120 : 64
                 enabled: Engine.transmitAvailable || pressed
                 text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 font.pixelSize: 26
