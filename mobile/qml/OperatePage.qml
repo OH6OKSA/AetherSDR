@@ -123,6 +123,23 @@ Page {
                     color: Theme.accent
                     font.pixelSize: page.compact ? 24 : 32
                 }
+                // Zoom the pan out / in around the slice.
+                AppButton {
+                    text: "−"
+                    font.pixelSize: 22
+                    Layout.preferredWidth: page.compact ? 48 : 56
+                    Layout.preferredHeight: Theme.touchTarget
+                    focusPolicy: Qt.NoFocus
+                    onClicked: Engine.zoom(2.0)
+                }
+                AppButton {
+                    text: "+"
+                    font.pixelSize: 22
+                    Layout.preferredWidth: page.compact ? 48 : 56
+                    Layout.preferredHeight: Theme.touchTarget
+                    focusPolicy: Qt.NoFocus
+                    onClicked: Engine.zoom(0.5)
+                }
                 Item { Layout.fillWidth: true }
                 ColumnLayout {
                     Label {
@@ -139,45 +156,24 @@ Page {
                 }
             }
 
-            // Band stack (Flex): restores the band's last frequency and mode.
-            // Zoom buttons narrow or widen the pan around the slice.
-            Flow {
+            // Band stack (Flex): one row, buttons share the width. Each band
+            // comes back to its last frequency and mode.
+            RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spacing / 2
-                Button {
-                    text: "−"
-                    width: page.compact ? 48 : 56
-                    height: Theme.touchTarget
-                    font.pixelSize: 22
-                    onClicked: Engine.zoom(2.0)
-                }
-                Button {
-                    text: "+"
-                    width: page.compact ? 48 : 56
-                    height: Theme.touchTarget
-                    font.pixelSize: 22
-                    onClicked: Engine.zoom(0.5)
-                }
-                Label {
-                    // Current span, so a zoom is visibly confirmed.
-                    height: Theme.touchTarget
-                    width: page.compact ? 64 : 80
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: Text.AlignHCenter
-                    color: Theme.textDim
-                    font.pixelSize: 15
-                    text: Engine.panBandwidthMhz >= 1
-                          ? Engine.panBandwidthMhz.toFixed(1) + " MHz"
-                          : Math.round(Engine.panBandwidthMhz * 1000) + " kHz"
-                }
+                visible: Engine.bandsAvailable
                 Repeater {
                     model: Engine.bands
-                    delegate: Button {
+                    delegate: AppButton {
                         required property string modelData
                         text: modelData
-                        width: page.compact ? 58 : 72
-                        height: Theme.touchTarget
-                        visible: Engine.bandsAvailable
+                        font.pixelSize: page.compact ? 13 : 15
+                        leftPadding: 2
+                        rightPadding: 2
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 40
+                        Layout.preferredWidth: 60
+                        Layout.preferredHeight: Theme.touchTarget
                         onClicked: Engine.selectBand(modelData)
                     }
                 }
@@ -192,7 +188,7 @@ Page {
                 spacing: Theme.spacing
                 Repeater {
                     model: [-1000, -100, -10, 10, 100, 1000]
-                    delegate: Button {
+                    delegate: AppButton {
                         required property int modelData
                         text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000
                               ? modelData / 1000 + (page.compact ? "k" : " kHz")
@@ -228,13 +224,18 @@ Page {
 
             Label { text: qsTr("Mode"); color: Theme.textDim; font.pixelSize: 16 }
             GridLayout {
-                columns: 3
+                columns: Math.max(1, Engine.modes.length)
+                columnSpacing: 4
                 Layout.fillWidth: true
                 Repeater {
                     model: Engine.modes
-                    delegate: Button {
+                    delegate: AppButton {
                         required property string modelData
                         text: modelData
+                        // Six modes share one row; narrow columns keep labels whole.
+                        leftPadding: 2
+                        rightPadding: 2
+                        font.pixelSize: page.compact ? 13 : 15
                         checkable: true
                         checked: Engine.mode === modelData
                         Layout.fillWidth: true
@@ -255,7 +256,7 @@ Page {
                 visible: Engine.filterPresets.length > 0
                 Repeater {
                     model: Engine.filterPresets
-                    delegate: Button {
+                    delegate: AppButton {
                         required property int modelData
                         text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
                         checkable: true
@@ -272,7 +273,7 @@ Page {
                 Layout.fillWidth: true
                 Repeater {
                     model: [{ key: "nr", label: "NR" }, { key: "nb", label: "NB" }, { key: "anf", label: "ANF" }]
-                    delegate: Button {
+                    delegate: AppButton {
                         required property var modelData
                         text: modelData.label
                         checkable: true
@@ -289,7 +290,7 @@ Page {
                 Label { text: qsTr("AGC"); color: Theme.textDim; font.pixelSize: 16 }
                 Repeater {
                     model: Engine.agcModes
-                    delegate: Button {
+                    delegate: AppButton {
                         required property string modelData
                         text: modelData
                         checkable: true
@@ -311,7 +312,7 @@ Page {
                     value: Engine.afGain
                     onMoved: Engine.afGain = value
                 }
-                Button {
+                AppButton {
                     text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
                     onClicked: Engine.muted = !Engine.muted
                 }
@@ -385,7 +386,7 @@ Page {
                 color: Theme.textDim
                 wrapMode: Text.Wrap
             }
-            Button {
+            AppButton {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.touchTarget
                 visible: Engine.canUseDeviceMicrophone
@@ -402,7 +403,7 @@ Page {
           }
           }
 
-            Button {
+            AppButton {
                 id: ptt
                 Layout.fillWidth: true
                 Layout.preferredHeight: (page.compact ? 2 : 3) * Theme.touchTarget

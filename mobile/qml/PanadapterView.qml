@@ -77,7 +77,8 @@ Rectangle {
         }
     }
 
-    // Finger drag tunes one pan width per screen width.
+    // Finger drag moves the tuning in the drag's direction (right = up in
+    // frequency), one pan width per screen width.
     DragHandler {
         target: null
         acceptedDevices: PointerDevice.TouchScreen | PointerDevice.Mouse | PointerDevice.TouchPad
@@ -87,7 +88,7 @@ Rectangle {
         onActiveChanged: if (active) startMhz = Engine.frequencyMhz
         onTranslationChanged: {
             const span = Engine.panBandwidthMhz > 0 ? Engine.panBandwidthMhz : 0.2
-            Engine.tuneTo(startMhz - translation.x / panArea.width * span)
+            Engine.tuneTo(startMhz + translation.x / panArea.width * span)
         }
     }
 
@@ -101,7 +102,7 @@ Rectangle {
         onActiveChanged: if (active) startMhz = Engine.frequencyMhz
         onTranslationChanged: {
             const span = Engine.panBandwidthMhz > 0 ? Engine.panBandwidthMhz : 0.2
-            Engine.tuneTo(startMhz - translation.x / panArea.width * span / 10)
+            Engine.tuneTo(startMhz + translation.x / panArea.width * span / 10)
         }
     }
 

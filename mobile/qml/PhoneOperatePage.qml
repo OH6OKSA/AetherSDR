@@ -71,6 +71,8 @@ Page {
                     TapHandler { onTapped: freqDialog.open() }
                 }
                 Label { text: Engine.mode; color: Theme.accent; font.pixelSize: 18 }
+                AppButton { text: "−"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(2.0) }
+                AppButton { text: "+"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(0.5) }
                 Item { Layout.fillWidth: true }
                 Label { text: Engine.sMeterText; color: Theme.text; font.pixelSize: 13 }
             }
@@ -81,19 +83,10 @@ Page {
                 value: Engine.sMeterDbm
             }
 
-            // Zoom, span and a horizontally scrolling band strip.
+            // Horizontally scrolling band strip.
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spacing / 2
-                Button { text: "−"; implicitWidth: 44; onClicked: Engine.zoom(2.0) }
-                Button { text: "+"; implicitWidth: 44; onClicked: Engine.zoom(0.5) }
-                Label {
-                    color: Theme.textDim
-                    font.pixelSize: 12
-                    text: Engine.panBandwidthMhz >= 1
-                          ? Engine.panBandwidthMhz.toFixed(1) + " MHz"
-                          : Math.round(Engine.panBandwidthMhz * 1000) + " kHz"
-                }
                 ListView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.touchTarget
@@ -102,10 +95,13 @@ Page {
                     clip: true
                     visible: Engine.bandsAvailable
                     model: Engine.bands
-                    delegate: Button {
+                    delegate: AppButton {
                         required property string modelData
                         text: modelData
-                        width: 52
+                        leftPadding: 2
+                        rightPadding: 2
+                        font.pixelSize: 14
+                        width: 56
                         height: Theme.touchTarget
                         onClicked: Engine.selectBand(modelData)
                     }
@@ -123,7 +119,7 @@ Page {
                 spacing: 4
                 Repeater {
                     model: [-1000, -100, 100, 1000]
-                    delegate: Button {
+                    delegate: AppButton {
                         required property int modelData
                         text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000 ? modelData / 1000 + "k" : modelData)
                         Layout.fillWidth: true
@@ -162,12 +158,15 @@ Page {
                     contentWidth: availableWidth
                     GridLayout {
                         width: modeScroll.availableWidth
-                        columns: 3
+                        columns: Math.max(1, Engine.modes.length)
+                        columnSpacing: 4
                         Repeater {
                             model: Engine.modes
-                            delegate: Button {
+                            delegate: AppButton {
                                 required property string modelData
                                 text: modelData
+                                leftPadding: 2
+                                rightPadding: 2
                                 checkable: true
                                 checked: Engine.mode === modelData
                                 Layout.fillWidth: true
@@ -195,7 +194,7 @@ Page {
                             visible: Engine.filterPresets.length > 0
                             Repeater {
                                 model: Engine.filterPresets
-                                delegate: Button {
+                                delegate: AppButton {
                                     required property int modelData
                                     text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
                                     checkable: true
@@ -209,7 +208,7 @@ Page {
                             Layout.fillWidth: true
                             Repeater {
                                 model: [{ key: "nr", label: "NR" }, { key: "nb", label: "NB" }, { key: "anf", label: "ANF" }]
-                                delegate: Button {
+                                delegate: AppButton {
                                     required property var modelData
                                     text: modelData.label
                                     checkable: true
@@ -224,7 +223,7 @@ Page {
                             Label { text: qsTr("AGC"); color: Theme.textDim }
                             Repeater {
                                 model: Engine.agcModes
-                                delegate: Button {
+                                delegate: AppButton {
                                     required property string modelData
                                     text: modelData
                                     checkable: true
@@ -254,7 +253,7 @@ Page {
                                 value: Engine.afGain
                                 onMoved: Engine.afGain = value
                             }
-                            Button {
+                            AppButton {
                                 text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
                                 onClicked: Engine.muted = !Engine.muted
                             }
@@ -301,7 +300,7 @@ Page {
                                      : Engine.micPeakDbfs > -10 ? Theme.warning : Theme.accent
                             }
                         }
-                        Button {
+                        AppButton {
                             Layout.fillWidth: true
                             visible: Engine.canUseDeviceMicrophone
                             text: qsTr("Use this device's microphone")
@@ -329,7 +328,7 @@ Page {
                 color: Engine.swrValid && Engine.swr > 2.5 ? Theme.transmit : Theme.text
             }
 
-            Button {
+            AppButton {
                 id: ptt
                 Layout.fillWidth: true
                 Layout.preferredHeight: 64

@@ -66,7 +66,7 @@ Dialog {
             Layout.fillWidth: true
             Repeater {
                 model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0", "⌫"]
-                delegate: Button {
+                delegate: AppButton {
                     required property string modelData
                     text: modelData
                     font.pixelSize: 26
@@ -83,7 +83,7 @@ Dialog {
             }
         }
 
-        Button {
+        AppButton {
             Layout.fillWidth: true
             Layout.preferredHeight: 64
             text: qsTr("Tune")

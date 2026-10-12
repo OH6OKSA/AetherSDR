@@ -24,9 +24,9 @@ Popup {
                 font.pixelSize: 22
                 Layout.fillWidth: true
             }
-            Button { text: qsTr("Copy"); onClicked: LogBuffer.copyToClipboard() }
-            Button { text: qsTr("Clear"); onClicked: LogBuffer.clear() }
-            Button { text: qsTr("Close"); onClicked: popup.close() }
+            AppButton { text: qsTr("Copy"); onClicked: LogBuffer.copyToClipboard() }
+            AppButton { text: qsTr("Clear"); onClicked: LogBuffer.clear() }
+            AppButton { text: qsTr("Close"); onClicked: popup.close() }
         }
 
         ListView {

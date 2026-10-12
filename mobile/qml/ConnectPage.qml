@@ -25,7 +25,7 @@ Page {
                 font.bold: true
                 Layout.fillWidth: true
             }
-            Button { text: qsTr("Log"); onClicked: logPage.open() }
+            AppButton { text: qsTr("Log"); onClicked: logPage.open() }
         }
         Label {
             text: Engine.radios.count > 0
@@ -92,7 +92,7 @@ Page {
                 font.pixelSize: 18
                 onAccepted: Engine.connectToAddress(text)
             }
-            Button {
+            AppButton {
                 text: qsTr("Connect")
                 Layout.preferredHeight: Theme.touchTarget
                 enabled: Engine.connectionState === "idle" && addressField.text.length > 0
