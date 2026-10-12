@@ -8,7 +8,7 @@ Popup {
     id: popup
     modal: true
     anchors.centerIn: parent
-    width: parent.width * 0.9
+    width: parent.width * 0.95
     height: parent.height * 0.85
     background: Rectangle { color: Theme.surface; radius: Theme.radius }
 

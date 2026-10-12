@@ -7,8 +7,13 @@ Page {
     background: Rectangle { color: Theme.background }
 
     ColumnLayout {
+        id: column
         anchors.fill: parent
-        anchors.margins: 2 * Theme.spacing
+        // Clear of the notch / Dynamic Island and the home indicator.
+        anchors.leftMargin: 2 * Theme.spacing + column.SafeArea.margins.left
+        anchors.rightMargin: 2 * Theme.spacing + column.SafeArea.margins.right
+        anchors.topMargin: 2 * Theme.spacing + column.SafeArea.margins.top
+        anchors.bottomMargin: 2 * Theme.spacing + column.SafeArea.margins.bottom
         spacing: Theme.spacing
 
         RowLayout {

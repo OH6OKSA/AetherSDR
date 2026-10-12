@@ -11,7 +11,7 @@ Dialog {
     title: qsTr("Frequency")
     standardButtons: Dialog.Cancel
     anchors.centerIn: parent
-    width: 420
+    width: Math.min(420, parent.width - 24)
 
     property string entry: ""
 

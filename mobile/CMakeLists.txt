@@ -42,6 +42,8 @@ qt_add_qml_module(aether-mobile
         qml/Theme.qml
         qml/FrequencyDialog.qml
         qml/LogPage.qml
+        qml/PanadapterView.qml
+        qml/PhoneOperatePage.qml
 )
 
 # The generated QML type registrations include the headers by bare name.
@@ -79,7 +81,7 @@ if(IOS)
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist.in"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${AETHER_MOBILE_BUNDLE_ID}"
-        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "2"
+        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
         XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
         XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION "${AETHER_MOBILE_BUILD_NUMBER}"
         XCODE_ATTRIBUTE_MARKETING_VERSION "${PROJECT_VERSION}"

@@ -26,6 +26,7 @@
     <true/>
     <key>UIDeviceFamily</key>
     <array>
+        <integer>1</integer>
         <integer>2</integer>
     </array>
     <key>UIRequiresFullScreen</key>
@@ -36,6 +37,12 @@
         <string>UIInterfaceOrientationLandscapeRight</string>
         <string>UIInterfaceOrientationPortrait</string>
         <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UILaunchScreen</key>
     <dict/>
