@@ -420,16 +420,16 @@ Page {
                     font: ptt.font
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
-                    color: Engine.transmitting ? "white" : ptt.enabled ? Theme.text : Theme.textDim
-                    opacity: ptt.enabled ? 1.0 : 0.35
+                    color: ptt.enabled ? "white" : Theme.textDim
+                    opacity: ptt.enabled ? 1.0 : 0.5
                 }
                 background: Rectangle {
                     radius: Theme.radius
                     color: Engine.transmitting ? Theme.transmit
-                         : ptt.pressed ? Qt.darker(Theme.transmit, 1.6)
-                         : ptt.enabled ? Theme.surfaceRaised : Theme.surface
-                    border.width: ptt.enabled && !Engine.transmitting ? 2 : 0
-                    border.color: Theme.transmit
+                         : ptt.enabled ? Theme.pttReady : Theme.surface
+                    border.width: Engine.transmitting ? 3 : ptt.enabled ? 2 : 1
+                    border.color: Engine.transmitting ? "white"
+                                : ptt.enabled ? Theme.transmit : Theme.surfaceRaised
                 }
                 // Hold to transmit; release (or losing the touch) always unkeys.
                 onPressed: Engine.setPtt(true)

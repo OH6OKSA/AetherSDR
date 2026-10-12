@@ -15,7 +15,9 @@ namespace {
 constexpr float kTraceMinDbm = -130.0f;
 constexpr float kTraceMaxDbm = -40.0f;
 constexpr float kRangeSmoothing = 0.05f;
-constexpr float kMinimumSpan = 10.0f;
+// Minimum colour span, in the row's units (dB-like for both Flex intensity
+// and dBm), so a noise-only band stays dark instead of being stretched.
+constexpr float kMinimumSpan = 30.0f;
 
 } // namespace
 
@@ -92,13 +94,14 @@ void SpectrumItem::onWaterfallRow(const QVector<float>& bins)
     if (bins.isEmpty() || m_waterfall.isNull()) {
         return;
     }
-    // Noise floor ≈ 20th percentile, top ≈ 99th; smoothed across rows so the
-    // picture does not pump with every strong signal.
+    // Black at the median (the band's noise), full scale near the 99.5th
+    // percentile; smoothed across rows so the picture does not pump with
+    // every strong signal.
     QVector<float> sorted = bins;
     std::sort(sorted.begin(), sorted.end());
-    const float floor = sorted.at(sorted.size() / 5);
-    const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 99 / 100));
-    const float span = std::max(kMinimumSpan, (top - floor) * 1.5f);
+    const float floor = sorted.at(sorted.size() / 2);
+    const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 995 / 1000));
+    const float span = std::max(kMinimumSpan, (top - floor) * 1.2f);
     if (!m_rangeSeeded) {
         m_floor = floor;
         m_span = span;
@@ -128,7 +131,7 @@ QRgb SpectrumItem::colourFor(float v) const
     // black → blue → cyan → yellow → red → white
     struct Stop { float at; int r; int g; int b; };
     static constexpr Stop kStops[] = {
-        {0.00f, 0, 0, 0}, {0.25f, 0, 0, 160}, {0.45f, 0, 170, 220},
+        {0.00f, 0, 0, 0}, {0.12f, 0, 0, 70}, {0.30f, 0, 40, 200}, {0.50f, 0, 170, 220},
         {0.65f, 240, 230, 0}, {0.85f, 230, 30, 0}, {1.00f, 255, 255, 255},
     };
     for (size_t i = 1; i < std::size(kStops); ++i) {

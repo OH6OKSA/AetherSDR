@@ -12,7 +12,9 @@ QtObject {
     readonly property color textDim: "#8b98a5"
     readonly property color accent: "#3fb6ff"
     readonly property color transmit: "#e5484d"
+    readonly property color pttReady: "#7a1f22"
     readonly property color warning: "#f5a524"
+    readonly property color passband: "#ffd75e"
 
     readonly property int touchTarget: 48
     readonly property int spacing: 12

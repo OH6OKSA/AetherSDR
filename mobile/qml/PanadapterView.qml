@@ -17,18 +17,39 @@ Rectangle {
         engine: Engine
     }
 
-    // Filter passband: a translucent band from the slice's low to
-    // high filter edge (Hz offsets from the carrier, so it sits
-    // on the correct side for USB/LSB and centred for CW/AM).
-    Rectangle {
+    // Filter passband between the slice's filter edges (Hz offsets from the
+    // carrier, so it sits on the correct side for USB/LSB and centred for
+    // CW/AM): a fill over the spectrum and bright edge lines through the
+    // waterfall, where a fill would vanish into the colours.
+    Item {
+        id: passband
         visible: Engine.panBandwidthMhz > 0 && Engine.filterHigh > Engine.filterLow
         readonly property real pxPerMhz: parent.width / Engine.panBandwidthMhz
         x: (Engine.frequencyMhz + Engine.filterLow / 1e6 - Engine.panCenterMhz) * pxPerMhz
            + parent.width / 2
         width: Math.max(2, (Engine.filterHigh - Engine.filterLow) / 1e6 * pxPerMhz)
         height: parent.height
-        color: Theme.warning
-        opacity: 0.18
+
+        Rectangle {
+            width: parent.width
+            height: parent.height * spectrum.spectrumFraction
+            color: Theme.passband
+            opacity: 0.22
+        }
+        Rectangle {
+            x: 0
+            width: 1.5
+            height: parent.height
+            color: Theme.passband
+            opacity: 0.9
+        }
+        Rectangle {
+            x: parent.width - width
+            width: 1.5
+            height: parent.height
+            color: Theme.passband
+            opacity: 0.9
+        }
     }
 
     // Slice marker: where the active slice sits inside the pan.
