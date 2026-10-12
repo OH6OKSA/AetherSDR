@@ -77,9 +77,17 @@ Page {
                 Layout.fillWidth: true
             }
             ToolButton {
-                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("Controls")
+                // Pinned panel: hide it. Hidden: open it as a drawer over the
+                // waterfall.
+                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("☰ Controls")
                 focusPolicy: Qt.NoFocus
-                onClicked: Engine.controlsVisible = !Engine.controlsVisible
+                onClicked: {
+                    if (Engine.controlsVisible) {
+                        Engine.controlsVisible = false
+                    } else {
+                        controlsDrawer.open()
+                    }
+                }
             }
             ToolButton {
                 text: qsTr("Log")
@@ -451,6 +459,37 @@ Page {
                 onPressed: Engine.setPtt(true)
                 onReleased: Engine.setPtt(false, "button released")
                 onCanceled: Engine.setPtt(false, "touch cancelled by the system")
+            }
+        }
+    }
+
+    // With the panel hidden, controls slide in from the right over the
+    // waterfall (no dimming; tap outside or swipe back to close). Edge swipes
+    // do not open it, so a PTT press near the edge never becomes a drag.
+    Drawer {
+        id: controlsDrawer
+        objectName: "controlsDrawer"
+        edge: page.portrait ? Qt.BottomEdge : Qt.RightEdge
+        width: page.portrait ? page.width : Math.min(page.width * 0.4, 460)
+        height: page.portrait ? Math.min(page.height * 0.5, 560) : page.height
+        dim: false
+        dragMargin: 0
+        onAboutToShow: Engine.setPtt(false, "controls drawer opened")
+        background: Rectangle {
+            color: Theme.surface
+            opacity: 0.96
+            radius: Theme.radius
+        }
+
+        ControlsPanel {
+            anchors.fill: parent
+            anchors.margins: Theme.spacing
+            anchors.bottomMargin: Theme.spacing + controlsDrawer.SafeArea.margins.bottom
+            anchors.rightMargin: Theme.spacing + controlsDrawer.SafeArea.margins.right
+            showPinButton: true
+            onPinRequested: {
+                controlsDrawer.close()
+                Engine.controlsVisible = true
             }
         }
     }

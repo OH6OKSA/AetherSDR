@@ -55,8 +55,9 @@ radio interface, with no computer running alongside.
 **Made for the device**
 - A tablet layout and a phone layout. They switch live on rotation, Split
   View, Stage Manager and folding (iPhone Duo).
-- "Hide controls" gives the spectrum the whole screen. PTT stays, and the
-  choice is remembered.
+- The waterfall gets the screen. On iPhone, the controls (Mode, DSP, Audio,
+  TX) live in a drawer that slides in over it when needed. On iPad the side
+  panel can be hidden into the same drawer. PTT always stays on screen.
 - Apple Pencil drags tune 10× finer, for zero-beating.
 - Magic Keyboard and trackpad: arrows tune, Space is PTT, +/− zoom, F opens
   frequency entry, scroll tunes and ⌘-scroll zooms.
@@ -70,7 +71,7 @@ radio interface, with no computer running alongside.
   <img src="docs/mobile/ipad-mini-portrait.jpg" width="25%" alt="iPad mini portrait layout"/>
 </p>
 <p align="center">
-  <img src="docs/mobile/iphone-landscape-hidden.jpg" width="56%" alt="iPhone landscape with the control panel hidden: full-width spectrum and a PTT strip"/>
+  <img src="docs/mobile/iphone-landscape-drawer.jpg" width="56%" alt="iPhone landscape with the controls drawer slid in over the waterfall"/>
   &nbsp;
   <img src="docs/mobile/passband-lsb.jpg" width="38%" alt="LSB filter passband: fill over the spectrum, edge lines through the waterfall"/>
 </p>

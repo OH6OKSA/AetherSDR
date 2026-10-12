@@ -14,8 +14,7 @@ Page {
     // Landscape spectrum width: 56 % with the control panel, everything but
     // a PTT strip without it.
     readonly property int pttStripWidth: 120
-    readonly property int receiveWidth: Math.round(Engine.controlsVisible
-        ? grid.width * 0.56 : grid.width - pttStripWidth - grid.columnSpacing)
+    readonly property int receiveWidth: Math.round(grid.width - pttStripWidth - grid.columnSpacing)
 
     function formatMhz(mhz) {
         const hz = Math.round(mhz * 1e6)
@@ -44,9 +43,9 @@ Page {
                 Layout.fillWidth: true
             }
             ToolButton {
-                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("Controls")
+                text: qsTr("Controls")
                 focusPolicy: Qt.NoFocus
-                onClicked: Engine.controlsVisible = !Engine.controlsVisible
+                onClicked: controlsDrawer.open()
             }
             ToolButton { text: qsTr("Log"); focusPolicy: Qt.NoFocus; onClicked: logPage.open() }
             ToolButton { text: qsTr("Disconnect"); onClicked: Engine.disconnectRadio() }
@@ -151,199 +150,32 @@ Page {
             }
         }
 
-        // ---- controls: tabs plus PTT ----
+        // ---- PTT strip: right edge in landscape, bottom in portrait. The
+        // controls live in a drawer so the waterfall keeps the screen. ----
         ColumnLayout {
-            Layout.fillWidth: true
+            Layout.fillWidth: !page.landscape
             Layout.fillHeight: page.landscape
-            Layout.preferredHeight: page.landscape || !Engine.controlsVisible ? -1 : page.height * 0.40
+            Layout.preferredWidth: page.landscape ? page.pttStripWidth : -1
             spacing: Theme.spacing / 2
 
-            TabBar {
-                id: tabs
-                visible: Engine.controlsVisible
+            AppButton {
+                text: qsTr("☰ Controls")
+                font.pixelSize: 14
                 Layout.fillWidth: true
-                TabButton { text: qsTr("Mode") }
-                TabButton { text: qsTr("DSP") }
-                TabButton { text: qsTr("Audio") }
-                TabButton { text: qsTr("TX") }
+                Layout.preferredHeight: 40
+                onClicked: controlsDrawer.open()
             }
 
-            StackLayout {
-                visible: Engine.controlsVisible
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                currentIndex: tabs.currentIndex
-
-                // Mode
-                ScrollView {
-                    id: modeScroll
-                    clip: true
-                    contentWidth: availableWidth
-                    GridLayout {
-                        width: modeScroll.availableWidth
-                        columns: Math.max(1, Engine.modes.length)
-                        columnSpacing: 4
-                        Repeater {
-                            model: Engine.modes
-                            delegate: AppButton {
-                                required property string modelData
-                                text: modelData
-                                leftPadding: 2
-                                rightPadding: 2
-                                checkable: true
-                                checked: Engine.mode === modelData
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: Theme.touchTarget
-                                onClicked: Engine.mode = modelData
-                            }
-                        }
-                    }
-                }
-
-                // Filter and receive DSP
-                ScrollView {
-                    id: dspScroll
-                    clip: true
-                    contentWidth: availableWidth
-                    ColumnLayout {
-                        width: dspScroll.availableWidth
-                        Label {
-                            text: qsTr("Filter  %1 Hz").arg(Engine.filterHigh - Engine.filterLow)
-                            color: Theme.textDim
-                            visible: Engine.filterPresets.length > 0
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: Engine.filterPresets.length > 0
-                            Repeater {
-                                model: Engine.filterPresets
-                                delegate: AppButton {
-                                    required property int modelData
-                                    text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
-                                    checkable: true
-                                    checked: Math.abs((Engine.filterHigh - Engine.filterLow) - modelData) < 60
-                                    Layout.fillWidth: true
-                                    onClicked: Engine.setFilterWidth(modelData)
-                                }
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Repeater {
-                                model: [{ key: "nr", label: "NR" }, { key: "nb", label: "NB" }, { key: "anf", label: "ANF" }]
-                                delegate: AppButton {
-                                    required property var modelData
-                                    text: modelData.label
-                                    checkable: true
-                                    checked: Engine[modelData.key]
-                                    Layout.fillWidth: true
-                                    onClicked: Engine[modelData.key] = !Engine[modelData.key]
-                                }
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label { text: qsTr("AGC"); color: Theme.textDim }
-                            Repeater {
-                                model: Engine.agcModes
-                                delegate: AppButton {
-                                    required property string modelData
-                                    text: modelData
-                                    checkable: true
-                                    checked: Engine.agcMode === modelData
-                                    Layout.fillWidth: true
-                                    onClicked: Engine.agcMode = modelData
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Audio
-                ScrollView {
-                    id: audioScroll
-                    clip: true
-                    contentWidth: availableWidth
-                    ColumnLayout {
-                        width: audioScroll.availableWidth
-                        Label { text: qsTr("AF gain"); color: Theme.textDim }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Slider {
-                                Layout.fillWidth: true
-                                from: 0
-                                to: 100
-                                value: Engine.afGain
-                                onMoved: Engine.afGain = value
-                            }
-                            AppButton {
-                                text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
-                                onClicked: Engine.muted = !Engine.muted
-                            }
-                        }
-                    }
-                }
-
-                // Transmit settings
-                ScrollView {
-                    id: txScroll
-                    clip: true
-                    contentWidth: availableWidth
-                    ColumnLayout {
-                        width: txScroll.availableWidth
-                        enabled: Engine.transmitAvailable || Engine.canUseDeviceMicrophone
-                        Label { text: qsTr("RF power  %1").arg(Engine.rfPower); color: Theme.textDim }
-                        Slider {
-                            Layout.fillWidth: true
-                            from: 0
-                            to: 100
-                            stepSize: 1
-                            value: Engine.rfPower
-                            onMoved: Engine.rfPower = Math.round(value)
-                        }
-                        Label { text: qsTr("Mic gain  %1").arg(Engine.micGain); color: Theme.textDim }
-                        Slider {
-                            Layout.fillWidth: true
-                            from: 0
-                            to: 100
-                            stepSize: 1
-                            value: Engine.micGain
-                            onMoved: Engine.micGain = Math.round(value)
-                        }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            height: 10
-                            radius: 3
-                            color: Theme.surface
-                            Rectangle {
-                                height: parent.height
-                                radius: 3
-                                width: parent.width * Math.max(0, Math.min(1, (Engine.micLevelDbfs + 40) / 40))
-                                color: Engine.micPeakDbfs > -3 ? Theme.transmit
-                                     : Engine.micPeakDbfs > -10 ? Theme.warning : Theme.accent
-                            }
-                        }
-                        AppButton {
-                            Layout.fillWidth: true
-                            visible: Engine.canUseDeviceMicrophone
-                            text: qsTr("Use this device's microphone")
-                            onClicked: Engine.useDeviceMicrophone()
-                        }
-                    }
-                }
-            }
-
-            // With the panel hidden in landscape, push PTT to the bottom of
-            // its strip.
+            // In landscape, PTT sits at the bottom of its strip.
             Item {
-                visible: page.landscape && !Engine.controlsVisible
+                visible: page.landscape
                 Layout.fillHeight: true
             }
 
             Label {
                 Layout.fillWidth: true
                 visible: (Engine.lastError.length > 0 || !Engine.transmitAvailable)
-                         && (Engine.controlsVisible || !page.landscape)
+                         && !page.landscape
                 text: Engine.lastError.length > 0 ? Engine.lastError : Engine.transmitUnavailableReason
                 color: Engine.lastError.length > 0 ? Theme.warning : Theme.textDim
                 font.pixelSize: 12
@@ -362,7 +194,7 @@ Page {
             AppButton {
                 id: ptt
                 Layout.fillWidth: true
-                Layout.preferredHeight: page.landscape && !Engine.controlsVisible ? 120 : 64
+                Layout.preferredHeight: page.landscape ? 120 : 64
                 enabled: Engine.transmitAvailable || pressed
                 text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 font.pixelSize: 26
@@ -389,6 +221,35 @@ Page {
                 onReleased: Engine.setPtt(false, "button released")
                 onCanceled: Engine.setPtt(false, "touch cancelled by the system")
             }
+        }
+    }
+
+    // Controls slide in over the waterfall: from the right in landscape, from
+    // the bottom in portrait. No dimming, so the waterfall stays visible; a
+    // tap outside or a swipe back closes it. Edge swipes do not open it
+    // (dragMargin 0): in landscape the PTT strip shares that edge, and a PTT
+    // press must never turn into a drawer drag.
+    Drawer {
+        id: controlsDrawer
+        objectName: "controlsDrawer"
+        edge: page.landscape ? Qt.RightEdge : Qt.BottomEdge
+        width: page.landscape ? Math.min(page.width * 0.5, 460) : page.width
+        height: page.landscape ? page.height : Math.min(page.height * 0.55, 520)
+        dim: false
+        dragMargin: 0
+        // A drawer opening while PTT is held would hide the button.
+        onAboutToShow: Engine.setPtt(false, "controls drawer opened")
+        background: Rectangle {
+            color: Theme.surface
+            opacity: 0.96
+            radius: Theme.radius
+        }
+
+        ControlsPanel {
+            anchors.fill: parent
+            anchors.margins: Theme.spacing
+            anchors.bottomMargin: Theme.spacing + (page.landscape ? 0 : controlsDrawer.SafeArea.margins.bottom)
+            anchors.rightMargin: Theme.spacing + (page.landscape ? controlsDrawer.SafeArea.margins.right : 0)
         }
     }
 

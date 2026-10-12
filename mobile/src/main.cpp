@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
         QStringLiteral("mode"));
     parser.addOption(modeOption);
     const QCommandLineOption controlsOption(QStringLiteral("controls"),
-        QStringLiteral("Show or hide the operate page's control panel: visible or hidden (remembered)."),
+        QStringLiteral("Control panel: visible or hidden (remembered), or drawer to also open the drawer (screenshots)."),
         QStringLiteral("state"));
     parser.addOption(controlsOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
     AetherSDR::mobile::MobileEngine engine;
 
     if (parser.isSet(controlsOption)) {
-        engine.setControlsVisible(parser.value(controlsOption) != QLatin1String("hidden"));
+        engine.setControlsVisible(parser.value(controlsOption) == QLatin1String("visible"));
     }
 
     QQmlApplicationEngine qml;
@@ -89,6 +89,16 @@ int main(int argc, char* argv[])
         }
     } else if (parser.isSet(connectOption)) {
         engine.connectToAddress(parser.value(connectOption));
+    }
+
+    if (parser.value(controlsOption) == QLatin1String("drawer")) {
+        QTimer::singleShot(6000, &app, [&qml] {
+            for (QObject* root : qml.rootObjects()) {
+                if (QObject* drawer = root->findChild<QObject*>(QStringLiteral("controlsDrawer"))) {
+                    QMetaObject::invokeMethod(drawer, "open");
+                }
+            }
+        });
     }
 
     if (parser.isSet(screenshotOption)) {
