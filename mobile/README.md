@@ -38,6 +38,13 @@ The `--demo` option connects to the simulator as soon as it is listed. Add
 `--screenshot out.png` to save the window after a delay and quit, which also
 works with `QT_QPA_PLATFORM=offscreen`.
 
+## README screenshots
+
+`mobile/tools/update-screenshots.sh [RADIO_IP]` builds the app and renders
+`docs/mobile/*.jpg` at every layout size (iPad Pro, iPad mini portrait, and
+iPhone portrait and landscape), plus the LSB passband from the demo radio.
+Run it with every user-interface change and commit the images with it.
+
 ## iOS
 
 `.github/workflows/mobile-ios.yml` builds the engine and the app for iOS arm64

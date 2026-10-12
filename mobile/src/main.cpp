@@ -33,6 +33,10 @@ int main(int argc, char* argv[])
     const QCommandLineOption connectOption(QStringLiteral("connect"),
         QStringLiteral("Connect to the FlexRadio at <address> on start."), QStringLiteral("address"));
     parser.addOption(connectOption);
+    const QCommandLineOption modeOption(QStringLiteral("mode"),
+        QStringLiteral("With --demo: set the demo slice to <mode> after connecting (screenshots)."),
+        QStringLiteral("mode"));
+    parser.addOption(modeOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -70,6 +74,11 @@ int main(int argc, char* argv[])
 
     if (parser.isSet(demoOption)) {
         engine.connectToDemoWhenListed();
+        if (parser.isSet(modeOption)) {
+            const QString mode = parser.value(modeOption);
+            QObject::connect(&engine, &AetherSDR::mobile::MobileEngine::modesChanged, &engine,
+                             [&engine, mode] { engine.setMode(mode); });
+        }
     } else if (parser.isSet(connectOption)) {
         engine.connectToAddress(parser.value(connectOption));
     }

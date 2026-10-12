@@ -65,8 +65,15 @@ radio interface, with no computer running alongside.
 <p align="center">
   <img src="docs/mobile/iphone-landscape.jpg" width="56%" alt="iPhone landscape layout"/>
   &nbsp;
-  <img src="docs/mobile/passband-lsb.jpg" width="38%" alt="LSB filter passband drawn left of the slice marker"/>
+  <img src="docs/mobile/ipad-mini-portrait.jpg" width="25%" alt="iPad mini portrait layout"/>
 </p>
+<p align="center">
+  <img src="docs/mobile/passband-lsb.jpg" width="50%" alt="LSB filter passband: fill over the spectrum, edge lines through the waterfall"/>
+</p>
+
+<sub>Screenshots are rendered by
+[`mobile/tools/update-screenshots.sh`](mobile/tools/update-screenshots.sh) and
+refreshed with every user-interface change.</sub>
 
 ## Status
 

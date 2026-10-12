@@ -48,6 +48,9 @@ private:
     float m_floor{0.0f};
     float m_span{0.0f};
     bool m_rangeSeeded{false};
+    float m_traceBottom{-130.0f};
+    float m_traceTop{-40.0f};
+    bool m_traceSeeded{false};
     double m_spectrumFraction{0.4};
 };
 

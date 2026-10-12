@@ -55,10 +55,13 @@ Page {
         rowSpacing: Theme.spacing / 2
 
         // ---- receive view: frequency, bands, spectrum, steps ----
+        // In landscape this column has a fixed share of the width, so text in
+        // the control column can never change the spectrum's size.
         ColumnLayout {
-            Layout.fillWidth: true
+            Layout.fillWidth: !page.landscape
             Layout.fillHeight: true
-            Layout.preferredWidth: page.landscape ? page.width * 0.58 : -1
+            Layout.preferredWidth: page.landscape ? Math.round(grid.width * 0.56) : -1
+            Layout.maximumWidth: page.landscape ? Math.round(grid.width * 0.56) : Number.POSITIVE_INFINITY
             spacing: Theme.spacing / 2
 
             RowLayout {
@@ -74,7 +77,15 @@ Page {
                 AppButton { text: "−"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(2.0) }
                 AppButton { text: "+"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(0.5) }
                 Item { Layout.fillWidth: true }
-                Label { text: Engine.sMeterText; color: Theme.text; font.pixelSize: 13 }
+                // Fixed width: a changing reading must not resize the row (and
+                // with it the spectrum, which would restart the radio's FFT).
+                Label {
+                    text: Engine.sMeterText
+                    color: Theme.text
+                    font.pixelSize: 13
+                    horizontalAlignment: Text.AlignRight
+                    Layout.preferredWidth: 104
+                }
             }
             ProgressBar {
                 Layout.fillWidth: true

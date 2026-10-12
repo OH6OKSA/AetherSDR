@@ -12,8 +12,12 @@ namespace AetherSDR::mobile {
 
 namespace {
 
-constexpr float kTraceMinDbm = -130.0f;
-constexpr float kTraceMaxDbm = -40.0f;
+// Trace scale: bottom a little below the noise, top above the strongest
+// signals, at least kTraceMinSpanDb tall, eased so the trace does not jump.
+constexpr float kTraceBelowNoiseDb = 8.0f;
+constexpr float kTraceAboveTopDb = 10.0f;
+constexpr float kTraceMinSpanDb = 50.0f;
+constexpr float kTraceSmoothing = 0.1f;
 constexpr float kRangeSmoothing = 0.05f;
 // Minimum colour span, in the row's units (dB-like for both Flex intensity
 // and dBm), so a noise-only band stays dark instead of being stretched.
@@ -86,6 +90,22 @@ void SpectrumItem::reportPixels()
 void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
 {
     m_spectrum = binsDbm;
+    if (!binsDbm.isEmpty()) {
+        QVector<float> sorted = binsDbm;
+        std::sort(sorted.begin(), sorted.end());
+        const float noise = sorted.at(sorted.size() / 2);
+        const float peak = sorted.last();
+        const float bottom = noise - kTraceBelowNoiseDb;
+        const float top = std::max(bottom + kTraceMinSpanDb, peak + kTraceAboveTopDb);
+        if (!m_traceSeeded) {
+            m_traceBottom = bottom;
+            m_traceTop = top;
+            m_traceSeeded = true;
+        } else {
+            m_traceBottom += (bottom - m_traceBottom) * kTraceSmoothing;
+            m_traceTop += (top - m_traceTop) * kTraceSmoothing;
+        }
+    }
     update();
 }
 
@@ -167,7 +187,7 @@ void SpectrumItem::paint(QPainter* painter)
         const qsizetype n = m_spectrum.size();
         for (qsizetype i = 0; i < n; ++i) {
             const qreal x = w * i / (n - 1);
-            const float norm = (m_spectrum.at(i) - kTraceMinDbm) / (kTraceMaxDbm - kTraceMinDbm);
+            const float norm = (m_spectrum.at(i) - m_traceBottom) / (m_traceTop - m_traceBottom);
             const qreal y = specH * (1.0 - std::clamp(norm, 0.0f, 1.0f));
             if (i == 0) {
                 path.moveTo(x, y);

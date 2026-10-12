@@ -142,10 +142,12 @@ Page {
                 }
                 Item { Layout.fillWidth: true }
                 ColumnLayout {
+                    // Fixed width so a changing reading never resizes the row.
                     Label {
                         text: Engine.sMeterText
                         color: Theme.text
                         font.pixelSize: page.compact ? 16 : 22
+                        Layout.preferredWidth: page.compact ? 150 : 260
                     }
                     ProgressBar {
                         Layout.preferredWidth: page.compact ? 150 : 260

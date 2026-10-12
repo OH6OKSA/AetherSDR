@@ -21,6 +21,7 @@
 #include <QJSEngine>
 #include <QLoggingCategory>
 #include <QThread>
+#include <QTimer>
 
 #include <algorithm>
 #include <cmath>
@@ -39,6 +40,8 @@ constexpr double kS9Dbm = -73.0;
 constexpr quint16 kRadioTxAudioPort = 4991;
 const QString kLastAddressKey = QStringLiteral("MobileLastRadioAddress");
 const QString kDeviceMicSelection = QStringLiteral("PC");
+constexpr int kPanPixelsSettleMs = 400;
+constexpr int kMinPanYPixels = 200;
 constexpr double kDbPerSUnit = 6.0;
 
 } // namespace
@@ -85,6 +88,13 @@ MobileEngine::MobileEngine(QObject* parent)
         selectActiveSlice();
     });
     connect(&rm, &RadioModel::panDimensionsNeeded, this, &MobileEngine::sendPanDimensions);
+    m_panPixelsTimer.setSingleShot(true);
+    m_panPixelsTimer.setInterval(kPanPixelsSettleMs);
+    connect(&m_panPixelsTimer, &QTimer::timeout, this, [this] {
+        if (m_pan) {
+            sendPanDimensions(m_pan->panId());
+        }
+    });
 
     connect(&rm, &RadioModel::panFeedSpectrumReady, this,
             [this](quint32 streamId, const QVector<float>& bins, qint64, const SpectrumDecodeScale&) {
@@ -824,9 +834,10 @@ void MobileEngine::setPanPixels(int width, int height)
     }
     m_panWidth = width;
     m_panHeight = height;
-    if (m_pan) {
-        sendPanDimensions(m_pan->panId());
-    }
+    // Each new size restarts the radio's FFT stream at the new geometry, so
+    // only a size that has held for a moment is sent; layout settling and
+    // rotation produce bursts of intermediate sizes.
+    m_panPixelsTimer.start();
 }
 
 void MobileEngine::sendPanDimensions(const QString& panId)
@@ -837,9 +848,14 @@ void MobileEngine::sendPanDimensions(const QString& panId)
     }
     // Self-shaping backends take the width through the seam; the
     // xpixels/ypixels text is the Flex command-plane contract.
+    // ypixels sets only the FFT's vertical resolution (the view scales the
+    // dBm values itself). Below about 100 rows, 4.2.x firmware's pixels no
+    // longer decode to the right dBm (noise read as -50 dBm at 88 rows), so
+    // never ask for fewer than kMinPanYPixels.
+    const int yPixels = std::max(m_panHeight, kMinPanYPixels);
     if (!rm.requestLocalPanPixelWidth(panId, m_panWidth) && rm.hasCommandPlane()) {
         rm.sendCommand(QStringLiteral("display pan set %1 xpixels=%2 ypixels=%3")
-                           .arg(panId).arg(m_panWidth).arg(m_panHeight));
+                           .arg(panId).arg(m_panWidth).arg(yPixels));
     }
 }
 

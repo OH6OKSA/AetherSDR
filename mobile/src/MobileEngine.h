@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
+#include <QTimer>
 #include <QVector>
 #include <QtQml/qqmlregistration.h>
 
@@ -235,6 +236,7 @@ private:
     QString m_lastError;
     QString m_radioName;
     double m_sMeterDbm{-130.0};
+    QTimer m_panPixelsTimer;
     int m_panWidth{0};
     int m_panHeight{0};
 };
