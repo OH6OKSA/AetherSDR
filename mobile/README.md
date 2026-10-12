@@ -4,6 +4,8 @@ A touch client for iPad (iPadOS) that links `libaethercore` in-process and
 talks to the radio directly, with no PC, `aetherd` or SmartSDR in between. It is
 configured only when `AETHER_MOBILE` is ON (see `BUILD-OPTIONS.md`).
 
+Privacy policy: [PRIVACY.md](PRIVACY.md).
+
 Status: prototype. The client does the following:
 
 - Discovers LAN radios and lists the built-in demo radio. It can also connect
