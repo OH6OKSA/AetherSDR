@@ -28,10 +28,11 @@ and it makes no other internet connections.
 
 ## Microphone
 
-The microphone is used only to transmit through your radio. Capture starts
-only after you choose "Use this device's microphone", which sets the radio's
-mic input to this device. The audio goes only to your radio and is not
-recorded or stored. iOS asks for microphone permission first.
+The microphone is used only to transmit through your radio, and it is open
+only while you hold PTT. Transmitting from the device requires the radio's mic
+input to be set to this device ("Use this device's microphone"). The audio
+goes only to your radio and is not recorded or stored. iOS asks for
+microphone permission first.
 
 ## Camera
 

@@ -46,7 +46,7 @@ radio interface, with no computer running alongside.
 **Transmit**
 - Hold-to-talk PTT from the device's microphone (the radio's mic input set to
   `PC`), with RF power, mic gain and mic level, plus forward power and SWR
-  while transmitting.
+  while transmitting. The microphone is open only while PTT is held.
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The
   transmitter unkeys on release, on disconnect, when the app loses focus,

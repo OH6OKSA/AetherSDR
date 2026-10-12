@@ -337,10 +337,23 @@ Page {
                 text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 font.pixelSize: 26
                 font.bold: true
+                // Ready, unavailable and transmitting must look different at a
+                // glance: ready has a bright border and label, unavailable is dim.
+                contentItem: Text {
+                    text: ptt.text
+                    font: ptt.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    color: Engine.transmitting ? "white" : ptt.enabled ? Theme.text : Theme.textDim
+                    opacity: ptt.enabled ? 1.0 : 0.35
+                }
                 background: Rectangle {
                     radius: Theme.radius
                     color: Engine.transmitting ? Theme.transmit
+                         : ptt.pressed ? Qt.darker(Theme.transmit, 1.6)
                          : ptt.enabled ? Theme.surfaceRaised : Theme.surface
+                    border.width: ptt.enabled && !Engine.transmitting ? 2 : 0
+                    border.color: Theme.transmit
                 }
                 onPressed: Engine.setPtt(true)
                 onReleased: Engine.setPtt(false, "button released")

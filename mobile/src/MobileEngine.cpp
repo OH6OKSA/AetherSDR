@@ -248,11 +248,6 @@ void MobileEngine::wireTransmit()
             audio->setRemoteTxStreamId(streamId);
             audio->setOpusTxEnabled(true);
         }, Qt::QueuedConnection);
-        if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
-            startDeviceMicrophoneCapture();
-        } else {
-            stopDeviceMicrophoneCapture();
-        }
         emit transmitStateChanged();
     });
     connect(&rm, &RadioModel::txAudioStreamReady, this, [this](quint32 streamId) {
@@ -261,16 +256,10 @@ void MobileEngine::wireTransmit()
             audio->setTxStreamId(streamId);
             audio->setOpusTxEnabled(true);
         }, Qt::QueuedConnection);
-        if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
-            startDeviceMicrophoneCapture();
-        }
     });
     connect(&rm.transmitModel(), &TransmitModel::micStateChanged, this, [this] {
-        if (m_session.radioModel().transmitModel().micSelection() == kDeviceMicSelection) {
-            startDeviceMicrophoneCapture();
-        } else {
+        if (m_session.radioModel().transmitModel().micSelection() != kDeviceMicSelection) {
             releasePtt(QStringLiteral("mic input left this device"));
-            stopDeviceMicrophoneCapture();
         }
         emit transmitStateChanged();
     });
@@ -291,6 +280,14 @@ void MobileEngine::wireTransmit()
         emit txMetersChanged();
     });
     connect(&rm, &RadioModel::capabilitiesChanged, this, &MobileEngine::applyTxAudioCapabilities);
+    // Ask for microphone permission as soon as transmitting from this device
+    // is possible, so the iOS prompt never interrupts a PTT press. Asking
+    // does not open the microphone.
+    connect(this, &MobileEngine::transmitStateChanged, this, [this] {
+        if (transmitAvailable()) {
+            ensureMicrophonePermission();
+        }
+    });
     wireTxPacketSink();
 }
 
@@ -337,25 +334,34 @@ void MobileEngine::applyTxAudioCapabilities(bool connected, const RadioCapabilit
     emit transmitStateChanged();
 }
 
-void MobileEngine::startDeviceMicrophoneCapture()
+bool MobileEngine::ensureMicrophonePermission()
 {
     QMicrophonePermission permission;
     switch (qApp->checkPermission(permission)) {
-    case Qt::PermissionStatus::Undetermined:
-        qApp->requestPermission(permission, this, [this](const QPermission& result) {
-            if (result.status() == Qt::PermissionStatus::Granted) {
-                startDeviceMicrophoneCapture();
-            } else {
-                setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
-            }
-            emit transmitStateChanged();
-        });
-        return;
+    case Qt::PermissionStatus::Granted:
+        return true;
     case Qt::PermissionStatus::Denied:
         setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
+        return false;
+    case Qt::PermissionStatus::Undetermined:
+        if (!m_micPermissionRequested) {
+            m_micPermissionRequested = true;
+            qApp->requestPermission(permission, this, [this](const QPermission& result) {
+                if (result.status() != Qt::PermissionStatus::Granted) {
+                    setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
+                }
+            });
+        }
+        return false;
+    }
+    return false;
+}
+
+void MobileEngine::startDeviceMicrophoneCapture()
+{
+    // The microphone is open only while PTT is held.
+    if (!ensureMicrophonePermission()) {
         return;
-    case Qt::PermissionStatus::Granted:
-        break;
     }
     const int gain = AppSettings::instance().value(QStringLiteral("PcMicGain"), 100).toInt();
     const QHostAddress address = m_session.radioModel().radioAddress();
@@ -472,6 +478,7 @@ void MobileEngine::setPtt(bool down, const QString& reason)
         return;
     }
     qCInfo(lcMobile) << "PTT keyed";
+    startDeviceMicrophoneCapture();
 }
 
 void MobileEngine::releasePtt(const QString& reason)
@@ -481,6 +488,7 @@ void MobileEngine::releasePtt(const QString& reason)
     }
     m_pttHeld = false;
     m_pttInput.stop();
+    stopDeviceMicrophoneCapture();
     qCInfo(lcMobile).noquote() << "PTT released:" << reason;
 }
 

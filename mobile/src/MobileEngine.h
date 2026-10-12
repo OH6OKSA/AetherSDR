@@ -204,6 +204,7 @@ private:
     void wireTransmit();
     void wireTxPacketSink();
     void applyTxAudioCapabilities(bool connected, const RadioCapabilities& caps);
+    bool ensureMicrophonePermission();
     void startDeviceMicrophoneCapture();
     void stopDeviceMicrophoneCapture();
     void releasePtt(const QString& reason);
@@ -220,6 +221,7 @@ private:
     TxCoordinator::Producer m_microphoneProducer;
     TxController::Input m_pttInput;
     bool m_pttHeld{false};
+    bool m_micPermissionRequested{false};
     bool m_connected{false};
     RadioCapabilities m_caps;
     double m_micLevelDbfs{-100.0};
