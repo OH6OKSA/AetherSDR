@@ -1,3 +1,10 @@
+> **This fork: unofficial iPad & iPhone port.** Branch `mobile/aether-mobile-core`
+> adds a standalone touch client for iPadOS/iOS that links `libaethercore` and
+> talks to a FlexRadio directly. It is in TestFlight beta. See
+> [`mobile/README.md`](mobile/README.md) and the upstream discussion
+> [#6409](https://github.com/aethersdr/AetherSDR/discussions/6409). This is not
+> an official AetherSDR release. Everything below is the upstream README.
+
 # AetherSDR
 
 **A cross-platform, open-source client for FlexRadio Systems transceivers**
