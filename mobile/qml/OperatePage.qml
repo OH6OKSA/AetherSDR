@@ -197,6 +197,11 @@ Page {
                 }
             }
 
+            SliceBar {
+                Layout.fillWidth: true
+                compact: page.compact
+            }
+
             PanadapterView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -321,6 +326,11 @@ Page {
                         onClicked: Engine.agcMode = modelData
                     }
                 }
+            }
+
+            // RIT, XIT, squelch and antennas.
+            RxControls {
+                Layout.fillWidth: true
             }
 
             Label { text: qsTr("AF gain"); color: Theme.textDim; font.pixelSize: 16 }

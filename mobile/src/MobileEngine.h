@@ -74,6 +74,21 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QString agcMode READ agcMode WRITE setAgcMode NOTIFY dspChanged)
     Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
     Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
+    Q_PROPERTY(bool ritOn READ ritOn WRITE setRitOn NOTIFY ritXitChanged)
+    Q_PROPERTY(int ritHz READ ritHz WRITE setRitHz NOTIFY ritXitChanged)
+    Q_PROPERTY(bool xitOn READ xitOn WRITE setXitOn NOTIFY ritXitChanged)
+    Q_PROPERTY(int xitHz READ xitHz WRITE setXitHz NOTIFY ritXitChanged)
+    Q_PROPERTY(bool squelchAvailable READ squelchAvailable NOTIFY modeChanged)
+    Q_PROPERTY(bool squelchOn READ squelchOn WRITE setSquelchOn NOTIFY squelchChanged)
+    Q_PROPERTY(int squelchLevel READ squelchLevel WRITE setSquelchLevel NOTIFY squelchChanged)
+    Q_PROPERTY(QString rxAntenna READ rxAntenna WRITE setRxAntenna NOTIFY antennaChanged)
+    Q_PROPERTY(QStringList rxAntennas READ rxAntennas NOTIFY antennaChanged)
+    Q_PROPERTY(QString txAntenna READ txAntenna WRITE setTxAntenna NOTIFY antennaChanged)
+    Q_PROPERTY(QStringList txAntennas READ txAntennas NOTIFY antennaChanged)
+    Q_PROPERTY(QVariantList slices READ slices NOTIFY slicesChanged)
+    Q_PROPERTY(int activeSliceId READ activeSliceId NOTIFY slicesChanged)
+    Q_PROPERTY(bool canAddSlice READ canAddSlice NOTIFY slicesChanged)
+    Q_PROPERTY(bool canAddPanadapter READ canAddPanadapter NOTIFY slicesChanged)
     Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
     Q_PROPERTY(int micGain READ micGain WRITE setMicGain NOTIFY micGainChanged)
     Q_PROPERTY(double micLevelDbfs READ micLevelDbfs NOTIFY txMetersChanged)
@@ -169,6 +184,33 @@ public:
     QString agcMode() const;
     void setAgcMode(const QString& mode);
     QStringList agcModes() const;
+    // RIT / XIT of the active slice, Hz (clamped to +/-9999 like the desktop).
+    bool ritOn() const;
+    void setRitOn(bool on);
+    int ritHz() const;
+    void setRitHz(int hz);
+    bool xitOn() const;
+    void setXitOn(bool on);
+    int xitHz() const;
+    void setXitHz(int hz);
+    // Squelch is offered outside digital and CW modes (desktop rule).
+    bool squelchAvailable() const;
+    bool squelchOn() const;
+    void setSquelchOn(bool on);
+    int squelchLevel() const;
+    void setSquelchLevel(int level);
+    // Antennas of the active slice; lists come from the radio.
+    QString rxAntenna() const;
+    void setRxAntenna(const QString& antenna);
+    QStringList rxAntennas() const;
+    QString txAntenna() const;
+    void setTxAntenna(const QString& antenna);
+    QStringList txAntennas() const;
+    // All slices: {id, letter, frequency, mode, active, tx, panId}.
+    QVariantList slices() const;
+    int activeSliceId() const;
+    bool canAddSlice() const;
+    bool canAddPanadapter() const;
     // The active slice's tuning step (radio-reported), Hz.
     int stepHz() const;
     // Radio RF power setting (Flex rfpower, 0..100).
@@ -256,6 +298,12 @@ public:
     // last frequency and mode used on that band.
     Q_INVOKABLE void selectBand(const QString& band);
     Q_INVOKABLE void setFilterWidth(int widthHz);
+    Q_INVOKABLE void selectSlice(int sliceId);
+    Q_INVOKABLE void addSlice();
+    Q_INVOKABLE void removeSlice(int sliceId);
+    Q_INVOKABLE void makeTxSlice(int sliceId);
+    // A new panadapter (with its own slice, created by the radio's defaults).
+    Q_INVOKABLE void addPanadapter();
     // Tune by whole tuning steps, landing on the step grid.
     Q_INVOKABLE void tuneBySteps(int steps);
     // Tune to a point on the display, rounded to the tuning step.
@@ -294,6 +342,10 @@ signals:
     void atuChanged();
     void txAudioChanged();
     void stepChanged();
+    void ritXitChanged();
+    void squelchChanged();
+    void antennaChanged();
+    void slicesChanged();
     // Frames of the active panadapter only. Spectrum bins are dBm and span
     // the pan. Waterfall rows are intensities on a backend-dependent scale
     // covering lowMhz..highMhz, which need not equal the pan's range.

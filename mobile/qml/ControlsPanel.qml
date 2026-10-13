@@ -117,6 +117,9 @@ ColumnLayout {
                         }
                     }
                 }
+                RxControls {
+                    Layout.fillWidth: true
+                }
             }
         }
 

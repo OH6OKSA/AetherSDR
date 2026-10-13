@@ -90,7 +90,16 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
-    connect(&rm, &RadioModel::sliceRemoved, this, [this](int) { selectActiveSlice(); });
+    connect(&rm, &RadioModel::sliceRemoved, this, [this](int) {
+        selectActiveSlice();
+        emit slicesChanged();
+    });
+    connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
+        setLastError(tr("The radio allows %1 slices.").arg(limit));
+    });
+    connect(&rm, &RadioModel::panadapterLimitReached, this, [this](int limit, const QString&) {
+        setLastError(tr("The radio allows %1 panadapters.").arg(limit));
+    });
     connect(&rm, &RadioModel::panadapterAdded, this, [this](PanadapterModel* pan) {
         sendPanDimensions(pan->panId());
         selectActiveSlice();
@@ -1109,6 +1118,192 @@ void MobileEngine::zoom(double factor)
     }
 }
 
+namespace {
+constexpr int kRitXitLimitHz = 9999;
+}
+
+bool MobileEngine::ritOn() const { return m_slice && m_slice->ritOn(); }
+int MobileEngine::ritHz() const { return m_slice ? m_slice->ritFreq() : 0; }
+bool MobileEngine::xitOn() const { return m_slice && m_slice->xitOn(); }
+int MobileEngine::xitHz() const { return m_slice ? m_slice->xitFreq() : 0; }
+
+void MobileEngine::setRitOn(bool on)
+{
+    if (m_slice) {
+        m_slice->setRit(on, m_slice->ritFreq());
+    }
+}
+
+void MobileEngine::setRitHz(int hz)
+{
+    if (m_slice) {
+        m_slice->setRit(m_slice->ritOn(), std::clamp(hz, -kRitXitLimitHz, kRitXitLimitHz));
+    }
+}
+
+void MobileEngine::setXitOn(bool on)
+{
+    if (m_slice) {
+        m_slice->setXit(on, m_slice->xitFreq());
+    }
+}
+
+void MobileEngine::setXitHz(int hz)
+{
+    if (m_slice) {
+        m_slice->setXit(m_slice->xitOn(), std::clamp(hz, -kRitXitLimitHz, kRitXitLimitHz));
+    }
+}
+
+bool MobileEngine::squelchAvailable() const
+{
+    static const QStringList kNoSquelch{QStringLiteral("DIGU"), QStringLiteral("DIGL"), QStringLiteral("NT"),
+                                        QStringLiteral("RTTY"), QStringLiteral("CW"), QStringLiteral("CWL")};
+    return m_slice && !kNoSquelch.contains(m_slice->mode());
+}
+
+bool MobileEngine::squelchOn() const { return m_slice && m_slice->receiveSquelchOn(); }
+int MobileEngine::squelchLevel() const { return m_slice ? m_slice->receiveSquelchLevel() : 0; }
+
+void MobileEngine::setSquelchOn(bool on)
+{
+    if (m_slice && squelchAvailable()) {
+        m_slice->setManualSquelch(on, m_slice->receiveSquelchLevel());
+    }
+}
+
+void MobileEngine::setSquelchLevel(int level)
+{
+    if (m_slice && squelchAvailable()) {
+        m_slice->setManualSquelch(m_slice->receiveSquelchOn(), std::clamp(level, 0, 100));
+    }
+}
+
+QString MobileEngine::rxAntenna() const { return m_slice ? m_slice->rxAntenna() : QString(); }
+QString MobileEngine::txAntenna() const { return m_slice ? m_slice->txAntenna() : QString(); }
+
+QStringList MobileEngine::rxAntennas() const
+{
+    if (!m_slice) {
+        return {};
+    }
+    return m_slice->rxAntennaList().isEmpty() ? m_session.radioModel().antennaList() : m_slice->rxAntennaList();
+}
+
+QStringList MobileEngine::txAntennas() const
+{
+    if (!m_slice) {
+        return {};
+    }
+    // The radio's TX list; never offer a made-up port.
+    QStringList list = m_slice->txAntennaList();
+    if (!m_slice->txAntenna().isEmpty() && !list.contains(m_slice->txAntenna())) {
+        list.prepend(m_slice->txAntenna());
+    }
+    return list;
+}
+
+void MobileEngine::setRxAntenna(const QString& antenna)
+{
+    if (m_slice && rxAntennas().contains(antenna) && antenna != m_slice->rxAntenna()) {
+        m_slice->setRxAntenna(antenna);
+    }
+}
+
+void MobileEngine::setTxAntenna(const QString& antenna)
+{
+    if (m_slice && txAntennas().contains(antenna) && antenna != m_slice->txAntenna()) {
+        m_slice->setTxAntenna(antenna);
+    }
+}
+
+QVariantList MobileEngine::slices() const
+{
+    QVariantList list;
+    for (SliceModel* s : m_session.radioModel().slices()) {
+        list.append(QVariantMap{
+            {QStringLiteral("id"), s->sliceId()},
+            {QStringLiteral("letter"), s->letter()},
+            {QStringLiteral("frequency"), s->frequency()},
+            {QStringLiteral("mode"), s->mode()},
+            {QStringLiteral("active"), m_slice == s},
+            {QStringLiteral("tx"), s->isTxSlice()},
+            {QStringLiteral("panId"), s->panId()},
+            {QStringLiteral("filterLow"), s->filterLow()},
+            {QStringLiteral("filterHigh"), s->filterHigh()},
+        });
+    }
+    return list;
+}
+
+int MobileEngine::activeSliceId() const
+{
+    return m_slice ? m_slice->sliceId() : -1;
+}
+
+bool MobileEngine::canAddSlice() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    return m_connected && rm.slices().size() < rm.maxSlices();
+}
+
+bool MobileEngine::canAddPanadapter() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    return m_connected && rm.usesFlexCommandPlane() && rm.panadapters().size() < rm.maxPanadapters();
+}
+
+void MobileEngine::selectSlice(int sliceId)
+{
+    RadioModel& rm = m_session.radioModel();
+    SliceModel* s = rm.slice(sliceId);
+    if (!s) {
+        return;
+    }
+    rm.setActivePanId(s->panId());
+    if (!s->isActive()) {
+        s->setActive(true);
+    }
+    bindSlice(s);
+    bindPan(rm.panadapter(s->panId()));
+}
+
+void MobileEngine::addSlice()
+{
+    if (!canAddSlice() || !m_pan) {
+        return;
+    }
+    m_session.radioModel().addSliceOnPan(m_pan->panId());
+}
+
+void MobileEngine::removeSlice(int sliceId)
+{
+    RadioModel& rm = m_session.radioModel();
+    if (rm.slices().size() <= 1) {
+        setLastError(tr("The last slice cannot be closed."));
+        return;
+    }
+    if (SliceModel* s = rm.slice(sliceId); s && s->isTxSlice()) {
+        stopTransmit(QStringLiteral("TX slice closed"));
+    }
+    rm.removeSlice(sliceId);
+}
+
+void MobileEngine::makeTxSlice(int sliceId)
+{
+    if (SliceModel* s = m_session.radioModel().slice(sliceId); s && !s->isTxSlice()) {
+        stopTransmit(QStringLiteral("TX slice changed"));
+        s->setTxSlice(true);
+    }
+}
+
+void MobileEngine::addPanadapter()
+{
+    if (canAddPanadapter()) {
+        m_session.radioModel().createPanadapter();
+    }
+}
+
 int MobileEngine::stepHz() const
 {
     return m_slice && m_slice->stepHz() > 0 ? m_slice->stepHz() : 100;
@@ -1287,6 +1482,13 @@ void MobileEngine::wireRxAudio()
 void MobileEngine::onSliceAdded(SliceModel* slice)
 {
     connect(slice, &SliceModel::activeChanged, this, [this](bool) { selectActiveSlice(); });
+    for (auto signal : {&SliceModel::frequencyChanged}) {
+        connect(slice, signal, this, &MobileEngine::slicesChanged);
+    }
+    connect(slice, &SliceModel::modeChanged, this, &MobileEngine::slicesChanged);
+    connect(slice, &SliceModel::txSliceChanged, this, &MobileEngine::slicesChanged);
+    connect(slice, &SliceModel::letterChanged, this, &MobileEngine::slicesChanged);
+    emit slicesChanged();
     selectActiveSlice();
 }
 
@@ -1331,6 +1533,13 @@ void MobileEngine::bindSlice(SliceModel* slice)
         m_sliceConnections.append(connect(slice, &SliceModel::anfChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::agcModeChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::stepChanged, this, &MobileEngine::stepChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::ritChanged, this, &MobileEngine::ritXitChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::xitChanged, this, &MobileEngine::ritXitChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::squelchChanged, this, &MobileEngine::squelchChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::rxAntennaChanged, this, &MobileEngine::antennaChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::txAntennaChanged, this, &MobileEngine::antennaChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::rxAntennaListChanged, this, &MobileEngine::antennaChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::txAntennaListChanged, this, &MobileEngine::antennaChanged));
     }
     emit frequencyChanged();
     emit modeChanged();
@@ -1340,6 +1549,10 @@ void MobileEngine::bindSlice(SliceModel* slice)
     emit filterChanged();
     emit dspChanged();
     emit stepChanged();
+    emit ritXitChanged();
+    emit squelchChanged();
+    emit antennaChanged();
+    emit slicesChanged();
 }
 
 void MobileEngine::bindPan(PanadapterModel* pan)

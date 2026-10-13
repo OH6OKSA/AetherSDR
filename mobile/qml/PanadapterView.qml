@@ -52,6 +52,46 @@ Rectangle {
         }
     }
 
+    // The other slices on this pan: dim markers with their letter; a tap
+    // near one selects it.
+    readonly property string activePanId: {
+        const list = Engine.slices
+        for (let i = 0; i < list.length; ++i) {
+            if (list[i].active) return list[i].panId
+        }
+        return ""
+    }
+    Repeater {
+        model: Engine.slices
+        delegate: Item {
+            required property var modelData
+            visible: !modelData.active && modelData.panId === panArea.activePanId && Engine.panBandwidthMhz > 0
+            x: (modelData.frequency - Engine.panCenterMhz) / Engine.panBandwidthMhz * panArea.width
+               + panArea.width / 2 - width / 2
+            width: 36
+            height: panArea.height
+            z: 2
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 2
+                height: parent.height
+                color: Theme.textDim
+                opacity: 0.8
+            }
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: 4
+                text: modelData.letter + (modelData.tx ? " TX" : "")
+                color: Theme.text
+                font.pixelSize: 13
+                font.bold: true
+                background: Rectangle { color: Theme.surfaceRaised; radius: 4; opacity: 0.9 }
+                padding: 3
+            }
+            TapHandler { onTapped: Engine.selectSlice(modelData.id) }
+        }
+    }
+
     // Slice marker: where the active slice sits inside the pan.
     Rectangle {
         visible: Engine.panBandwidthMhz > 0

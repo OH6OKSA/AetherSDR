@@ -120,6 +120,11 @@ Page {
                 }
             }
 
+            SliceBar {
+                Layout.fillWidth: true
+                compact: true
+            }
+
             PanadapterView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
