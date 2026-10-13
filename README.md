@@ -37,6 +37,9 @@ radio interface, with no computer running alongside.
   then drag, to move the whole view without retuning. Holding the finger at
   either edge keeps scrolling, faster nearer the edge.
 - Your own transmission shows in the waterfall.
+- Waterfall black level and colour gain, and the spectrum's reference level
+  and range (or Auto), in the View tab. Remembered on the device.
+- Tuning lock next to the frequency.
 - Filter passband drawn on the display, on the correct side for USB/LSB and
   centred for CW/AM.
 - Mode, filter width presets, NR/NB/ANF, AGC (off/slow/med/fast), AF gain and
@@ -52,7 +55,8 @@ radio interface, with no computer running alongside.
 - Several slices and panadapters: add, select, close, choose the TX slice;
   other slices are marked on the display and tap to select.
 - Direct frequency entry from a keypad or a hardware keyboard.
-- RX audio on the device. The screen stays awake while connected.
+- RX audio on the device, also in the background (home screen, other
+  apps). The screen stays awake while connected.
 
 **Transmit**
 - TUNE carrier with tune power, the radio's ATU (tune or bypass, memories)
@@ -62,7 +66,7 @@ radio interface, with no computer running alongside.
   while transmitting. The microphone is open only while PTT is held.
 - CW: hold-to-key button (radio-side keyer and sidetone), CWX text sent by
   the radio at the set speed, speed, pitch and break-in, plus the CW decoder
-  with the decoded text along the bottom of the waterfall.
+  with the decoded text along the top of the waterfall.
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The
   transmitter unkeys on release, on disconnect, when the app loses focus,
@@ -77,7 +81,7 @@ radio interface, with no computer running alongside.
 - A tablet layout and a phone layout. They switch live on rotation, Split
   View, Stage Manager and folding (iPhone Duo).
 - The waterfall gets the screen. On iPhone, the controls (Mode, DSP, Audio,
-  TX, CW) live in a drawer that slides in over it when needed. On iPad the side
+  TX, CW, View) live in a drawer that slides in over it when needed. On iPad the side
   panel can be hidden into the same drawer. PTT always stays on screen.
 - Apple Pencil drags tune 10× finer, for zero-beating.
 - Magic Keyboard and trackpad: arrows tune, Space is PTT, +/− zoom, F opens

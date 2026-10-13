@@ -13,6 +13,8 @@
 #include <QPointer>
 #include <QStringList>
 #include <QTimer>
+
+#include <algorithm>
 #include <QVector>
 #include <QtQml/qqmlregistration.h>
 
@@ -101,6 +103,19 @@ class MobileEngine : public QObject {
     Q_PROPERTY(int cwPitch READ cwPitch WRITE setCwPitch NOTIFY cwChanged)
     Q_PROPERTY(bool cwBreakIn READ cwBreakIn WRITE setCwBreakIn NOTIFY cwChanged)
     Q_PROPERTY(bool cwDecoderEnabled READ cwDecoderEnabled WRITE setCwDecoderEnabled NOTIFY cwDecoderChanged)
+    // Tuning lock of the active slice (the radio's slice lock; SliceModel
+    // refuses tuning while it is on). tuneBlocked fires on a refused tune.
+    Q_PROPERTY(bool locked READ locked WRITE setLocked NOTIFY lockedChanged)
+    // Display levels (remembered, client-side like the desktop's SW auto
+    // black): the waterfall's black level and colour gain shift and stretch
+    // the auto-tracked range (Auto off freezes it); the trace is auto-ranged
+    // or set by reference level (top) and range.
+    Q_PROPERTY(bool wfAutoLevel READ wfAutoLevel WRITE setWfAutoLevel NOTIFY displayLevelsChanged)
+    Q_PROPERTY(int wfBlackLevel READ wfBlackLevel WRITE setWfBlackLevel NOTIFY displayLevelsChanged)
+    Q_PROPERTY(int wfColorGain READ wfColorGain WRITE setWfColorGain NOTIFY displayLevelsChanged)
+    Q_PROPERTY(bool traceAutoRange READ traceAutoRange WRITE setTraceAutoRange NOTIFY displayLevelsChanged)
+    Q_PROPERTY(int traceRefDbm READ traceRefDbm WRITE setTraceRefDbm NOTIFY displayLevelsChanged)
+    Q_PROPERTY(int traceRangeDb READ traceRangeDb WRITE setTraceRangeDb NOTIFY displayLevelsChanged)
     Q_PROPERTY(QString cwDecodedText READ cwDecodedText NOTIFY cwDecoderChanged)
     Q_PROPERTY(QString cwDecoderStats READ cwDecoderStats NOTIFY cwDecoderChanged)
     Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
@@ -239,6 +254,20 @@ public:
     bool cwBreakIn() const;
     void setCwBreakIn(bool on);
     bool cwDecoderEnabled() const;
+    bool locked() const;
+    void setLocked(bool on);
+    bool wfAutoLevel() const { return displayInt("MobileWfAuto", 1) != 0; }
+    void setWfAutoLevel(bool on) { setDisplayInt("MobileWfAuto", on ? 1 : 0); }
+    int wfBlackLevel() const { return displayInt("MobileWfBlack", 50); }
+    void setWfBlackLevel(int v) { setDisplayInt("MobileWfBlack", std::clamp(v, 0, 100)); }
+    int wfColorGain() const { return displayInt("MobileWfGain", 50); }
+    void setWfColorGain(int v) { setDisplayInt("MobileWfGain", std::clamp(v, 0, 100)); }
+    bool traceAutoRange() const { return displayInt("MobileTraceAuto", 1) != 0; }
+    void setTraceAutoRange(bool on) { setDisplayInt("MobileTraceAuto", on ? 1 : 0); }
+    int traceRefDbm() const { return displayInt("MobileTraceRef", -40); }
+    void setTraceRefDbm(int v) { setDisplayInt("MobileTraceRef", std::clamp(v, -140, 0)); }
+    int traceRangeDb() const { return displayInt("MobileTraceRange", 90); }
+    void setTraceRangeDb(int v) { setDisplayInt("MobileTraceRange", std::clamp(v, 20, 150)); }
     void setCwDecoderEnabled(bool on);
     QString cwDecodedText() const { return m_cwDecodedText; }
     QString cwDecoderStats() const { return m_cwDecoderStats; }
@@ -393,6 +422,9 @@ signals:
     void slicesChanged();
     void cwChanged();
     void cwDecoderChanged();
+    void displayLevelsChanged();
+    void lockedChanged();
+    void tuneBlocked();
     // Frames of the active panadapter only. Spectrum bins are dBm and span
     // the pan. Waterfall rows are intensities on a backend-dependent scale
     // covering lowMhz..highMhz, which need not equal the pan's range.
@@ -409,6 +441,8 @@ private:
     void bindSlice(SliceModel* slice);
     void bindPan(PanadapterModel* pan);
     void defaultMicToDevice();
+    int displayInt(const char* key, int fallback) const;
+    void setDisplayInt(const char* key, int value);
     void sendPanDimensions(const QString& panId);
     void setConnectionState(const QString& state);
     void setLastError(const QString& error);

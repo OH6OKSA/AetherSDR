@@ -92,12 +92,13 @@ Rectangle {
         }
     }
 
-    // Latest decoded CW along the bottom of the waterfall.
+    // Latest decoded CW along the top of the waterfall (just under the
+    // trace), where no layout's bottom bar can cover it.
     Rectangle {
         visible: Engine.cwDecoderEnabled && Engine.cwMode && Engine.cwDecodedText.length > 0
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        y: parent.height * spectrum.spectrumFraction
         height: 28
         color: "#cc000000"
         z: 3

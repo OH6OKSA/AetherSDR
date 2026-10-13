@@ -1,3 +1,4 @@
+#include "AudioSession.h"
 #include "LogBuffer.h"
 #include "MobileEngine.h"
 
@@ -18,6 +19,8 @@ int main(int argc, char* argv[])
 
     QGuiApplication app(argc, argv);
     AetherSDR::mobile::LogBuffer::install();
+    // Before any audio device opens: play-and-record session (iOS).
+    AetherSDR::mobile::configureAudioSession();
     // Settings and config paths derive from these names; the mobile client
     // keeps its own settings, apart from a desktop install on the same host.
     QGuiApplication::setApplicationName(QStringLiteral("AetherSDR-Mobile"));
@@ -44,6 +47,12 @@ int main(int argc, char* argv[])
     const QCommandLineOption controlsTabOption(QStringLiteral("controls-tab"),
         QStringLiteral("With --controls drawer: tab to show (0 Mode … 4 CW)."), QStringLiteral("index"));
     parser.addOption(controlsTabOption);
+    const QCommandLineOption reconnectTestOption(QStringLiteral("reconnect-test"),
+        QStringLiteral("With --connect: disconnect after 8 s and reconnect at 11 s."));
+    parser.addOption(reconnectTestOption);
+    const QCommandLineOption frequencyDialogOption(QStringLiteral("frequency-dialog"),
+        QStringLiteral("Open the frequency entry dialog (screenshots)."));
+    parser.addOption(frequencyDialogOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -91,9 +100,24 @@ int main(int argc, char* argv[])
                              [&engine, mode] { engine.setMode(mode); });
         }
     } else if (parser.isSet(connectOption)) {
-        engine.connectToAddress(parser.value(connectOption));
+        const QString address = parser.value(connectOption);
+        engine.connectToAddress(address);
+        if (parser.isSet(reconnectTestOption)) {
+            // Disconnect at 8 s and connect again at 11 s (screenshot later).
+            QTimer::singleShot(8000, &engine, [&engine] { engine.disconnectRadio(); });
+            QTimer::singleShot(11000, &engine, [&engine, address] { engine.connectToAddress(address); });
+        }
     }
 
+    if (parser.isSet(frequencyDialogOption)) {
+        QTimer::singleShot(6000, &app, [&qml] {
+            for (QObject* root : qml.rootObjects()) {
+                if (QObject* dialog = root->findChild<QObject*>(QStringLiteral("frequencyDialog"))) {
+                    QMetaObject::invokeMethod(dialog, "open");
+                }
+            }
+        });
+    }
     if (parser.value(controlsOption) == QLatin1String("drawer")) {
         const QString tab = parser.value(controlsTabOption);
         QTimer::singleShot(6000, &app, [&qml, tab] {

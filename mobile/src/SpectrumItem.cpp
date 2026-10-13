@@ -7,6 +7,7 @@
 #include <QPainterPath>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace AetherSDR::mobile {
@@ -48,6 +49,7 @@ void SpectrumItem::setEngine(MobileEngine* engine)
         connect(m_engine, &MobileEngine::spectrumFrame, this, &SpectrumItem::onSpectrum);
         connect(m_engine, &MobileEngine::waterfallRow, this, &SpectrumItem::onWaterfallRow);
         connect(m_engine, &MobileEngine::panGeometryChanged, this, &SpectrumItem::followView);
+        connect(m_engine, &MobileEngine::displayLevelsChanged, this, [this] { update(); });
         reportPixels();
     }
     emit engineChanged();
@@ -103,7 +105,12 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
         const float peak = sorted.last();
         const float bottom = noise - kTraceBelowNoiseDb;
         const float top = std::max(bottom + kTraceMinSpanDb, peak + kTraceAboveTopDb);
-        if (!m_traceSeeded) {
+        if (m_engine && !m_engine->traceAutoRange()) {
+            // Manual: reference level at the top, range below it.
+            m_traceTop = static_cast<float>(m_engine->traceRefDbm());
+            m_traceBottom = m_traceTop - static_cast<float>(m_engine->traceRangeDb());
+            m_traceSeeded = true;
+        } else if (!m_traceSeeded) {
             m_traceBottom = bottom;
             m_traceTop = top;
             m_traceSeeded = true;
@@ -172,16 +179,25 @@ void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, dou
     const float floor = sorted.at(sorted.size() / 2);
     const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 995 / 1000));
     const float span = std::max(kMinimumSpan, (top - floor) * 1.2f);
+    const bool autoLevel = !m_engine || m_engine->wfAutoLevel();
     if (!m_rangeSeeded) {
         m_floor = floor;
         m_span = span;
         m_rangeSeeded = true;
-    } else {
+    } else if (autoLevel) {
         m_floor += (floor - m_floor) * kRangeSmoothing;
         m_span += (span - m_span) * kRangeSmoothing;
     }
-
-    pushRow(bins, lowMhz, highMhz, m_floor, m_span);
+    // Black level shifts the black point (50 = the tracked noise floor, as
+    // the desktop's SW auto black offset); colour gain stretches (100) or
+    // widens (0) the colour range by up to 2x.
+    float wfFloor = m_floor;
+    float wfSpan = m_span;
+    if (m_engine) {
+        wfFloor += (50 - m_engine->wfBlackLevel()) * 0.4f;
+        wfSpan *= std::pow(2.0f, (50 - m_engine->wfColorGain()) / 50.0f);
+    }
+    pushRow(bins, lowMhz, highMhz, wfFloor, wfSpan);
 }
 
 void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double highMhz, float floor, float span)

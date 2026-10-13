@@ -12,7 +12,7 @@ RowLayout {
 
     ListView {
         Layout.fillWidth: true
-        Layout.preferredHeight: bar.compact ? 36 : 40
+        Layout.preferredHeight: Theme.touchTarget
         orientation: ListView.Horizontal
         spacing: 4
         clip: true
@@ -20,16 +20,16 @@ RowLayout {
         delegate: AppButton {
             id: chip
             required property var modelData
-            height: bar.compact ? 36 : 40
+            height: Theme.touchTarget
             checked: modelData.active
             leftPadding: 8
             rightPadding: 8
-            font.pixelSize: bar.compact ? 12 : 14
-            text: modelData.letter + "  " + modelData.frequency.toFixed(3) + " " + modelData.mode
+                        text: modelData.letter + "  " + modelData.frequency.toFixed(3) + " " + modelData.mode
                   + (modelData.tx ? "  TX" : "")
             focusPolicy: Qt.NoFocus
             onClicked: Engine.selectSlice(modelData.id)
-            onPressAndHold: sliceMenu.popup()
+            // Under the pressed chip, not at the last pointer position.
+            onPressAndHold: sliceMenu.popup(chip, 0, chip.height)
             Menu {
                 id: sliceMenu
                 MenuItem {
@@ -48,20 +48,18 @@ RowLayout {
     AppButton {
         text: qsTr("+ Slice")
         visible: Engine.canAddSlice
-        font.pixelSize: bar.compact ? 12 : 14
-        leftPadding: 6
+                leftPadding: 6
         rightPadding: 6
-        Layout.preferredHeight: bar.compact ? 36 : 40
+        Layout.preferredHeight: Theme.touchTarget
         focusPolicy: Qt.NoFocus
         onClicked: Engine.addSlice()
     }
     AppButton {
         text: qsTr("+ Pan")
         visible: Engine.canAddPanadapter
-        font.pixelSize: bar.compact ? 12 : 14
-        leftPadding: 6
+                leftPadding: 6
         rightPadding: 6
-        Layout.preferredHeight: bar.compact ? 36 : 40
+        Layout.preferredHeight: Theme.touchTarget
         focusPolicy: Qt.NoFocus
         onClicked: Engine.addPanadapter()
     }

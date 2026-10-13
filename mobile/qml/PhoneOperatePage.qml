@@ -83,6 +83,7 @@ Page {
                     TapHandler { onTapped: freqDialog.open() }
                 }
                 Label { text: Engine.mode; color: Theme.accent; font.pixelSize: 18 }
+                LockButton { implicitWidth: 44 }
                 AppButton { text: "−"; font.pixelSize: 20; implicitWidth: Theme.touchTarget; onClicked: Engine.zoom(2.0) }
                 AppButton { text: "+"; font.pixelSize: 20; implicitWidth: Theme.touchTarget; onClicked: Engine.zoom(0.5) }
                 Item { Layout.fillWidth: true }

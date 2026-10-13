@@ -7,11 +7,18 @@ import AetherMobile
 // so "14.074" and "14074" both tune 14.074 MHz.
 Dialog {
     id: dialog
+    objectName: "frequencyDialog"
     modal: true
-    title: qsTr("Frequency")
-    standardButtons: Dialog.Cancel
     anchors.centerIn: parent
     width: Math.min(420, parent.width - 24)
+    // Fits the window (iPhone landscape too): the keys shrink to fit.
+    contentHeight: column.implicitHeight
+    height: Math.min(contentHeight + 2 * padding, parent.height - 16)
+    padding: Theme.spacing
+    background: Rectangle { color: Theme.surface; radius: Theme.radius; border.color: Theme.surfaceRaised }
+    // No title bar or standard buttons: they overlapped the entry and keys.
+    // Cancel sits next to Tune instead.
+    readonly property int keyHeight: Math.max(36, Math.min(64, (parent.height - 16 - 2 * padding - 60 - 5 * Theme.spacing) / 5))
 
     property string entry: ""
 
@@ -49,13 +56,20 @@ Dialog {
     }
 
     ColumnLayout {
-        anchors.fill: parent
+        id: column
+        width: dialog.availableWidth
         spacing: Theme.spacing
 
+        // The entry, or the current frequency as a hint until typing starts.
         Label {
             Layout.fillWidth: true
-            text: dialog.entry.length > 0 ? dialog.entry : qsTr("MHz or kHz")
+            Layout.preferredHeight: 60
+            verticalAlignment: Text.AlignVCenter
+            text: dialog.entry.length > 0 ? dialog.entry
+                                          : Engine.frequencyMhz.toFixed(6) + "  MHz"
             color: dialog.entry.length > 0 ? Theme.text : Theme.textDim
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: 20
             font.pixelSize: 40
             font.family: "monospace"
             horizontalAlignment: Text.AlignRight
@@ -71,7 +85,7 @@ Dialog {
                     text: modelData
                     font.pixelSize: 26
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 64
+                    Layout.preferredHeight: dialog.keyHeight
                     onClicked: {
                         if (modelData === "⌫") {
                             dialog.entry = dialog.entry.slice(0, -1)
@@ -83,13 +97,24 @@ Dialog {
             }
         }
 
-        AppButton {
+        RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 64
-            text: qsTr("Tune")
-            font.pixelSize: 24
-            enabled: dialog.entry.length > 0
-            onClicked: dialog.commit()
+            spacing: Theme.spacing
+            AppButton {
+                Layout.fillWidth: true
+                Layout.preferredHeight: dialog.keyHeight
+                text: qsTr("Cancel")
+                font.pixelSize: 20
+                onClicked: dialog.close()
+            }
+            AppButton {
+                Layout.fillWidth: true
+                Layout.preferredHeight: dialog.keyHeight
+                text: qsTr("Tune")
+                font.pixelSize: 24
+                enabled: dialog.entry.length > 0
+                onClicked: dialog.commit()
+            }
         }
     }
 }

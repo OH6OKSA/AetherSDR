@@ -100,6 +100,13 @@ MobileEngine::MobileEngine(QObject* parent)
         selectActiveSlice();
         emit slicesChanged();
     });
+    // A reconnect reuses the previous session's slice and pan objects
+    // without sliceAdded/panadapterAdded; these are the signals it does send.
+    connect(&rm, &RadioModel::slotOccupancyChanged, this, [this](int) {
+        selectActiveSlice();
+        emit slicesChanged();
+    });
+    connect(&rm, &RadioModel::panadapterReclaimed, this, [this](PanadapterModel*) { selectActiveSlice(); });
     connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
         setLastError(tr("The radio allows %1 slices.").arg(limit));
     });
@@ -681,6 +688,13 @@ void MobileEngine::startDeviceMicrophoneCapture()
         if (!audio->isTxStreaming() && audio->hasAnyTxStream()) {
             audio->startTxStream(address, kRadioTxAudioPort);
         }
+        // For the Log page: why PTT might carry no audio.
+        qCInfo(lcMobile).noquote()
+            << QStringLiteral("mic capture: streaming=%1 remoteTx=0x%2 daxTx=0x%3 gain=%4")
+                   .arg(audio->isTxStreaming() ? 1 : 0)
+                   .arg(QString::number(audio->remoteTxStreamId(), 16))
+                   .arg(QString::number(audio->txStreamId(), 16))
+                   .arg(gain);
     }, Qt::QueuedConnection);
 }
 
@@ -1479,6 +1493,35 @@ void MobileEngine::setCwBreakIn(bool on)
     }
 }
 
+bool MobileEngine::locked() const
+{
+    return m_slice && m_slice->isLocked();
+}
+
+void MobileEngine::setLocked(bool on)
+{
+    if (m_slice && m_slice->isLocked() != on) {
+        m_slice->setLocked(on);
+    }
+}
+
+int MobileEngine::displayInt(const char* key, int fallback) const
+{
+    bool ok = false;
+    const int v = AppSettings::instance().value(QLatin1String(key), QString::number(fallback)).toString().toInt(&ok);
+    return ok ? v : fallback;
+}
+
+void MobileEngine::setDisplayInt(const char* key, int value)
+{
+    if (displayInt(key, value + 1) == value) {
+        return;
+    }
+    AppSettings::instance().setValue(QLatin1String(key), QString::number(value));
+    AppSettings::instance().save();
+    emit displayLevelsChanged();
+}
+
 bool MobileEngine::cwDecoderEnabled() const
 {
     return AppSettings::instance().value(kCwDecoderKey, QStringLiteral("False")).toString() == QLatin1String("True");
@@ -1790,6 +1833,10 @@ void MobileEngine::selectActiveSlice()
             break;
         }
     }
+    // With no active slice, stay on the current one rather than jumping.
+    if (!chosen && m_slice && slices.contains(m_slice.data())) {
+        chosen = m_slice;
+    }
     if (!chosen && !slices.isEmpty()) {
         chosen = slices.first();
     }
@@ -1797,6 +1844,9 @@ void MobileEngine::selectActiveSlice()
         bindSlice(chosen);
     }
     PanadapterModel* pan = chosen ? m_session.radioModel().panadapter(chosen->panId()) : nullptr;
+    qCDebug(lcMobile) << "selectActiveSlice slices" << slices.size() << "chosen"
+                      << (chosen ? chosen->sliceId() : -1) << "pan" << (chosen ? chosen->panId() : QString())
+                      << "found" << (pan != nullptr) << "pans" << m_session.radioModel().panadapters().size();
     if (pan != m_pan) {
         bindPan(pan);
     }
@@ -1812,6 +1862,8 @@ void MobileEngine::bindSlice(SliceModel* slice)
     if (slice) {
         m_sliceConnections.append(connect(slice, &SliceModel::frequencyChanged, this, &MobileEngine::frequencyChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::modeChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::lockedChanged, this, &MobileEngine::lockedChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::tuneBlockedByLock, this, &MobileEngine::tuneBlocked));
         // The preset set changes with the mode.
         m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::filterChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::modeListChanged, this, &MobileEngine::modesChanged));
@@ -1832,6 +1884,7 @@ void MobileEngine::bindSlice(SliceModel* slice)
         m_sliceConnections.append(connect(slice, &SliceModel::txAntennaListChanged, this, &MobileEngine::antennaChanged));
     }
     emit frequencyChanged();
+    emit lockedChanged();
     emit modeChanged();
     emit modesChanged();
     emit afGainChanged();

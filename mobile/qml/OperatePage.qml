@@ -140,6 +140,9 @@ Page {
                     color: Theme.accent
                     font.pixelSize: page.compact ? 24 : 32
                 }
+                LockButton {
+                    Layout.preferredHeight: Theme.touchTarget
+                }
                 // Zoom the pan out / in around the slice.
                 AppButton {
                     text: "−"
@@ -355,6 +358,12 @@ Page {
             // Transmit: tune, ATU, PROC, monitor, power and microphone.
             TxControls {
                 Layout.fillWidth: true
+            }
+
+            // Waterfall and spectrum levels.
+            DisplayControls {
+                Layout.fillWidth: true
+                Layout.topMargin: Theme.spacing
             }
 
             Label {
