@@ -84,6 +84,7 @@ qt_add_resources(aether-mobile "spectrum3d_shaders"
     FILES
         shaders/spectrum3d.vert.qsb
         shaders/spectrum3d.frag.qsb
+        shaders/spectrum3d_line.frag.qsb
 )
 
 if(MSVC)

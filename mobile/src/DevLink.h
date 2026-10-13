@@ -30,6 +30,7 @@ class DevLink : public QObject {
 public:
     static constexpr quint16 kPort = 47100;
 
+    ~DevLink() override;
     static DevLink* instance();
     static DevLink* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine);
 

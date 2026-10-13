@@ -3,6 +3,8 @@
 #include "ShareText.h"
 
 #include <QSysInfo>
+
+#include <atomic>
 #include <QDateTime>
 #include <QGuiApplication>
 #include <QJSEngine>
@@ -14,6 +16,9 @@ namespace {
 
 constexpr int kMaxLines = 1000;
 QtMessageHandler s_previousHandler = nullptr;
+// False once the buffer is destroyed (application teardown): later messages,
+// from any thread, must not reach the deleted object.
+std::atomic<bool> s_bufferAlive{false};
 
 bool worthKeeping(const QMessageLogContext& context, QtMsgType type, const QString& message)
 {
@@ -40,7 +45,7 @@ void messageHandler(QtMsgType type, const QMessageLogContext& context, const QSt
     if (s_previousHandler) {
         s_previousHandler(type, context, message);
     }
-    if (!worthKeeping(context, type, message)) {
+    if (!s_bufferAlive.load() || !worthKeeping(context, type, message)) {
         return;
     }
     const QString line = QStringLiteral("%1 %2 %3")
@@ -53,6 +58,12 @@ void messageHandler(QtMsgType type, const QMessageLogContext& context, const QSt
 }
 
 } // namespace
+
+LogBuffer::~LogBuffer()
+{
+    s_bufferAlive = false;
+    qInstallMessageHandler(s_previousHandler);
+}
 
 LogBuffer::LogBuffer(QObject* parent)
     : QObject(parent)
@@ -75,6 +86,7 @@ LogBuffer* LogBuffer::create(QQmlEngine*, QJSEngine*)
 void LogBuffer::install()
 {
     static_cast<void>(instance());
+    s_bufferAlive = true;
     s_previousHandler = qInstallMessageHandler(messageHandler);
 }
 

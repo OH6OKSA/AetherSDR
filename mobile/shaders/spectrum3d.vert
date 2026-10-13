@@ -49,7 +49,8 @@ void main()
     float y = inVert.z > 0.5 ? yBase - height * shape.z * width : yBase;
 
     float colourStrength = clamp((dbm - levels.x) / max(colour.x, 1.0), 0.0, 1.0);
-    vLut = inVert.z > 0.5 ? pow(colourStrength, colour.y) : 0.0;
+    // Curtain base in the floor's dark blue, ridge by strength (desktop look).
+    vLut = inVert.z > 0.5 ? max(pow(colourStrength, colour.y), 0.16) : 0.16;
     vDepth = depth;
     vValid = age < grid.z ? 1.0 : 0.0;
     gl_Position = clipCorr * vec4(x * 2.0 - 1.0, 1.0 - y * 2.0, 0.0, 1.0);

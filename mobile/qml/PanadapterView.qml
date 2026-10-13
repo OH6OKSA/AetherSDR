@@ -15,18 +15,22 @@ Rectangle {
         id: spectrum
         anchors.fill: parent
         engine: Engine
+        // The 3D surface needs height; the desktop gives it about half.
+        spectrumFraction: Engine.spectrum3D ? 0.5 : 0.4
     }
 
-    // 3D stacked trace on the GPU, over the waterfall area.
+    // 3D stacked trace on the GPU in place of the trace (the waterfall stays
+    // below), as the desktop's 3DSS. The floor sits a little under the noise
+    // so the noise reads dark blue, as there.
     Spectrum3DItem {
         visible: Engine.spectrum3D
         engine: Engine
         x: 0
-        y: Math.round(parent.height * spectrum.spectrumFraction)
+        y: 0
         width: parent.width
-        height: parent.height - y
-        floorDbm: spectrum.traceBottomDbm + 8
-        rangeDb: Math.max(20, Math.min(100, spectrum.traceTopDbm - spectrum.traceBottomDbm - 8))
+        height: Math.round(parent.height * spectrum.spectrumFraction)
+        floorDbm: spectrum.traceBottomDbm
+        rangeDb: Math.max(20, Math.min(100, spectrum.traceTopDbm - spectrum.traceBottomDbm))
         colorGain: Engine.wfColorGain
     }
 
@@ -145,6 +149,7 @@ Rectangle {
     Item {
         id: scaleStrip
         z: 4
+        visible: !Engine.spectrum3D
         width: 40
         height: parent.height * spectrum.spectrumFraction
         readonly property real topDbm: spectrum.traceTopDbm

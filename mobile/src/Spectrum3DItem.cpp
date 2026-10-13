@@ -43,13 +43,14 @@ QShader loadShader(const QString& path)
     return f.open(QIODevice::ReadOnly) ? QShader::fromSerialized(f.readAll()) : QShader();
 }
 
-// The waterfall palette (black, blue, cyan, yellow, red, white).
+// The desktop's default waterfall colormap (theme "waterfall.colormap.default").
 QRgb paletteAt(float v)
 {
     struct Stop { float at; int r; int g; int b; };
     static constexpr Stop kStops[] = {
-        {0.00f, 0, 0, 0}, {0.12f, 0, 0, 70}, {0.30f, 0, 40, 200}, {0.50f, 0, 170, 220},
-        {0.65f, 240, 230, 0}, {0.85f, 230, 30, 0}, {1.00f, 255, 255, 255},
+        {0.00f, 0x00, 0x00, 0x00}, {0.15f, 0x00, 0x00, 0x80}, {0.30f, 0x00, 0x40, 0xff},
+        {0.45f, 0x00, 0xc8, 0xff}, {0.60f, 0x00, 0xdc, 0x00}, {0.80f, 0xff, 0xff, 0x00},
+        {1.00f, 0xff, 0x00, 0x00},
     };
     v = std::clamp(v, 0.0f, 1.0f);
     for (size_t i = 1; i < std::size(kStops); ++i) {
@@ -61,7 +62,7 @@ QRgb paletteAt(float v)
                          static_cast<int>(a.b + (b.b - a.b) * t), 255);
         }
     }
-    return qRgba(255, 255, 255, 255);
+    return qRgba(0xff, 0x00, 0x00, 255);
 }
 
 } // namespace
@@ -82,6 +83,10 @@ private:
     std::unique_ptr<QRhiSampler> m_sampler;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline> m_pipeline;
+    // Ridge outlines (line list over the ridge vertices).
+    std::unique_ptr<QRhiBuffer> m_lineIbuf;
+    std::unique_ptr<QRhiGraphicsPipeline> m_linePipeline;
+    int m_lineIndexCount{0};
     QRhiRenderPassDescriptor* m_rpDesc{nullptr};
     int m_indexCount{0};
     bool m_staticUploaded{false};
@@ -212,6 +217,8 @@ void Spectrum3DRenderer::initialize(QRhiCommandBuffer*)
     if (m_rhi != rhi()) {
         // New graphics context: everything made with the old one goes.
         m_pipeline.reset();
+        m_linePipeline.reset();
+        m_lineIbuf.reset();
         m_srb.reset();
         m_sampler.reset();
         m_paletteTex.reset();
@@ -241,6 +248,10 @@ void Spectrum3DRenderer::initialize(QRhiCommandBuffer*)
         m_ibuf.reset(m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer,
                                       m_indexCount * sizeof(quint32)));
         m_ibuf->create();
+        m_lineIndexCount = rows * (cols - 1) * 2;
+        m_lineIbuf.reset(m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer,
+                                          m_lineIndexCount * sizeof(quint32)));
+        m_lineIbuf->create();
         m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, sizeof(Uniforms)));
         m_ubuf->create();
         m_heightTex.reset(m_rhi->newTexture(QRhiTexture::R32F, QSize(Spectrum3DItem::kTexCols, rows)));
@@ -283,6 +294,28 @@ void Spectrum3DRenderer::initialize(QRhiCommandBuffer*)
         qCWarning(lcSpectrum3D) << "3D pipeline could not be created";
         m_pipeline.reset();
     }
+
+    m_linePipeline.reset(m_rhi->newGraphicsPipeline());
+    m_linePipeline->setTopology(QRhiGraphicsPipeline::Lines);
+    m_linePipeline->setShaderStages({
+        {QRhiShaderStage::Vertex, vs},
+        {QRhiShaderStage::Fragment, loadShader(QStringLiteral(":/shaders/spectrum3d_line.frag.qsb"))},
+    });
+    QRhiGraphicsPipeline::TargetBlend blend;
+    blend.enable = true;
+    blend.srcColor = QRhiGraphicsPipeline::One;
+    blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.srcAlpha = QRhiGraphicsPipeline::One;
+    blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    m_linePipeline->setTargetBlends({blend});
+    m_linePipeline->setVertexInputLayout(layout);
+    m_linePipeline->setShaderResourceBindings(m_srb.get());
+    m_linePipeline->setRenderPassDescriptor(m_rpDesc);
+    if (!m_linePipeline->create()) {
+        qCWarning(lcSpectrum3D) << "3D outline pipeline could not be created";
+        m_linePipeline.reset();
+    }
+    qCInfo(lcSpectrum3D) << "3D pipelines ready" << (m_pipeline != nullptr) << (m_linePipeline != nullptr);
 }
 
 void Spectrum3DRenderer::render(QRhiCommandBuffer* cb)
@@ -318,6 +351,16 @@ void Spectrum3DRenderer::render(QRhiCommandBuffer* cb)
             }
         }
         u->uploadStaticBuffer(m_ibuf.get(), idx.constData());
+        // Outlines: ridge-to-ridge segments, rows back to front like the fill.
+        QVector<quint32> lineIdx;
+        lineIdx.reserve(m_lineIndexCount);
+        for (int r = rows - 1; r >= 0; --r) {
+            const quint32 base = static_cast<quint32>(r * cols * 2);
+            for (int c = 0; c < cols - 1; ++c) {
+                lineIdx << base + c * 2 << base + (c + 1) * 2;
+            }
+        }
+        u->uploadStaticBuffer(m_lineIbuf.get(), lineIdx.constData());
         QImage pal(256, 1, QImage::Format_RGBA8888);
         for (int i = 0; i < 256; ++i) {
             const QRgb c = paletteAt(i / 255.0f);
@@ -381,12 +424,26 @@ void Spectrum3DRenderer::render(QRhiCommandBuffer* cb)
 
     const QSize size = renderTarget()->pixelSize();
     cb->beginPass(renderTarget(), bg, {1.0f, 0}, u);
-    cb->setGraphicsPipeline(m_pipeline.get());
-    cb->setViewport({0, 0, static_cast<float>(size.width()), static_cast<float>(size.height())});
-    cb->setShaderResources();
+    const QRhiViewport viewport(0, 0, static_cast<float>(size.width()), static_cast<float>(size.height()));
     const QRhiCommandBuffer::VertexInput vin(m_vbuf.get(), 0);
-    cb->setVertexInput(0, 1, &vin, m_ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
-    cb->drawIndexed(m_indexCount);
+    // Row by row, back to front: the curtain, then its outline, so nearer
+    // curtains cover the outlines behind them.
+    const int fillPerRow = (cols - 1) * 6;
+    const int linePerRow = (cols - 1) * 2;
+    for (int i = 0; i < rows; ++i) {
+        cb->setGraphicsPipeline(m_pipeline.get());
+        cb->setViewport(viewport);
+        cb->setShaderResources();
+        cb->setVertexInput(0, 1, &vin, m_ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
+        cb->drawIndexed(fillPerRow, 1, i * fillPerRow);
+        if (m_linePipeline) {
+            cb->setGraphicsPipeline(m_linePipeline.get());
+            cb->setViewport(viewport);
+            cb->setShaderResources();
+            cb->setVertexInput(0, 1, &vin, m_lineIbuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
+            cb->drawIndexed(linePerRow, 1, i * linePerRow);
+        }
+    }
     cb->endPass();
 }
 

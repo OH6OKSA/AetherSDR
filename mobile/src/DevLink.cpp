@@ -82,6 +82,15 @@ DevLink::DevLink(QObject* parent)
     connect(LogBuffer::instance(), &LogBuffer::lineAdded, this, &DevLink::sendLogLine);
 }
 
+DevLink::~DevLink()
+{
+    // Teardown: the socket must not call back into a half-destroyed link.
+    // (The log buffer may already be gone; Qt dropped that connection then.)
+    m_retry.stop();
+    m_socket.disconnect(this);
+    m_socket.abort();
+}
+
 void DevLink::attach(MobileEngine* engine, QQmlApplicationEngine* qml)
 {
     m_engine = engine;

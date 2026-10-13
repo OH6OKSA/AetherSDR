@@ -125,11 +125,6 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
             m_reportedBottom = m_traceBottom;
             emit traceScaleChanged();
         }
-        // In 3D the waterfall area belongs to Spectrum3DItem (GPU).
-        if (m_engine && m_engine->spectrum3D()) {
-            update();
-            return;
-        }
         // Own transmission in the waterfall: the radio pauses waterfall rows
         // during TX, so draw them from the trace on the trace's scale.
         if (m_engine && m_engine->radioTransmitting() && !m_waterfall.isNull()) {
@@ -275,10 +270,13 @@ void SpectrumItem::paint(QPainter* painter)
     const qreal w = width();
     const qreal specH = height() * m_spectrumFraction;
 
-    if (m_engine && m_engine->spectrum3D()) {
-        // Drawn by Spectrum3DItem on top.
-    } else if (!m_waterfall.isNull()) {
+    if (!m_waterfall.isNull()) {
         painter->drawImage(QPointF(0, specH), m_waterfall);
+    }
+    // In 3D the spectrum area belongs to Spectrum3DItem (GPU), as on the
+    // desktop: the stacked trace replaces the trace, the waterfall stays.
+    if (m_engine && m_engine->spectrum3D()) {
+        return;
     }
 
     painter->setPen(QColor(255, 255, 255, 25));

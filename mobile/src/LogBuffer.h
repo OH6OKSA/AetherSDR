@@ -19,6 +19,7 @@ class LogBuffer : public QObject {
     Q_PROPERTY(QStringList lines READ lines NOTIFY linesChanged)
 
 public:
+    ~LogBuffer() override;
     static LogBuffer* instance();
     static LogBuffer* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine);
 
