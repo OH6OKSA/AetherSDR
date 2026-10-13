@@ -12,7 +12,7 @@ namespace AetherSDR::mobile {
 
 namespace {
 
-constexpr int kMaxLines = 400;
+constexpr int kMaxLines = 1000;
 QtMessageHandler s_previousHandler = nullptr;
 
 bool worthKeeping(const QMessageLogContext& context, QtMsgType type, const QString& message)
@@ -21,7 +21,9 @@ bool worthKeeping(const QMessageLogContext& context, QtMsgType type, const QStri
         return true;
     }
     const QLatin1StringView category(context.category ? context.category : "");
-    if (category == QLatin1StringView("aether.mobile")) {
+    // The app's own categories, including aether.mobile.spectrum3d and
+    // aether.mobile.audiosession.
+    if (category == QLatin1StringView("aether.mobile") || category.startsWith(QLatin1StringView("aether.mobile."))) {
         return true;
     }
     // Commands sent to the radio, not its status stream.
