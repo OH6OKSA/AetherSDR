@@ -10201,6 +10201,17 @@ void RadioModel::rebuildBackendForFamily(const QString& family)
     emit backendRebuilt();
 }
 
+void RadioModel::ensureBackendFamily(const QString& family)
+{
+    const QString want = family.isEmpty() ? QStringLiteral("flex") : family.toLower();
+    if (isConnected() || (want == m_family && m_backend)) {
+        return;
+    }
+    qCInfo(lcProtocol) << "RadioModel: switching backend family" << m_family << "->" << want
+                       << "before a WAN connect";
+    rebuildBackendForFamily(want);
+}
+
 bool RadioModel::rebuildBackendForTest(const QString& family)
 {
     rebuildBackendForFamily(family);

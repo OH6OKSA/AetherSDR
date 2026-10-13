@@ -1,6 +1,7 @@
 #include "MobileEngine.h"
 
 #include "ScreenAwake.h"
+#include "SecureStore.h"
 
 #include "core/AppActivity.h"
 #include "core/AppSettings.h"
@@ -43,6 +44,10 @@ const QString kControlsVisibleKey = QStringLiteral("MobileControlsVisible");
 const QString kDeviceMicSelection = QStringLiteral("PC");
 constexpr int kPanPixelsSettleMs = 400;
 constexpr int kMinPanYPixels = 200;
+const QString kSmartLinkTokenKey = QStringLiteral("smartlink_refresh_token");
+// SmartLink UDP port when the radio reports none (FlexLib default).
+constexpr quint16 kDefaultWanUdpPort = 4993;
+constexpr int kWanReconnectMs = 5000;
 // Fraction of the span kept between the slice and the edge while tuning.
 constexpr double kPanFollowEdge = 0.1;
 constexpr double kDbPerSUnit = 6.0;
@@ -118,6 +123,15 @@ MobileEngine::MobileEngine(QObject* parent)
             emit sMeterChanged();
         }
     });
+
+    // Opus for remote audio: "Auto" compresses only over WAN (SmartLink),
+    // where uncompressed PCM would not fit a mobile link. An explicit choice
+    // is kept.
+    if (AppSettings::instance().value(QStringLiteral("AudioCompression")).toString().isEmpty()) {
+        AppSettings::instance().setValue(QStringLiteral("AudioCompression"), QStringLiteral("Auto"));
+        AppSettings::instance().save();
+    }
+    wireSmartLink();
 
     m_discovery = makeLocalRadioDiscoverySource({.local = true, .simulator = true});
     connect(m_discovery.get(), &RadioDiscoverySource::radioChanged, this,
@@ -201,6 +215,8 @@ void MobileEngine::connectToAddress(const QString& host)
 
 void MobileEngine::connectWithInfo(const RadioInfo& info, const QString& displayName)
 {
+    m_wanActive = false;
+    m_wanReconnectTimer.stop();
     m_radioName = displayName;
     setLastError({});
     setConnectionState(QStringLiteral("connecting"));
@@ -231,8 +247,208 @@ void MobileEngine::connectToDemoWhenListed()
 
 void MobileEngine::disconnectRadio()
 {
+    m_wanUserDisconnect = true;
+    m_wanReconnectTimer.stop();
     stopTransmit(QStringLiteral("operator disconnect"));
     m_session.radioModel().disconnectFromRadio();
+}
+
+// ---- SmartLink ---------------------------------------------------------------
+
+void MobileEngine::wireSmartLink()
+{
+    connect(&m_smartLink, &SmartLinkClient::authenticated, this, [this] {
+        // Auth0 may rotate the refresh token on every refresh; keep the latest.
+        saveSecret(kSmartLinkTokenKey, m_smartLink.refreshToken());
+        setSmartLinkState(QStringLiteral("signedIn"));
+    });
+    connect(&m_smartLink, &SmartLinkClient::authFailed, this, [this](const QString& error) {
+        removeSecret(kSmartLinkTokenKey);
+        m_wanReconnectTimer.stop();
+        setLastError(tr("SmartLink: %1").arg(error));
+        setSmartLinkState(QStringLiteral("signedOut"));
+    });
+    connect(&m_smartLink, &SmartLinkClient::serverConnected, this, [this] {
+        setSmartLinkState(QStringLiteral("signedIn"));
+    });
+    connect(&m_smartLink, &SmartLinkClient::serverDisconnected, this, [this] {
+        if (m_smartLink.isAuthenticated()) {
+            setSmartLinkState(QStringLiteral("offline"));
+        }
+    });
+    connect(&m_smartLink, &SmartLinkClient::radioListReceived, this,
+            [this](const QList<WanRadioInfo>& radios) {
+        m_wanRadios = radios;
+        emit smartLinkRadiosChanged();
+    });
+    connect(&m_smartLink, &SmartLinkClient::connectReady, this,
+            [this](const QString& handle, const QString& serial) {
+        if (!m_wanActive || serial != m_pendingWan.serial) {
+            return;
+        }
+        qCInfo(lcMobile) << "SmartLink connect_ready for" << serial;
+        m_wan.connectToRadio(m_pendingWan.publicIp, static_cast<quint16>(m_pendingWan.publicTlsPort), handle);
+    });
+    // The mismatch fires before WanConnection::connected, so it is taken from
+    // the connection itself; the connect stays paused until answered.
+    connect(&m_wan, &WanConnection::certFingerprintMismatch, this, &MobileEngine::certificateChanged);
+    connect(&m_wan, &WanConnection::errorOccurred, this, [this](const QString& message) {
+        setLastError(tr("Remote connection: %1").arg(message));
+        if (m_connectionState == QLatin1String("connecting")) {
+            setConnectionState(QStringLiteral("idle"));
+        }
+    });
+    connect(&m_wan, &WanConnection::connected, this, [this] {
+        if (!m_wanActive) {
+            return;
+        }
+        const quint16 udpPort = m_pendingWan.publicUdpPort > 0
+            ? static_cast<quint16>(m_pendingWan.publicUdpPort) : kDefaultWanUdpPort;
+        m_session.radioModel().connectViaWan(&m_wan, m_pendingWan.publicIp, udpPort);
+    });
+
+    // An unexpected drop of a remote session retries every few seconds until
+    // it is back, the user disconnects, or sign-in is needed again.
+    m_wanReconnectTimer.setSingleShot(true);
+    m_wanReconnectTimer.setInterval(kWanReconnectMs);
+    connect(&m_wanReconnectTimer, &QTimer::timeout, this, [this] {
+        if (!m_wanActive || m_connected) {
+            return;
+        }
+        if (!m_smartLink.isConnected()) {
+            m_smartLink.reconnect();
+            m_wanReconnectTimer.start();
+            return;
+        }
+        startWanConnect();
+    });
+
+    const QString token = loadSecret(kSmartLinkTokenKey);
+    if (!token.isEmpty()) {
+        setSmartLinkState(QStringLiteral("signingIn"));
+        m_smartLink.loginWithRefreshToken(token);
+    }
+}
+
+void MobileEngine::setSmartLinkState(const QString& state)
+{
+    if (state != m_smartLinkState) {
+        m_smartLinkState = state;
+        qCInfo(lcMobile) << "SmartLink state" << state;
+    }
+    emit smartLinkChanged();
+}
+
+QString MobileEngine::smartLinkAccount() const
+{
+    const QString name = (m_smartLink.firstName() + QLatin1Char(' ') + m_smartLink.lastName()).trimmed();
+    if (!m_smartLink.callsign().isEmpty()) {
+        return name.isEmpty() ? m_smartLink.callsign()
+                              : QStringLiteral("%1 (%2)").arg(m_smartLink.callsign(), name);
+    }
+    return name;
+}
+
+QString MobileEngine::smartLinkEmail() const
+{
+    // SmartLinkClient keeps the last e-mail Base64-encoded for pre-filling.
+    const QByteArray stored = AppSettings::instance().value(QStringLiteral("SmartLinkEmail")).toByteArray();
+    return QString::fromUtf8(QByteArray::fromBase64(stored));
+}
+
+QVariantList MobileEngine::smartLinkRadios() const
+{
+    QVariantList list;
+    for (const WanRadioInfo& radio : m_wanRadios) {
+        list.append(QVariantMap{
+            {QStringLiteral("nickname"), radio.nickname},
+            {QStringLiteral("model"), radio.model},
+            {QStringLiteral("serial"), radio.serial},
+            {QStringLiteral("status"), radio.status},
+            {QStringLiteral("callsign"), radio.callsign},
+            {QStringLiteral("reachable"), radio.publicTlsPort > 0 && !radio.publicIp.isEmpty()},
+        });
+    }
+    return list;
+}
+
+bool MobileEngine::remoteSession() const
+{
+    return m_connected && m_session.radioModel().isWan();
+}
+
+void MobileEngine::signInSmartLink(const QString& email, const QString& password)
+{
+    if (email.trimmed().isEmpty() || password.isEmpty()) {
+        setLastError(tr("Enter your SmartLink e-mail and password."));
+        return;
+    }
+    setLastError({});
+    setSmartLinkState(QStringLiteral("signingIn"));
+    m_smartLink.login(email.trimmed(), password);
+}
+
+void MobileEngine::signOutSmartLink()
+{
+    m_wanReconnectTimer.stop();
+    m_smartLink.logout();
+    removeSecret(kSmartLinkTokenKey);
+    m_wanRadios.clear();
+    emit smartLinkRadiosChanged();
+    setSmartLinkState(QStringLiteral("signedOut"));
+}
+
+void MobileEngine::connectSmartLinkRadio(int index)
+{
+    if (index < 0 || index >= m_wanRadios.size() || m_connectionState != QLatin1String("idle")) {
+        return;
+    }
+    const WanRadioInfo& radio = m_wanRadios.at(index);
+    if (radio.publicTlsPort <= 0 || radio.publicIp.isEmpty()) {
+        setLastError(tr("%1 is not reachable through SmartLink right now.").arg(radio.nickname));
+        return;
+    }
+    m_pendingWan = radio;
+    m_wanActive = true;
+    m_wanUserDisconnect = false;
+    m_radioName = radio.nickname.isEmpty() ? radio.model : radio.nickname;
+    setLastError({});
+    setConnectionState(QStringLiteral("connecting"));
+    startWanConnect();
+}
+
+void MobileEngine::startWanConnect()
+{
+    RadioModel& rm = m_session.radioModel();
+    rm.ensureBackendFamily(QStringLiteral("flex"));
+    PanadapterStream* ps = rm.panStream();
+    if (!ps) {
+        setLastError(tr("Remote connection: no radio stream available."));
+        setConnectionState(QStringLiteral("idle"));
+        return;
+    }
+    const QHostAddress address(m_pendingWan.publicIp);
+    const quint16 udpPort = m_pendingWan.publicUdpPort > 0
+        ? static_cast<quint16>(m_pendingWan.publicUdpPort) : kDefaultWanUdpPort;
+    // Bind the stream's UDP socket first: its port is the hole-punch port
+    // SmartLink hands the radio.
+    if (ps->localPort() == 0) {
+        QMetaObject::invokeMethod(ps, [ps, address, udpPort] { ps->startWan(address, udpPort); },
+                                  Qt::BlockingQueuedConnection);
+    }
+    qCInfo(lcMobile) << "SmartLink connect request for" << m_pendingWan.serial;
+    m_smartLink.requestConnect(m_pendingWan.serial, ps->localPort());
+}
+
+void MobileEngine::answerCertificate(bool accept)
+{
+    if (accept) {
+        m_wan.acceptPresentedCert();
+    } else {
+        m_wan.rejectPresentedCert();
+        m_wanActive = false;
+        setConnectionState(QStringLiteral("idle"));
+    }
 }
 
 QString MobileEngine::lastAddress() const
@@ -1018,6 +1234,12 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         return;
     }
     stopTransmit(QStringLiteral("radio disconnected"));
+    if (m_wanActive && !m_wanUserDisconnect) {
+        qCInfo(lcMobile) << "remote session dropped; reconnecting";
+        m_wanReconnectTimer.start();
+    } else {
+        m_wanActive = false;
+    }
     stopDeviceMicrophoneCapture();
     setKeepScreenAwake(false);
     stopAudio();

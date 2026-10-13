@@ -836,6 +836,11 @@ public:
     bool wakeIcomRadio(int modelId, int address, QString* error = nullptr);
     bool radioWakeActive() const { return m_radioWakeActive; }
     void connectViaWan(WanConnection* wan, const QString& publicIp, quint16 udpPort);
+    // connectViaWan() keeps whichever backend is installed. A client that may
+    // have run another family first (the demo, HL2) calls this before a
+    // SmartLink connect so the session talks to the Flex backend. No-op when
+    // the family already matches or while connected.
+    void ensureBackendFamily(const QString& family);
     void setPendingClientDisconnects(const QList<quint32>& handles);
     bool disconnectClient(quint32 handle);
     // Called by MainWindow in response to multiFlexConflictDetected().

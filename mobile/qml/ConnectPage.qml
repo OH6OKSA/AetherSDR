@@ -3,120 +3,234 @@ import QtQuick.Controls
 import AetherMobile
 import QtQuick.Layouts
 
+// Radio chooser: radios on this network, SmartLink (remote) radios, and a
+// connect-by-address field. Scrolls so it fits a phone.
 Page {
+    id: page
     background: Rectangle { color: Theme.background }
 
-    ColumnLayout {
-        id: column
+    // One tappable radio row (LAN or SmartLink).
+    component RadioRow: ItemDelegate {
+        id: row
+        property string title
+        property string subtitle
+        Layout.fillWidth: true
+        implicitHeight: 2 * Theme.touchTarget
+        enabled: Engine.connectionState === "idle"
+        background: Rectangle {
+            color: row.down ? Theme.surfaceRaised : Theme.surface
+            radius: Theme.radius
+        }
+        contentItem: ColumnLayout {
+            spacing: 2
+            Label { text: row.title; color: Theme.text; font.pixelSize: 20; elide: Text.ElideRight; Layout.fillWidth: true }
+            Label { text: row.subtitle; color: Theme.textDim; font.pixelSize: 15; elide: Text.ElideRight; Layout.fillWidth: true }
+        }
+    }
+
+    ScrollView {
+        id: scroll
         anchors.fill: parent
         // Clear of the notch / Dynamic Island and the home indicator.
-        anchors.leftMargin: 2 * Theme.spacing + column.SafeArea.margins.left
-        anchors.rightMargin: 2 * Theme.spacing + column.SafeArea.margins.right
-        anchors.topMargin: 2 * Theme.spacing + column.SafeArea.margins.top
-        anchors.bottomMargin: 2 * Theme.spacing + column.SafeArea.margins.bottom
-        spacing: Theme.spacing
+        anchors.leftMargin: 2 * Theme.spacing + scroll.SafeArea.margins.left
+        anchors.rightMargin: 2 * Theme.spacing + scroll.SafeArea.margins.right
+        anchors.topMargin: 2 * Theme.spacing + scroll.SafeArea.margins.top
+        anchors.bottomMargin: Theme.spacing + scroll.SafeArea.margins.bottom
+        contentWidth: availableWidth
+        clip: true
 
-        RowLayout {
-            Layout.fillWidth: true
-            Label {
-                text: qsTr("AetherSDR")
-                color: Theme.text
-                font.pixelSize: 34
-                font.bold: true
+        ColumnLayout {
+            width: scroll.availableWidth
+            spacing: Theme.spacing
+
+            RowLayout {
                 Layout.fillWidth: true
-            }
-            AppButton { text: qsTr("Log"); onClicked: logPage.open() }
-        }
-        Label {
-            text: Engine.radios.count > 0
-                  ? qsTr("Tap a radio to connect")
-                  : qsTr("Searching the local network…")
-            color: Theme.textDim
-            font.pixelSize: 18
-        }
-
-        ListView {
-            id: list
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            spacing: Theme.spacing / 2
-            model: Engine.radios
-
-            delegate: ItemDelegate {
-                required property int index
-                required property string name
-                required property string nickname
-                required property string model
-                required property string address
-                required property string version
-                required property string transport
-                required property bool inUse
-
-                width: ListView.view.width
-                height: 2 * Theme.touchTarget
-                enabled: Engine.connectionState === "idle"
-                background: Rectangle {
-                    color: parent.down ? Theme.surfaceRaised : Theme.surface
-                    radius: Theme.radius
+                Label {
+                    text: qsTr("AetherSDR")
+                    color: Theme.text
+                    font.pixelSize: 34
+                    font.bold: true
+                    Layout.fillWidth: true
                 }
-                contentItem: ColumnLayout {
-                    spacing: 2
-                    Label {
-                        text: (nickname.length > 0 ? nickname + " — " : "") + (model.length > 0 ? model : name)
-                        color: Theme.text
-                        font.pixelSize: 22
-                    }
-                    Label {
-                        text: transport === "sim"
+                AppButton { text: qsTr("Log"); onClicked: logPage.open() }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: Engine.connectionState !== "idle" || Engine.lastError.length > 0
+                text: Engine.connectionState === "connecting" ? qsTr("Connecting…") : Engine.lastError
+                color: Engine.connectionState === "connecting" ? Theme.textDim : Theme.warning
+                font.pixelSize: 17
+                wrapMode: Text.Wrap
+            }
+
+            // ---- This network ----
+            Label {
+                text: Engine.radios.count > 0 ? qsTr("On this network") : qsTr("Searching this network…")
+                color: Theme.textDim
+                font.pixelSize: 17
+            }
+            Repeater {
+                model: Engine.radios
+                delegate: RadioRow {
+                    required property int index
+                    required property string name
+                    required property string nickname
+                    required property string model
+                    required property string address
+                    required property string version
+                    required property string transport
+                    required property bool inUse
+                    title: (nickname.length > 0 ? nickname + " — " : "") + (model.length > 0 ? model : name)
+                    subtitle: transport === "sim"
                               ? qsTr("Built-in demo radio (receive only)")
                               : address + "   v" + version + (inUse ? qsTr("   in use") : "")
-                        color: Theme.textDim
-                        font.pixelSize: 16
+                    onClicked: Engine.connectToRadio(index)
+                }
+            }
+
+            // ---- SmartLink (remote) ----
+            Label {
+                text: qsTr("SmartLink (remote)")
+                color: Theme.textDim
+                font.pixelSize: 17
+                Layout.topMargin: Theme.spacing
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: smartLinkBox.implicitHeight + 2 * Theme.spacing
+                radius: Theme.radius
+                color: Theme.surface
+
+                ColumnLayout {
+                    id: smartLinkBox
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacing
+                    spacing: Theme.spacing / 2
+
+                    // Signed out: e-mail and password (FlexRadio account).
+                    ColumnLayout {
+                        visible: Engine.smartLinkState === "signedOut"
+                        Layout.fillWidth: true
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Sign in with your FlexRadio SmartLink account to use your radio from anywhere.")
+                            color: Theme.textDim
+                            font.pixelSize: 14
+                            wrapMode: Text.Wrap
+                        }
+                        TextField {
+                            id: emailField
+                            Layout.fillWidth: true
+                            text: Engine.smartLinkEmail
+                            placeholderText: qsTr("E-mail")
+                            inputMethodHints: Qt.ImhEmailCharactersOnly | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+                            font.pixelSize: 17
+                        }
+                        TextField {
+                            id: passwordField
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Password")
+                            echoMode: TextInput.Password
+                            inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
+                            font.pixelSize: 17
+                            onAccepted: signIn.clicked()
+                        }
+                        AppButton {
+                            id: signIn
+                            text: qsTr("Sign in to SmartLink")
+                            Layout.fillWidth: true
+                            enabled: emailField.text.length > 0 && passwordField.text.length > 0
+                            onClicked: {
+                                Engine.signInSmartLink(emailField.text, passwordField.text)
+                                passwordField.text = ""
+                            }
+                        }
+                    }
+
+                    // Signing in.
+                    RowLayout {
+                        visible: Engine.smartLinkState === "signingIn"
+                        BusyIndicator { running: visible; implicitWidth: 32; implicitHeight: 32 }
+                        Label { text: qsTr("Signing in to SmartLink…"); color: Theme.textDim }
+                    }
+
+                    // Signed in: account, remote radios, sign out.
+                    ColumnLayout {
+                        visible: Engine.smartLinkState === "signedIn" || Engine.smartLinkState === "offline"
+                        Layout.fillWidth: true
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: Engine.smartLinkAccount.length > 0 ? Engine.smartLinkAccount : qsTr("Signed in")
+                                color: Theme.text
+                                font.pixelSize: 16
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            AppButton { text: qsTr("Sign out"); onClicked: Engine.signOutSmartLink() }
+                        }
+                        Label {
+                            visible: Engine.smartLinkState === "offline"
+                            text: qsTr("SmartLink server not reachable. Retrying…")
+                            color: Theme.warning
+                            font.pixelSize: 14
+                        }
+                        Label {
+                            visible: Engine.smartLinkState === "signedIn" && Engine.smartLinkRadios.length === 0
+                            text: qsTr("No radios on this account are online.")
+                            color: Theme.textDim
+                            font.pixelSize: 14
+                        }
+                        Repeater {
+                            model: Engine.smartLinkRadios
+                            delegate: RadioRow {
+                                required property int index
+                                required property var modelData
+                                title: (modelData.nickname.length > 0 ? modelData.nickname + " — " : "") + modelData.model
+                                subtitle: modelData.status + (modelData.reachable ? "" : qsTr("   not reachable"))
+                                enabled: Engine.connectionState === "idle" && modelData.reachable
+                                onClicked: Engine.connectSmartLinkRadio(index)
+                            }
+                        }
                     }
                 }
-                onClicked: Engine.connectToRadio(index)
             }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing
-            TextField {
-                id: addressField
+            // ---- By address ----
+            Label {
+                text: qsTr("By IP address")
+                color: Theme.textDim
+                font.pixelSize: 17
+                Layout.topMargin: Theme.spacing
+            }
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Theme.touchTarget
-                text: Engine.lastAddress
-                placeholderText: qsTr("FlexRadio IP address, e.g. 192.168.1.50")
-                inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhNoPredictiveText
-                font.pixelSize: 18
-                onAccepted: Engine.connectToAddress(text)
+                spacing: Theme.spacing
+                TextField {
+                    id: addressField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.touchTarget
+                    text: Engine.lastAddress
+                    placeholderText: qsTr("FlexRadio IP address, e.g. 192.168.1.50")
+                    inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhNoPredictiveText
+                    font.pixelSize: 18
+                    onAccepted: Engine.connectToAddress(text)
+                }
+                AppButton {
+                    text: qsTr("Connect")
+                    Layout.preferredHeight: Theme.touchTarget
+                    enabled: Engine.connectionState === "idle" && addressField.text.length > 0
+                    onClicked: Engine.connectToAddress(addressField.text)
+                }
             }
-            AppButton {
-                text: qsTr("Connect")
-                Layout.preferredHeight: Theme.touchTarget
-                enabled: Engine.connectionState === "idle" && addressField.text.length > 0
-                onClicked: Engine.connectToAddress(addressField.text)
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Enter your own radio's IP address. SmartSDR's radio chooser and your router's device list both show it. This device must reach the radio on the same network or over a VPN. The address is remembered on this device only.")
+                color: Theme.textDim
+                font.pixelSize: 14
+                wrapMode: Text.Wrap
             }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: qsTr("Enter your own radio's IP address. SmartSDR's radio chooser and your router's device list both show it. This device must reach the radio on the same network or over a VPN. The address is remembered on this device only.")
-            color: Theme.textDim
-            font.pixelSize: 14
-            wrapMode: Text.Wrap
-        }
-
-        Label {
-            Layout.fillWidth: true
-            visible: Engine.connectionState !== "idle" || Engine.lastError.length > 0
-            text: Engine.connectionState === "connecting"
-                  ? qsTr("Connecting…")
-                  : Engine.lastError
-            color: Engine.connectionState === "connecting" ? Theme.textDim : Theme.warning
-            font.pixelSize: 18
-            wrapMode: Text.Wrap
         }
     }
 

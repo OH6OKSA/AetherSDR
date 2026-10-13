@@ -3,6 +3,8 @@
 #include "RadioListModel.h"
 
 #include "core/TxCoordinator.h"
+#include "core/backends/flex/SmartLinkClient.h"
+#include "core/backends/flex/WanConnection.h"
 #include "core/backends/RadioCapabilities.h"
 #include "models/RadioSession.h"
 #include "models/TxController.h"
@@ -56,6 +58,11 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QStringList bands READ bands CONSTANT)
     Q_PROPERTY(bool bandsAvailable READ bandsAvailable NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastAddress READ lastAddress NOTIFY lastAddressChanged)
+    Q_PROPERTY(QString smartLinkState READ smartLinkState NOTIFY smartLinkChanged)
+    Q_PROPERTY(QString smartLinkAccount READ smartLinkAccount NOTIFY smartLinkChanged)
+    Q_PROPERTY(QString smartLinkEmail READ smartLinkEmail NOTIFY smartLinkChanged)
+    Q_PROPERTY(QVariantList smartLinkRadios READ smartLinkRadios NOTIFY smartLinkRadiosChanged)
+    Q_PROPERTY(bool remoteSession READ remoteSession NOTIFY connectionStateChanged)
     Q_PROPERTY(bool controlsVisible READ controlsVisible WRITE setControlsVisible NOTIFY controlsVisibleChanged)
     Q_PROPERTY(bool transmitAvailable READ transmitAvailable NOTIFY transmitStateChanged)
     Q_PROPERTY(QString transmitUnavailableReason READ transmitUnavailableReason NOTIFY transmitStateChanged)
@@ -133,6 +140,15 @@ public:
     QStringList bands() const;
     bool bandsAvailable() const;
     QString lastAddress() const;
+
+    // SmartLink (remote access through FlexRadio's service). State is
+    // "signedOut", "signingIn", "signedIn" or "offline" (signed in, server
+    // not reachable). The refresh token lives in the iOS Keychain.
+    QString smartLinkState() const { return m_smartLinkState; }
+    QString smartLinkAccount() const;
+    QString smartLinkEmail() const;
+    QVariantList smartLinkRadios() const;
+    bool remoteSession() const;
     // Whether the operate page shows its control panel or gives the spectrum
     // the room (PTT always stays). Remembered on the device.
     bool controlsVisible() const;
@@ -213,6 +229,12 @@ public:
     // A FlexRadio by address, for networks where discovery broadcasts do not
     // arrive (iOS needs a multicast entitlement to receive them).
     Q_INVOKABLE void connectToAddress(const QString& host);
+    Q_INVOKABLE void signInSmartLink(const QString& email, const QString& password);
+    Q_INVOKABLE void signOutSmartLink();
+    // Connect to the radio at `index` in smartLinkRadios.
+    Q_INVOKABLE void connectSmartLinkRadio(int index);
+    // Answer to certificateChanged: trust the radio's new certificate or not.
+    Q_INVOKABLE void answerCertificate(bool accept);
     // Development aid (--demo): connect once the simulator entry appears.
     void connectToDemoWhenListed();
     Q_INVOKABLE void disconnectRadio();
@@ -258,6 +280,11 @@ signals:
     void filterChanged();
     void lastAddressChanged();
     void controlsVisibleChanged();
+    void smartLinkChanged();
+    void smartLinkRadiosChanged();
+    // The radio presented a different TLS certificate than the one pinned
+    // for it; the connect waits for answerCertificate().
+    void certificateChanged(const QString& host, const QString& expected, const QString& presented);
     void rfPowerChanged();
     void micGainChanged();
     void txMetersChanged();
@@ -293,6 +320,9 @@ private:
     void startDeviceMicrophoneCapture();
     void stopDeviceMicrophoneCapture();
     void releasePtt(const QString& reason);
+    void wireSmartLink();
+    void startWanConnect();
+    void setSmartLinkState(const QString& state);
 
     RadioSession m_session;
     RadioListModel m_radios;
@@ -317,6 +347,14 @@ private:
     bool m_micPermissionRequested{false};
     bool m_connected{false};
     RadioCapabilities m_caps;
+    SmartLinkClient m_smartLink;
+    WanConnection m_wan;
+    QList<WanRadioInfo> m_wanRadios;
+    WanRadioInfo m_pendingWan;
+    bool m_wanActive{false};
+    bool m_wanUserDisconnect{false};
+    QTimer m_wanReconnectTimer;
+    QString m_smartLinkState{QStringLiteral("signedOut")};
     double m_micLevelDbfs{-100.0};
     double m_micPeakDbfs{-100.0};
     double m_forwardPowerW{0.0};

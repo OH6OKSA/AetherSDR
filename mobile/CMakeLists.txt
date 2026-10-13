@@ -21,12 +21,14 @@ qt_add_executable(aether-mobile
     src/ScreenAwake.h
     src/LogBuffer.cpp
     src/LogBuffer.h
+    src/SecureStore.h
     ${AETHER_MOBILE_RESOURCES}
 )
 if(IOS)
-    target_sources(aether-mobile PRIVATE ios/ScreenAwake.mm)
+    target_sources(aether-mobile PRIVATE ios/ScreenAwake.mm ios/SecureStore.mm)
+    target_link_libraries(aether-mobile PRIVATE "-framework Security")
 else()
-    target_sources(aether-mobile PRIVATE src/ScreenAwake.cpp)
+    target_sources(aether-mobile PRIVATE src/ScreenAwake.cpp src/SecureStore.cpp)
 endif()
 
 # Must precede qt_add_qml_module, which reads it when writing the qmldir.
