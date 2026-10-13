@@ -248,3 +248,27 @@ jobs:
           name: aether-mobile-unsigned-ipa
           path: aether-mobile-unsigned.ipa
           if-no-files-found: error
+
+  # Keeps the artifact store small: after a successful build, delete artifacts
+  # older than two days, except this run's (the newest build is always kept,
+  # however long ago it ran). A failed or cancelled build prunes nothing.
+  prune-artifacts:
+    needs: ios-engine
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete artifacts older than 2 days (not this run's)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          cutoff=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh api --paginate "repos/$REPO/actions/artifacts" \
+            --jq ".artifacts[] | select(.workflow_run.id != $RUN_ID and .created_at < \"$cutoff\") | .id" |
+          while read -r id; do
+            echo "deleting artifact $id"
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id" || echo "could not delete $id"
+          done
