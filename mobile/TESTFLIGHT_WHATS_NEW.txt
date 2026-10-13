@@ -25,7 +25,10 @@ NÄKYMÄ (Controls → View, iPadissa myös sivupaneelissa)
 • Vesiputouksen Black level, Colour gain ja Auto.
 • Spektrin Auto tai Reference ja Range.
 • dBm-asteikko spektrin vasemmassa reunassa: raahaa ylös/alas siirtääksesi spektriä.
-• 3D-näkymä (2D waterfall | 3D) piirretään nyt näytönohjaimella: kerro, onko se sujuva ja näkyykö kuva (jos musta, lähetä loki: rivit "spectrum3d").
+• 3D-näkymä (2D waterfall | 3D) kuten AetherSDR:ssä: 3D spektrin paikalla, vesiputous alla, näytönohjaimella. Kerro, onko se sujuva.
+
+PROFIILIT (Controls → Profiles, iPadissa sivupaneelissa)
+• Global-, TX- ja Mic-profiilin lataus, tallennus ja poisto kuten SmartSDR:ssä.
 
 SÄÄTIMET
 • Taajuuskorjain RX ja TX, 8 kaistaa (Controls → Audio).

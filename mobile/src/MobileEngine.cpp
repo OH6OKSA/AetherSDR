@@ -566,6 +566,11 @@ void MobileEngine::wireTransmit()
     connect(&rm.transmitModel(), &TransmitModel::transmittingChanged, this, &MobileEngine::transmittingChanged);
     connect(&rm.transmitModel(), &TransmitModel::rfPowerChanged, this, &MobileEngine::rfPowerChanged);
     connect(&rm.transmitModel(), &TransmitModel::txFilterCutoffChanged, this, &MobileEngine::txFilterChanged);
+    connect(&rm, &RadioModel::globalProfilesChanged, this, &MobileEngine::profilesChanged);
+    connect(&rm.transmitModel(), &TransmitModel::profileListChanged, this, &MobileEngine::profilesChanged);
+    connect(&rm.transmitModel(), &TransmitModel::micProfileListChanged, this, &MobileEngine::profilesChanged);
+    connect(&rm.transmitModel(), &TransmitModel::stateChanged, this, &MobileEngine::profilesChanged);
+    connect(&rm.transmitModel(), &TransmitModel::micStateChanged, this, &MobileEngine::profilesChanged);
     connect(&rm.equalizerModel(), &EqualizerModel::txStateChanged, this, &MobileEngine::eqChanged);
     connect(&rm.equalizerModel(), &EqualizerModel::rxStateChanged, this, &MobileEngine::eqChanged);
     connect(&rm.meterModel(), &MeterModel::micMetersChanged, this,
@@ -1706,6 +1711,71 @@ void MobileEngine::resetEq(bool tx)
     }
 }
 
+QStringList MobileEngine::globalProfiles() const { return m_session.radioModel().globalProfiles(); }
+QString MobileEngine::activeGlobalProfile() const { return m_session.radioModel().activeGlobalProfile(); }
+QStringList MobileEngine::txProfiles() const { return m_session.radioModel().transmitModel().profileList(); }
+QString MobileEngine::activeTxProfile() const { return m_session.radioModel().transmitModel().activeProfile(); }
+QStringList MobileEngine::micProfiles() const { return m_session.radioModel().transmitModel().micProfileList(); }
+QString MobileEngine::activeMicProfile() const { return m_session.radioModel().transmitModel().activeMicProfile(); }
+
+namespace {
+QString quotedProfileName(const QString& name)
+{
+    QString n = name.trimmed();
+    n.remove(QLatin1Char('"'));
+    return QLatin1Char('"') + n + QLatin1Char('"');
+}
+} // namespace
+
+void MobileEngine::loadProfile(const QString& type, const QString& name)
+{
+    if (!m_connected || name.trimmed().isEmpty()) {
+        return;
+    }
+    // A profile changes transmit settings (or the whole radio layout); never
+    // load one under an active transmission.
+    stopTransmit(QStringLiteral("profile load"));
+    RadioModel& rm = m_session.radioModel();
+    qCInfo(lcMobile) << "load" << type << "profile" << name;
+    if (type == QLatin1String("global")) {
+        rm.loadGlobalProfile(name);
+    } else if (type == QLatin1String("transmit")) {
+        rm.transmitModel().loadProfile(name);
+    } else if (type == QLatin1String("mic")) {
+        rm.transmitModel().loadMicProfile(name);
+    }
+}
+
+void MobileEngine::saveProfile(const QString& type, const QString& name)
+{
+    if (!m_connected || name.trimmed().isEmpty()) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    qCInfo(lcMobile) << "save" << type << "profile" << name;
+    if (type == QLatin1String("global")) {
+        rm.sendCommand(QStringLiteral("profile global save ") + quotedProfileName(name));
+    } else if (type == QLatin1String("transmit") || type == QLatin1String("mic")) {
+        const QStringList& existing = type == QLatin1String("mic") ? micProfiles() : txProfiles();
+        if (existing.contains(name.trimmed())) {
+            setLastError(tr("A %1 profile named “%2” exists. The radio cannot overwrite it: "
+                            "delete it first, then save again.").arg(type, name.trimmed()));
+            return;
+        }
+        rm.sendCommand(QStringLiteral("profile %1 create ").arg(type) + quotedProfileName(name));
+    }
+}
+
+void MobileEngine::deleteProfile(const QString& type, const QString& name)
+{
+    if (!m_connected || name.trimmed().isEmpty()
+        || (type != QLatin1String("global") && type != QLatin1String("transmit") && type != QLatin1String("mic"))) {
+        return;
+    }
+    qCInfo(lcMobile) << "delete" << type << "profile" << name;
+    m_session.radioModel().sendCommand(QStringLiteral("profile %1 delete ").arg(type) + quotedProfileName(name));
+}
+
 bool MobileEngine::locked() const
 {
     return m_slice && m_slice->isLocked();
@@ -1968,6 +2038,7 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         emit tuneStateChanged();
         emit txFilterChanged();
         emit eqChanged();
+        emit profilesChanged();
         emit atuChanged();
         emit txAudioChanged();
         emit cwChanged();

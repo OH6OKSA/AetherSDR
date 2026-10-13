@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// The tabbed operating controls (Mode, DSP, Audio, TX, CW, View) shown in the
+// The tabbed operating controls (Mode, DSP, Audio, TX, CW, View, Profiles) shown in the
 // slide-in controls drawer.
 ColumnLayout {
     id: panel
@@ -31,6 +31,7 @@ ColumnLayout {
         TabButton { text: qsTr("TX") }
         TabButton { text: qsTr("CW") }
         TabButton { text: qsTr("View") }
+        TabButton { text: qsTr("Profiles") }
     }
 
     StackLayout {
@@ -178,6 +179,16 @@ ColumnLayout {
             contentWidth: availableWidth
             DisplayControls {
                 width: viewScroll.availableWidth
+            }
+        }
+
+        // Profiles: global, TX and mic.
+        ScrollView {
+            id: profileScroll
+            clip: true
+            contentWidth: availableWidth
+            ProfileControls {
+                width: profileScroll.availableWidth
             }
         }
     }

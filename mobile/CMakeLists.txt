@@ -61,6 +61,7 @@ qt_add_qml_module(aether-mobile
         qml/DisplayControls.qml
         qml/LockButton.qml
         qml/EqControls.qml
+        qml/ProfileControls.qml
         qml/PhoneOperatePage.qml
 )
 

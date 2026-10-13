@@ -108,6 +108,14 @@ class MobileEngine : public QObject {
     // Tuning lock of the active slice (the radio's slice lock; SliceModel
     // refuses tuning while it is on). tuneBlocked fires on a refused tune.
     Q_PROPERTY(bool locked READ locked WRITE setLocked NOTIFY lockedChanged)
+    // The radio's profiles (as SmartSDR/AetherSDR): global (band, pans,
+    // slices…), transmit and mic. Type is "global", "transmit" or "mic".
+    Q_PROPERTY(QStringList globalProfiles READ globalProfiles NOTIFY profilesChanged)
+    Q_PROPERTY(QString activeGlobalProfile READ activeGlobalProfile NOTIFY profilesChanged)
+    Q_PROPERTY(QStringList txProfiles READ txProfiles NOTIFY profilesChanged)
+    Q_PROPERTY(QString activeTxProfile READ activeTxProfile NOTIFY profilesChanged)
+    Q_PROPERTY(QStringList micProfiles READ micProfiles NOTIFY profilesChanged)
+    Q_PROPERTY(QString activeMicProfile READ activeMicProfile NOTIFY profilesChanged)
     // TX audio passband (radio: transmit filter_low/filter_high).
     Q_PROPERTY(int txFilterLow READ txFilterLow WRITE setTxFilterLow NOTIFY txFilterChanged)
     Q_PROPERTY(int txFilterHigh READ txFilterHigh WRITE setTxFilterHigh NOTIFY txFilterChanged)
@@ -277,6 +285,17 @@ public:
     void setCwBreakIn(bool on);
     bool cwDecoderEnabled() const;
     bool locked() const;
+    QStringList globalProfiles() const;
+    QString activeGlobalProfile() const;
+    QStringList txProfiles() const;
+    QString activeTxProfile() const;
+    QStringList micProfiles() const;
+    QString activeMicProfile() const;
+    Q_INVOKABLE void loadProfile(const QString& type, const QString& name);
+    // Global: saves (overwrites) under the name. Transmit/mic: creates a new
+    // profile from the current settings (the radio cannot overwrite those).
+    Q_INVOKABLE void saveProfile(const QString& type, const QString& name);
+    Q_INVOKABLE void deleteProfile(const QString& type, const QString& name);
     int txFilterLow() const;
     int txFilterHigh() const;
     void setTxFilterLow(int hz);
@@ -470,6 +489,7 @@ signals:
     void cwDecoderChanged();
     void displayLevelsChanged();
     void lockedChanged();
+    void profilesChanged();
     void txFilterChanged();
     void eqChanged();
     void cwMemoriesChanged();

@@ -372,6 +372,12 @@ Page {
                 Layout.topMargin: Theme.spacing
             }
 
+            // Global, TX and mic profiles.
+            ProfileControls {
+                Layout.fillWidth: true
+                Layout.topMargin: Theme.spacing
+            }
+
             Label {
                 Layout.fillWidth: true
                 visible: !Engine.transmitAvailable
