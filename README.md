@@ -46,8 +46,9 @@ radio interface, with no computer running alongside.
 - Mode, filter width presets, NR/NB/ANF, AGC (off/slow/med/fast), AF gain and
   mute.
 - Two meters side by side, SmartSDR style. Tap either one to choose S, Power,
-  SWR, ALC, Mic, Compression, PA temperature or supply voltage. TX meters read
-  while on the air, and the choice is remembered.
+  SWR, ALC, Mic, Compression, PA temperature or supply voltage, separately
+  for receive and transmit (e.g. S and Power, then SWR and Power on the
+  air). The choices are remembered.
 - Band buttons use the radio's own band stack, so each band comes back to its
   last frequency and mode.
 - Step buttons from ±1 Hz to ±1 kHz land on round frequencies: +10 Hz from

@@ -792,6 +792,27 @@ QStringList MobileEngine::meterKinds() const
             QStringLiteral("Mic"), QStringLiteral("Comp"), QStringLiteral("PA temp"), QStringLiteral("Volts")};
 }
 
+QString MobileEngine::meterChoice(const char* key, const char* fallback) const
+{
+    const QString kind = AppSettings::instance().value(QLatin1String(key), QLatin1String(fallback)).toString();
+    return meterKinds().contains(kind) ? kind : QString::fromLatin1(fallback);
+}
+
+void MobileEngine::setMeter(const QString& side, bool tx, const QString& kind)
+{
+    if (!tx) {
+        side == QLatin1String("left") ? setMeterLeft(kind) : setMeterRight(kind);
+        return;
+    }
+    const QString key = side == QLatin1String("left") ? QStringLiteral("MobileMeterLeftTx")
+                                                      : QStringLiteral("MobileMeterRightTx");
+    if (meterKinds().contains(kind) && AppSettings::instance().value(key).toString() != kind) {
+        AppSettings::instance().setValue(key, kind);
+        AppSettings::instance().save();
+        emit meterSelectionChanged();
+    }
+}
+
 QString MobileEngine::meterLeft() const
 {
     return AppSettings::instance().value(QStringLiteral("MobileMeterLeft"), QStringLiteral("S")).toString();

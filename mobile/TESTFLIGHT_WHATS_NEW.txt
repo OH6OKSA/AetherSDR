@@ -30,6 +30,7 @@ SÄÄTIMET
 • Taajuuskorjain RX ja TX, 8 kaistaa (Controls → Audio).
 • Aktiivinen filtteri korostuu kaikissa modeissa.
 • Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
+• Mittareille oma valinta vastaanottoon ja lähetykseen (esim. S/Power ja lähetyksessä SWR/Power).
 • RIT/XIT, SQL ja antennivalinnat.
 • Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
 

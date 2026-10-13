@@ -151,6 +151,10 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QStringList meterKinds READ meterKinds CONSTANT)
     Q_PROPERTY(QString meterLeft READ meterLeft WRITE setMeterLeft NOTIFY meterSelectionChanged)
     Q_PROPERTY(QString meterRight READ meterRight WRITE setMeterRight NOTIFY meterSelectionChanged)
+    // While transmitting the faces show their own TX choices (default SWR and
+    // Power), so receive keeps S while transmit shows SWR.
+    Q_PROPERTY(QString meterLeftTx READ meterLeftTx NOTIFY meterSelectionChanged)
+    Q_PROPERTY(QString meterRightTx READ meterRightTx NOTIFY meterSelectionChanged)
     Q_PROPERTY(bool tuning READ tuning NOTIFY tuneStateChanged)
     Q_PROPERTY(bool tuneAvailable READ tuneAvailable NOTIFY tuneStateChanged)
     Q_PROPERTY(int tunePower READ tunePower WRITE setTunePower NOTIFY tuneStateChanged)
@@ -332,6 +336,10 @@ public:
     void setMeterLeft(const QString& kind);
     QString meterRight() const;
     void setMeterRight(const QString& kind);
+    QString meterLeftTx() const { return meterChoice("MobileMeterLeftTx", "SWR"); }
+    QString meterRightTx() const { return meterChoice("MobileMeterRightTx", "Power"); }
+    // side "left"/"right", tx: the transmit choice instead of the receive one.
+    Q_INVOKABLE void setMeter(const QString& side, bool tx, const QString& kind);
 
     // Tune carrier and the radio's ATU. Both transmit, so both go through
     // the local TxController (Activity::Tune / ::Atu) like PTT.
@@ -476,6 +484,7 @@ private:
     void bindSlice(SliceModel* slice);
     void bindPan(PanadapterModel* pan);
     void defaultMicToDevice();
+    QString meterChoice(const char* key, const char* fallback) const;
     int displayInt(const char* key, int fallback) const;
     void setDisplayInt(const char* key, int value);
     void sendPanDimensions(const QString& panId);

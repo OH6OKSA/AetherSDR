@@ -10,7 +10,12 @@ Item {
     // "left" or "right": which remembered selection this face uses.
     property string side: "left"
     property bool compact: false
-    readonly property string kind: side === "left" ? Engine.meterLeft : Engine.meterRight
+    // Receive and transmit each have their own choice (e.g. S / SWR).
+    readonly property bool txView: Engine.radioTransmitting || Engine.tuning
+    readonly property string kind: txView ? (side === "left" ? Engine.meterLeftTx : Engine.meterRightTx)
+                                          : (side === "left" ? Engine.meterLeft : Engine.meterRight)
+    readonly property string rxKind: side === "left" ? Engine.meterLeft : Engine.meterRight
+    readonly property string txKind: side === "left" ? Engine.meterLeftTx : Engine.meterRightTx
 
     implicitWidth: compact ? 120 : 180
     implicitHeight: compact ? 34 : 44
@@ -81,23 +86,28 @@ Item {
     // last pointer position, which on touch can be anywhere).
     TapHandler { onTapped: chooser.popup(meter, 0, meter.height) }
 
+    // Two columns of choices: what the face shows in receive and in
+    // transmit. A tick marks the current choice of each.
     Menu {
         id: chooser
+        MenuSeparator { contentItem: Label { text: qsTr("Receive"); color: Theme.textDim; font.pixelSize: 13; padding: 6 } }
         Repeater {
             model: Engine.meterKinds
             delegate: MenuItem {
                 required property string modelData
-                // A tick instead of a checkable item: a checkable item would
-                // toggle itself and lose the binding to the selection.
-                text: (meter.kind === modelData ? "✓  " : "     ") + modelData
-                font.bold: meter.kind === modelData
-                onTriggered: {
-                    if (meter.side === "left") {
-                        Engine.meterLeft = modelData
-                    } else {
-                        Engine.meterRight = modelData
-                    }
-                }
+                text: (meter.rxKind === modelData ? "✓  " : "     ") + modelData
+                font.bold: meter.rxKind === modelData
+                onTriggered: Engine.setMeter(meter.side, false, modelData)
+            }
+        }
+        MenuSeparator { contentItem: Label { text: qsTr("Transmit"); color: Theme.textDim; font.pixelSize: 13; padding: 6 } }
+        Repeater {
+            model: Engine.meterKinds
+            delegate: MenuItem {
+                required property string modelData
+                text: (meter.txKind === modelData ? "✓  " : "     ") + modelData
+                font.bold: meter.txKind === modelData
+                onTriggered: Engine.setMeter(meter.side, true, modelData)
             }
         }
     }
