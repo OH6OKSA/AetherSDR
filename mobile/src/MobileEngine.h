@@ -74,6 +74,31 @@ class MobileEngine : public QObject {
     Q_PROPERTY(double forwardPowerW READ forwardPowerW NOTIFY txMetersChanged)
     Q_PROPERTY(double swr READ swr NOTIFY txMetersChanged)
     Q_PROPERTY(bool swrValid READ swrValid NOTIFY txMetersChanged)
+    Q_PROPERTY(bool radioTransmitting READ radioTransmitting NOTIFY txMetersChanged)
+    Q_PROPERTY(double compressionDb READ compressionDb NOTIFY txMetersChanged)
+    Q_PROPERTY(double alcDbfs READ alcDbfs NOTIFY txMetersChanged)
+    Q_PROPERTY(bool alcAvailable READ alcAvailable NOTIFY txMetersChanged)
+    Q_PROPERTY(double paTempC READ paTempC NOTIFY txMetersChanged)
+    Q_PROPERTY(bool hasPaTemp READ hasPaTemp NOTIFY txMetersChanged)
+    Q_PROPERTY(double supplyVolts READ supplyVolts NOTIFY txMetersChanged)
+    Q_PROPERTY(bool hasSupplyVolts READ hasSupplyVolts NOTIFY txMetersChanged)
+    Q_PROPERTY(QStringList meterKinds READ meterKinds CONSTANT)
+    Q_PROPERTY(QString meterLeft READ meterLeft WRITE setMeterLeft NOTIFY meterSelectionChanged)
+    Q_PROPERTY(QString meterRight READ meterRight WRITE setMeterRight NOTIFY meterSelectionChanged)
+    Q_PROPERTY(bool tuning READ tuning NOTIFY tuneStateChanged)
+    Q_PROPERTY(bool tuneAvailable READ tuneAvailable NOTIFY tuneStateChanged)
+    Q_PROPERTY(int tunePower READ tunePower WRITE setTunePower NOTIFY tuneStateChanged)
+    Q_PROPERTY(bool hasTuner READ hasTuner NOTIFY atuChanged)
+    Q_PROPERTY(bool hasTunerMemories READ hasTunerMemories NOTIFY atuChanged)
+    Q_PROPERTY(QString atuStatusText READ atuStatusText NOTIFY atuChanged)
+    Q_PROPERTY(bool atuTuned READ atuTuned NOTIFY atuChanged)
+    Q_PROPERTY(bool atuMemories READ atuMemories WRITE setAtuMemories NOTIFY atuChanged)
+    Q_PROPERTY(bool procEnabled READ procEnabled WRITE setProcEnabled NOTIFY txAudioChanged)
+    Q_PROPERTY(int procLevel READ procLevel WRITE setProcLevel NOTIFY txAudioChanged)
+    Q_PROPERTY(int procLevelMax READ procLevelMax NOTIFY txAudioChanged)
+    Q_PROPERTY(bool monitor READ monitor WRITE setMonitor NOTIFY txAudioChanged)
+    Q_PROPERTY(int monitorGain READ monitorGain WRITE setMonitorGain NOTIFY txAudioChanged)
+    Q_PROPERTY(int radioMicLevel READ radioMicLevel WRITE setRadioMicLevel NOTIFY txAudioChanged)
 
 public:
     explicit MobileEngine(QObject* parent = nullptr);
@@ -141,6 +166,48 @@ public:
     double forwardPowerW() const { return m_forwardPowerW; }
     double swr() const { return m_swr; }
     bool swrValid() const { return m_swrValid; }
+    // Radio actually on the air (MOX, tune, ATU, VOX); TX-only meters show
+    // a value only then.
+    bool radioTransmitting() const;
+    double compressionDb() const { return m_compressionDb; }
+    double alcDbfs() const { return m_alcDbfs; }
+    bool alcAvailable() const { return m_alcAvailable; }
+    double paTempC() const { return m_paTempC; }
+    bool hasPaTemp() const;
+    double supplyVolts() const { return m_supplyVolts; }
+    bool hasSupplyVolts() const;
+    // Selectable meters for the two meter faces, remembered on the device.
+    QStringList meterKinds() const;
+    QString meterLeft() const;
+    void setMeterLeft(const QString& kind);
+    QString meterRight() const;
+    void setMeterRight(const QString& kind);
+
+    // Tune carrier and the radio's ATU. Both transmit, so both go through
+    // the local TxController (Activity::Tune / ::Atu) like PTT.
+    bool tuning() const;
+    bool tuneAvailable() const;
+    int tunePower() const;
+    void setTunePower(int power);
+    bool hasTuner() const;
+    bool hasTunerMemories() const;
+    QString atuStatusText() const;
+    bool atuTuned() const;
+    bool atuMemories() const;
+    void setAtuMemories(bool on);
+
+    // Radio-side TX audio: speech processor (PROC), monitor, mic level.
+    bool procEnabled() const;
+    void setProcEnabled(bool on);
+    int procLevel() const;
+    void setProcLevel(int level);
+    int procLevelMax() const;
+    bool monitor() const;
+    void setMonitor(bool on);
+    int monitorGain() const;
+    void setMonitorGain(int gain);
+    int radioMicLevel() const;
+    void setRadioMicLevel(int level);
 
     Q_INVOKABLE void connectToRadio(int row);
     // A FlexRadio by address, for networks where discovery broadcasts do not
@@ -153,6 +220,12 @@ public:
     // that same input. Every disconnect or loss of foreground also releases.
     // `reason` names the release in the log ("released", "touch cancelled").
     Q_INVOKABLE void setPtt(bool down, const QString& reason = QString());
+    // Tune carrier on/off (latched, like the desktop TUNE button).
+    Q_INVOKABLE void toggleTune();
+    // ATU: start a tune cycle, or bypass when already tuned on this frequency.
+    Q_INVOKABLE void atuPressed();
+    // Ends every transmission this client keyed (PTT, tune, ATU cycle).
+    Q_INVOKABLE void stopTransmit(const QString& reason);
     // Switch the radio's transmit audio input to this device's microphone.
     Q_INVOKABLE void useDeviceMicrophone();
     // Tune, recentring the pan when the target lies outside it.
@@ -189,6 +262,10 @@ signals:
     void micGainChanged();
     void txMetersChanged();
     void dspChanged();
+    void meterSelectionChanged();
+    void tuneStateChanged();
+    void atuChanged();
+    void txAudioChanged();
     void stepChanged();
     // Frames of the active panadapter only. Spectrum bins are dBm and span
     // the pan. Waterfall rows are intensities on a backend-dependent scale
@@ -228,6 +305,14 @@ private:
     QMetaObject::Connection m_txSinkConnection;
     TxCoordinator::Producer m_microphoneProducer;
     TxController::Input m_pttInput;
+    TxController::Input m_tuneInput;
+    TxController::Input m_atuInput;
+    double m_atuTunedFreqMhz{-1.0};
+    double m_compressionDb{0.0};
+    double m_alcDbfs{-100.0};
+    bool m_alcAvailable{false};
+    double m_paTempC{0.0};
+    double m_supplyVolts{0.0};
     bool m_pttHeld{false};
     bool m_micPermissionRequested{false};
     bool m_connected{false};

@@ -26,7 +26,7 @@ Page {
 
     // A layout switch (rotation, fold/unfold) destroys this page; a held
     // PTT must not outlive its button.
-    Component.onDestruction: Engine.setPtt(false, "layout changed")
+    Component.onDestruction: Engine.stopTransmit("layout changed")
 
     header: ToolBar {
         background: Rectangle { color: Theme.surface }
@@ -86,21 +86,13 @@ Page {
                 AppButton { text: "−"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(2.0) }
                 AppButton { text: "+"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(0.5) }
                 Item { Layout.fillWidth: true }
-                // Fixed width: a changing reading must not resize the row (and
-                // with it the spectrum, which would restart the radio's FFT).
-                Label {
-                    text: Engine.sMeterText
-                    color: Theme.text
-                    font.pixelSize: 13
-                    horizontalAlignment: Text.AlignRight
-                    Layout.preferredWidth: 104
-                }
             }
-            ProgressBar {
+            // Two selectable meters side by side (tap to choose).
+            RowLayout {
                 Layout.fillWidth: true
-                from: -130
-                to: -20
-                value: Engine.sMeterDbm
+                spacing: Theme.spacing
+                MeterView { side: "left"; compact: true; Layout.fillWidth: true; Layout.preferredWidth: 1 }
+                MeterView { side: "right"; compact: true; Layout.fillWidth: true; Layout.preferredWidth: 1 }
             }
 
             // Horizontally scrolling band strip.
@@ -195,8 +187,8 @@ Page {
                 id: ptt
                 Layout.fillWidth: true
                 Layout.preferredHeight: page.landscape ? 120 : 64
-                enabled: Engine.transmitAvailable || pressed
-                text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
+                enabled: Engine.transmitAvailable || Engine.tuning || pressed
+                text: Engine.tuning ? qsTr("TUNE") : Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 font.pixelSize: 26
                 font.bold: true
                 // Ready, unavailable and transmitting must look different at a
@@ -211,13 +203,14 @@ Page {
                 }
                 background: Rectangle {
                     radius: Theme.radius
-                    color: Engine.transmitting ? Theme.transmit
+                    color: Engine.transmitting || Engine.tuning ? Theme.transmit
                          : ptt.enabled ? Theme.pttReady : Theme.surface
                     border.width: Engine.transmitting ? 3 : ptt.enabled ? 2 : 1
                     border.color: Engine.transmitting ? "white"
                                 : ptt.enabled ? Theme.transmit : Theme.surfaceRaised
                 }
-                onPressed: Engine.setPtt(true)
+                // While the tune carrier is on, PTT is its off switch.
+                onPressed: Engine.tuning ? Engine.stopTransmit("PTT pressed during tune") : Engine.setPtt(true)
                 onReleased: Engine.setPtt(false, "button released")
                 onCanceled: Engine.setPtt(false, "touch cancelled by the system")
             }

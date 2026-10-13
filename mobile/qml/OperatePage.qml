@@ -54,6 +54,10 @@ Page {
     // spectrum in portrait, and a scrolling control column so nothing is cut.
     readonly property bool compact: width < 1200
     readonly property bool portrait: height > width
+    // Landscape side column: the control panel, or just a PTT strip when the
+    // panel is hidden. Fixed, so content can never widen it off screen.
+    readonly property int sideWidth: Engine.controlsVisible
+        ? Math.max(280, Math.min(360, width * 0.28)) : 160
 
     function formatMhz(mhz) {
         // 14.074.500 style: MHz . kHz . Hz
@@ -153,20 +157,19 @@ Page {
                     focusPolicy: Qt.NoFocus
                     onClicked: Engine.zoom(0.5)
                 }
-                Item { Layout.fillWidth: true }
-                ColumnLayout {
-                    // Fixed width so a changing reading never resizes the row.
-                    Label {
-                        text: Engine.sMeterText
-                        color: Theme.text
-                        font.pixelSize: page.compact ? 16 : 22
-                        Layout.preferredWidth: page.compact ? 150 : 260
+                // Two selectable meters (tap to choose), fixed width so a
+                // changing reading never resizes the row.
+                RowLayout {
+                    spacing: Theme.spacing
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: page.compact ? 280 : 400
+                    MeterView {
+                        side: "left"; compact: page.compact
+                        Layout.fillWidth: true; Layout.minimumWidth: 110; Layout.preferredWidth: 190
                     }
-                    ProgressBar {
-                        Layout.preferredWidth: page.compact ? 150 : 260
-                        from: -130
-                        to: -20
-                        value: Engine.sMeterDbm
+                    MeterView {
+                        side: "right"; compact: page.compact
+                        Layout.fillWidth: true; Layout.minimumWidth: 110; Layout.preferredWidth: 190
                     }
                 }
             }
@@ -220,8 +223,8 @@ Page {
         // Right (bottom in portrait): controls scroll when they do not fit;
         // PTT stays pinned below them.
         ColumnLayout {
-            Layout.preferredWidth: page.portrait ? -1
-                : Engine.controlsVisible ? Math.max(280, Math.min(360, page.width * 0.28)) : 160
+            Layout.preferredWidth: page.portrait ? -1 : page.sideWidth
+            Layout.maximumWidth: page.portrait ? Number.POSITIVE_INFINITY : page.sideWidth
             Layout.fillWidth: page.portrait
             Layout.fillHeight: !page.portrait
             Layout.preferredHeight: page.portrait && Engine.controlsVisible ? page.height * 0.42 : -1
@@ -335,65 +338,9 @@ Page {
                 }
             }
 
-            // Transmit settings and meters; dimmed until the radio can transmit.
-            ColumnLayout {
+            // Transmit: tune, ATU, PROC, monitor, power and microphone.
+            TxControls {
                 Layout.fillWidth: true
-                spacing: Theme.spacing / 2
-                enabled: Engine.transmitAvailable || Engine.canUseDeviceMicrophone
-                opacity: enabled ? 1.0 : 0.4
-
-                Label {
-                    text: qsTr("RF power  %1").arg(Engine.rfPower)
-                    color: Theme.textDim
-                    font.pixelSize: 16
-                }
-                Slider {
-                    Layout.fillWidth: true
-                    from: 0
-                    to: 100
-                    stepSize: 1
-                    value: Engine.rfPower
-                    onMoved: Engine.rfPower = Math.round(value)
-                }
-                Label {
-                    text: qsTr("Mic gain  %1").arg(Engine.micGain)
-                    color: Theme.textDim
-                    font.pixelSize: 16
-                }
-                Slider {
-                    Layout.fillWidth: true
-                    from: 0
-                    to: 100
-                    stepSize: 1
-                    value: Engine.micGain
-                    onMoved: Engine.micGain = Math.round(value)
-                }
-                // Mic level as the radio meters it: aim for peaks around -10 dBFS.
-                RowLayout {
-                    Layout.fillWidth: true
-                    Label { text: qsTr("Mic"); color: Theme.textDim; font.pixelSize: 16 }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 12
-                        radius: 3
-                        color: Theme.surface
-                        Rectangle {
-                            height: parent.height
-                            radius: 3
-                            width: parent.width * Math.max(0, Math.min(1, (Engine.micLevelDbfs + 40) / 40))
-                            color: Engine.micPeakDbfs > -3 ? Theme.transmit
-                                 : Engine.micPeakDbfs > -10 ? Theme.warning : Theme.accent
-                        }
-                    }
-                }
-                Label {
-                    visible: Engine.transmitting
-                    text: qsTr("%1 W   SWR %2")
-                          .arg(Engine.forwardPowerW.toFixed(0))
-                          .arg(Engine.swrValid ? Engine.swr.toFixed(1) : "–")
-                    color: Engine.swrValid && Engine.swr > 2.5 ? Theme.transmit : Theme.text
-                    font.pixelSize: 22
-                }
             }
 
             Label {
@@ -402,13 +349,6 @@ Page {
                 text: Engine.transmitUnavailableReason
                 color: Theme.textDim
                 wrapMode: Text.Wrap
-            }
-            AppButton {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Theme.touchTarget
-                visible: Engine.canUseDeviceMicrophone
-                text: qsTr("Use this device's microphone")
-                onClicked: Engine.useDeviceMicrophone()
             }
             Label {
                 Layout.fillWidth: true
@@ -432,8 +372,8 @@ Page {
                 Layout.preferredHeight: (page.compact ? 2 : 3) * Theme.touchTarget
                 // Stays enabled while held: disabling a pressed button cancels
                 // the press, which would unkey mid-transmission.
-                enabled: Engine.transmitAvailable || pressed
-                text: Engine.transmitting ? qsTr("TX") : qsTr("PTT")
+                enabled: Engine.transmitAvailable || Engine.tuning || pressed
+                text: Engine.tuning ? qsTr("TUNE") : Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 focusPolicy: Qt.NoFocus
                 font.pixelSize: 32
                 font.bold: true
@@ -449,14 +389,15 @@ Page {
                 }
                 background: Rectangle {
                     radius: Theme.radius
-                    color: Engine.transmitting ? Theme.transmit
+                    color: Engine.transmitting || Engine.tuning ? Theme.transmit
                          : ptt.enabled ? Theme.pttReady : Theme.surface
                     border.width: Engine.transmitting ? 3 : ptt.enabled ? 2 : 1
                     border.color: Engine.transmitting ? "white"
                                 : ptt.enabled ? Theme.transmit : Theme.surfaceRaised
                 }
                 // Hold to transmit; release (or losing the touch) always unkeys.
-                onPressed: Engine.setPtt(true)
+                // While the tune carrier is on, PTT is its off switch.
+                onPressed: Engine.tuning ? Engine.stopTransmit("PTT pressed during tune") : Engine.setPtt(true)
                 onReleased: Engine.setPtt(false, "button released")
                 onCanceled: Engine.setPtt(false, "touch cancelled by the system")
             }
@@ -503,5 +444,5 @@ Page {
     Component.onCompleted: page.forceActiveFocus()
     // A layout switch (rotation, Split View, fold/unfold) destroys this page;
     // a held PTT must not outlive its button.
-    Component.onDestruction: Engine.setPtt(false, "layout changed")
+    Component.onDestruction: Engine.stopTransmit("layout changed")
 }

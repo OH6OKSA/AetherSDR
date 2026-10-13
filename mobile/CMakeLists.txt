@@ -45,6 +45,8 @@ qt_add_qml_module(aether-mobile
         qml/PanadapterView.qml
         qml/AppButton.qml
         qml/ControlsPanel.qml
+        qml/MeterView.qml
+        qml/TxControls.qml
         qml/PhoneOperatePage.qml
 )
 

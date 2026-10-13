@@ -8,6 +8,7 @@ import AetherMobile
 ColumnLayout {
     id: panel
     spacing: Theme.spacing / 2
+    implicitWidth: 200
 
     // Tablet only: offer to put the panel back into the page.
     property bool showPinButton: false
@@ -144,51 +145,13 @@ ColumnLayout {
             }
         }
 
-        // Transmit settings
+        // Transmit: tune, ATU, PROC, monitor, power and microphone.
         ScrollView {
             id: txScroll
             clip: true
             contentWidth: availableWidth
-            ColumnLayout {
+            TxControls {
                 width: txScroll.availableWidth
-                enabled: Engine.transmitAvailable || Engine.canUseDeviceMicrophone
-                Label { text: qsTr("RF power  %1").arg(Engine.rfPower); color: Theme.textDim }
-                Slider {
-                    Layout.fillWidth: true
-                    from: 0
-                    to: 100
-                    stepSize: 1
-                    value: Engine.rfPower
-                    onMoved: Engine.rfPower = Math.round(value)
-                }
-                Label { text: qsTr("Mic gain  %1").arg(Engine.micGain); color: Theme.textDim }
-                Slider {
-                    Layout.fillWidth: true
-                    from: 0
-                    to: 100
-                    stepSize: 1
-                    value: Engine.micGain
-                    onMoved: Engine.micGain = Math.round(value)
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 10
-                    radius: 3
-                    color: Theme.surface
-                    Rectangle {
-                        height: parent.height
-                        radius: 3
-                        width: parent.width * Math.max(0, Math.min(1, (Engine.micLevelDbfs + 40) / 40))
-                        color: Engine.micPeakDbfs > -3 ? Theme.transmit
-                             : Engine.micPeakDbfs > -10 ? Theme.warning : Theme.accent
-                    }
-                }
-                AppButton {
-                    Layout.fillWidth: true
-                    visible: Engine.canUseDeviceMicrophone
-                    text: qsTr("Use this device's microphone")
-                    onClicked: Engine.useDeviceMicrophone()
-                }
             }
         }
     }

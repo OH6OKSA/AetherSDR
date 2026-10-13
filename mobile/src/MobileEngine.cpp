@@ -72,7 +72,7 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::backendRebuilt, this, [this] {
-        releasePtt(QStringLiteral("backend rebuilt"));
+        stopTransmit(QStringLiteral("backend rebuilt"));
         wireRxAudio();
         wireTxPacketSink();
     });
@@ -81,7 +81,7 @@ MobileEngine::MobileEngine(QObject* parent)
     // transmitter keyed.
     connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
         if (state != Qt::ApplicationActive) {
-            releasePtt(QStringLiteral("application inactive"));
+            stopTransmit(QStringLiteral("application inactive"));
         }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
@@ -130,7 +130,7 @@ MobileEngine::MobileEngine(QObject* parent)
 MobileEngine::~MobileEngine()
 {
     s_instance = nullptr;
-    releasePtt(QStringLiteral("shutdown"));
+    stopTransmit(QStringLiteral("shutdown"));
     setKeepScreenAwake(false);
     if (m_discovery) {
         m_discovery->stop();
@@ -231,7 +231,7 @@ void MobileEngine::connectToDemoWhenListed()
 
 void MobileEngine::disconnectRadio()
 {
-    releasePtt(QStringLiteral("operator disconnect"));
+    stopTransmit(QStringLiteral("operator disconnect"));
     m_session.radioModel().disconnectFromRadio();
 }
 
@@ -297,11 +297,44 @@ void MobileEngine::wireTransmit()
     connect(&rm.transmitModel(), &TransmitModel::transmittingChanged, this, &MobileEngine::transmittingChanged);
     connect(&rm.transmitModel(), &TransmitModel::rfPowerChanged, this, &MobileEngine::rfPowerChanged);
     connect(&rm.meterModel(), &MeterModel::micMetersChanged, this,
-            [this](float micLevel, float, float micPeak, float) {
+            [this](float micLevel, float, float micPeak, float compPeak) {
         m_micLevelDbfs = micLevel;
         m_micPeakDbfs = micPeak;
+        m_compressionDb = std::clamp(static_cast<double>(compPeak), 0.0, 25.0);
         emit txMetersChanged();
     });
+    connect(&rm.meterModel(), &MeterModel::alcValueChanged, this,
+            [this](float value, const QString& unit) {
+        m_alcDbfs = value;
+        m_alcAvailable = !unit.isEmpty();
+        emit txMetersChanged();
+    });
+    connect(&rm.meterModel(), &MeterModel::hwTelemetryChanged, this,
+            [this](float paTemp, float supplyVolts) {
+        m_paTempC = paTemp;
+        m_supplyVolts = supplyVolts;
+        emit txMetersChanged();
+    });
+    connect(&rm, &RadioModel::radioTransmittingChanged, this, &MobileEngine::txMetersChanged);
+    // Tune, ATU and radio-side TX audio state.
+    TransmitModel& tm = rm.transmitModel();
+    connect(&tm, &TransmitModel::tuneChanged, this, &MobileEngine::tuneStateChanged);
+    connect(&tm, &TransmitModel::tuneAvailabilityChanged, this, &MobileEngine::tuneStateChanged);
+    connect(&tm, &TransmitModel::tunePowerChanged, this, &MobileEngine::tuneStateChanged);
+    connect(&tm, &TransmitModel::hasTunerChanged, this, &MobileEngine::atuChanged);
+    connect(&tm, &TransmitModel::hasTunerMemoriesChanged, this, &MobileEngine::atuChanged);
+    connect(&tm, &TransmitModel::atuStateChanged, this, [this] {
+        const TransmitModel& t = m_session.radioModel().transmitModel();
+        const auto status = t.atuStatus();
+        if (status == ATUStatus::Successful || status == ATUStatus::OK) {
+            m_atuTunedFreqMhz = t.transmitFreq();
+        } else if (status == ATUStatus::Bypass
+                   || status == ATUStatus::ManualBypass) {
+            m_atuTunedFreqMhz = -1.0;
+        }
+        emit atuChanged();
+    });
+    connect(&tm, &TransmitModel::micStateChanged, this, &MobileEngine::txAudioChanged);
     connect(&rm.meterModel(), &MeterModel::txMetersChanged, this,
             [this](float fwdPower, float swr, bool swrValid) {
         m_forwardPowerW = fwdPower;
@@ -457,6 +490,249 @@ void MobileEngine::setRfPower(int power)
 {
     if (m_connected && m_caps.canTransmit) {
         m_session.radioModel().transmitModel().setRfPower(std::clamp(power, 0, 100));
+    }
+}
+
+bool MobileEngine::radioTransmitting() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    return rm.isRadioTransmitting() || rm.transmitModel().isTransmitting() || rm.transmitModel().isTuning();
+}
+
+bool MobileEngine::hasPaTemp() const
+{
+    return m_session.radioModel().meterModel().hasPaTemp();
+}
+
+bool MobileEngine::hasSupplyVolts() const
+{
+    return m_session.radioModel().meterModel().hasSupplyVoltage();
+}
+
+QStringList MobileEngine::meterKinds() const
+{
+    return {QStringLiteral("S"), QStringLiteral("Power"), QStringLiteral("SWR"), QStringLiteral("ALC"),
+            QStringLiteral("Mic"), QStringLiteral("Comp"), QStringLiteral("PA temp"), QStringLiteral("Volts")};
+}
+
+QString MobileEngine::meterLeft() const
+{
+    return AppSettings::instance().value(QStringLiteral("MobileMeterLeft"), QStringLiteral("S")).toString();
+}
+
+void MobileEngine::setMeterLeft(const QString& kind)
+{
+    if (meterKinds().contains(kind) && kind != meterLeft()) {
+        AppSettings::instance().setValue(QStringLiteral("MobileMeterLeft"), kind);
+        AppSettings::instance().save();
+        emit meterSelectionChanged();
+    }
+}
+
+QString MobileEngine::meterRight() const
+{
+    return AppSettings::instance().value(QStringLiteral("MobileMeterRight"), QStringLiteral("Power")).toString();
+}
+
+void MobileEngine::setMeterRight(const QString& kind)
+{
+    if (meterKinds().contains(kind) && kind != meterRight()) {
+        AppSettings::instance().setValue(QStringLiteral("MobileMeterRight"), kind);
+        AppSettings::instance().save();
+        emit meterSelectionChanged();
+    }
+}
+
+bool MobileEngine::tuning() const
+{
+    return m_session.radioModel().transmitModel().isTuning();
+}
+
+bool MobileEngine::tuneAvailable() const
+{
+    return m_connected && m_caps.canTransmit && m_session.radioModel().transmitModel().tuneAvailable();
+}
+
+int MobileEngine::tunePower() const
+{
+    return m_session.radioModel().transmitModel().tunePower();
+}
+
+void MobileEngine::setTunePower(int power)
+{
+    if (m_connected && m_caps.canTransmit) {
+        m_session.radioModel().transmitModel().setTunePower(std::clamp(power, 0, 100));
+    }
+}
+
+bool MobileEngine::hasTuner() const
+{
+    return m_connected && m_session.radioModel().transmitModel().hasTuner();
+}
+
+bool MobileEngine::hasTunerMemories() const
+{
+    return m_connected && m_session.radioModel().transmitModel().hasTunerMemories();
+}
+
+QString MobileEngine::atuStatusText() const
+{
+    using S = ATUStatus;
+    switch (m_session.radioModel().transmitModel().atuStatus()) {
+    case S::InProgress: return tr("Tuning…");
+    case S::Successful:
+    case S::OK: return tr("Tuned");
+    case S::Bypass:
+    case S::ManualBypass: return tr("Bypass");
+    case S::FailBypass:
+    case S::Fail: return tr("Tune failed");
+    case S::Aborted: return tr("Aborted");
+    case S::None:
+    case S::NotStarted: return {};
+    }
+    return {};
+}
+
+bool MobileEngine::atuTuned() const
+{
+    const auto status = m_session.radioModel().transmitModel().atuStatus();
+    return status == ATUStatus::Successful || status == ATUStatus::OK;
+}
+
+bool MobileEngine::atuMemories() const
+{
+    return m_session.radioModel().transmitModel().memoriesEnabled();
+}
+
+void MobileEngine::setAtuMemories(bool on)
+{
+    if (hasTunerMemories()) {
+        m_session.radioModel().transmitModel().setAtuMemories(on);
+    }
+}
+
+bool MobileEngine::procEnabled() const
+{
+    return m_session.radioModel().transmitModel().speechProcessorEnable();
+}
+
+void MobileEngine::setProcEnabled(bool on)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setSpeechProcessorEnable(on);
+    }
+}
+
+int MobileEngine::procLevel() const
+{
+    return m_session.radioModel().transmitModel().speechProcessorLevel();
+}
+
+void MobileEngine::setProcLevel(int level)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setSpeechProcessorLevel(std::clamp(level, 0, procLevelMax()));
+    }
+}
+
+int MobileEngine::procLevelMax() const
+{
+    return m_session.radioModel().transmitModel().speechProcessorLevelMaximum();
+}
+
+bool MobileEngine::monitor() const
+{
+    return m_session.radioModel().transmitModel().sbMonitor();
+}
+
+void MobileEngine::setMonitor(bool on)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setSbMonitor(on);
+    }
+}
+
+int MobileEngine::monitorGain() const
+{
+    return m_session.radioModel().transmitModel().monGainSb();
+}
+
+void MobileEngine::setMonitorGain(int gain)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setMonGainSb(std::clamp(gain, 0, 100));
+    }
+}
+
+int MobileEngine::radioMicLevel() const
+{
+    return m_session.radioModel().transmitModel().micLevel();
+}
+
+void MobileEngine::setRadioMicLevel(int level)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setMicLevel(std::clamp(level, 0, 100));
+    }
+}
+
+void MobileEngine::toggleTune()
+{
+    RadioModel& rm = m_session.radioModel();
+    if (rm.transmitModel().isTuning()) {
+        stopTransmit(QStringLiteral("tune button"));
+        return;
+    }
+    if (!tuneAvailable()) {
+        qCInfo(lcMobile) << "tune press ignored: tune not available";
+        return;
+    }
+    m_tuneInput = rm.localTxController()->capture(TxController::Activity::Tune);
+    if (!m_tuneInput.start()) {
+        m_tuneInput.stop();
+        qCWarning(lcMobile) << "tune start refused by the TX controller";
+        setLastError(tr("The radio did not accept the tune request."));
+        return;
+    }
+    qCInfo(lcMobile) << "tune keyed";
+}
+
+void MobileEngine::atuPressed()
+{
+    if (!hasTuner() || !m_caps.canTransmit) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    m_atuInput = rm.localTxController()->capture(TxController::Activity::Atu);
+    // Already tuned on this transmit frequency: a press bypasses the ATU.
+    const bool sameFreq = m_atuTunedFreqMhz > 0.0
+        && std::abs(rm.transmitModel().transmitFreq() - m_atuTunedFreqMhz) < 1e-6;
+    if (atuTuned() && sameFreq) {
+        if (!m_atuInput.bypassAtu()) {
+            setLastError(tr("The radio did not accept the ATU bypass."));
+        }
+        qCInfo(lcMobile) << "ATU bypass requested";
+        return;
+    }
+    if (!m_atuInput.start()) {
+        m_atuInput.stop();
+        setLastError(tr("The radio did not accept the ATU tune request."));
+        return;
+    }
+    qCInfo(lcMobile) << "ATU tune cycle started";
+}
+
+void MobileEngine::stopTransmit(const QString& reason)
+{
+    releasePtt(reason);
+    if (m_session.radioModel().transmitModel().isTuning() && m_tuneInput.valid()) {
+        m_tuneInput.stop();
+        qCInfo(lcMobile).noquote() << "tune stopped:" << reason;
+    }
+    if (m_atuInput.valid()
+        && m_session.radioModel().transmitModel().atuStatus() == ATUStatus::InProgress) {
+        m_atuInput.stop();
+        qCInfo(lcMobile).noquote() << "ATU cycle stopped:" << reason;
     }
 }
 
@@ -736,9 +1012,12 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         selectActiveSlice();
         emit transmitStateChanged();
         emit rfPowerChanged();
+        emit tuneStateChanged();
+        emit atuChanged();
+        emit txAudioChanged();
         return;
     }
-    releasePtt(QStringLiteral("radio disconnected"));
+    stopTransmit(QStringLiteral("radio disconnected"));
     stopDeviceMicrophoneCapture();
     setKeepScreenAwake(false);
     stopAudio();
