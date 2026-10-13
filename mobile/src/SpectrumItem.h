@@ -38,7 +38,10 @@ protected:
 
 private:
     void onSpectrum(const QVector<float>& binsDbm);
-    void onWaterfallRow(const QVector<float>& bins);
+    void onWaterfallRow(const QVector<float>& bins, double lowMhz, double highMhz);
+    // Moves and stretches the waterfall history so it stays on the same
+    // frequencies after the pan is retuned or zoomed.
+    void followView();
     void reportPixels();
     QRgb colourFor(float normalised) const;
 
@@ -48,6 +51,8 @@ private:
     float m_floor{0.0f};
     float m_span{0.0f};
     bool m_rangeSeeded{false};
+    double m_viewLowMhz{0.0};
+    double m_viewHighMhz{0.0};
     float m_traceBottom{-130.0f};
     float m_traceTop{-40.0f};
     bool m_traceSeeded{false};

@@ -44,6 +44,7 @@ void SpectrumItem::setEngine(MobileEngine* engine)
     if (m_engine) {
         connect(m_engine, &MobileEngine::spectrumFrame, this, &SpectrumItem::onSpectrum);
         connect(m_engine, &MobileEngine::waterfallRow, this, &SpectrumItem::onWaterfallRow);
+        connect(m_engine, &MobileEngine::panGeometryChanged, this, &SpectrumItem::followView);
         reportPixels();
     }
     emit engineChanged();
@@ -81,6 +82,8 @@ void SpectrumItem::reportPixels()
         m_waterfall = resized;
         // Rows at the new width come at a new scale; re-learn the range.
         m_rangeSeeded = false;
+        m_viewLowMhz = 0.0;
+        m_viewHighMhz = 0.0;
     }
     if (m_engine) {
         m_engine->setPanPixels(w, specH);
@@ -109,11 +112,42 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
     update();
 }
 
-void SpectrumItem::onWaterfallRow(const QVector<float>& bins)
+void SpectrumItem::followView()
+{
+    if (!m_engine || m_waterfall.isNull() || m_engine->panBandwidthMhz() <= 0.0) {
+        return;
+    }
+    const double low = m_engine->panCenterMhz() - m_engine->panBandwidthMhz() / 2.0;
+    const double high = m_engine->panCenterMhz() + m_engine->panBandwidthMhz() / 2.0;
+    const bool hadView = m_viewHighMhz > m_viewLowMhz;
+    if (hadView && qFuzzyCompare(low, m_viewLowMhz) && qFuzzyCompare(high, m_viewHighMhz)) {
+        return;
+    }
+    if (hadView) {
+        // Old pixel x showed m_viewLow + x/w * oldSpan; place it at the same
+        // frequency in the new view. Uncovered parts turn black.
+        const double w = m_waterfall.width();
+        const double newSpan = high - low;
+        const QRectF target((m_viewLowMhz - low) / newSpan * w, 0.0,
+                            (m_viewHighMhz - m_viewLowMhz) / newSpan * w, m_waterfall.height());
+        QImage moved(m_waterfall.size(), QImage::Format_RGB32);
+        moved.fill(Qt::black);
+        QPainter painter(&moved);
+        painter.drawImage(target, m_waterfall);
+        painter.end();
+        m_waterfall = moved;
+        update();
+    }
+    m_viewLowMhz = low;
+    m_viewHighMhz = high;
+}
+
+void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, double highMhz)
 {
     if (bins.isEmpty() || m_waterfall.isNull()) {
         return;
     }
+    followView();
     // Black at the median (the band's noise), full scale near the 99.5th
     // percentile; smoothed across rows so the picture does not pump with
     // every strong signal.
@@ -138,8 +172,25 @@ void SpectrumItem::onWaterfallRow(const QVector<float>& bins)
     std::memmove(bits + rowBytes, bits, rowBytes * (h - 1));
     auto* row = reinterpret_cast<QRgb*>(bits);
     const qsizetype n = bins.size();
+    // Place the row by frequency: it covers lowMhz..highMhz, which need not
+    // be the pan's range (Flex rows lag a zoom or retune). Without a range,
+    // stretch it across the view.
+    const bool placed = highMhz > lowMhz && m_viewHighMhz > m_viewLowMhz;
+    const double viewSpan = m_viewHighMhz - m_viewLowMhz;
+    const double rowSpan = highMhz - lowMhz;
     for (int x = 0; x < w; ++x) {
-        const qsizetype i = std::min<qsizetype>(n - 1, static_cast<qsizetype>(x) * n / w);
+        qsizetype i = 0;
+        if (placed) {
+            const double f = m_viewLowMhz + (x + 0.5) / w * viewSpan;
+            const double pos = (f - lowMhz) / rowSpan * n;
+            if (pos < 0.0 || pos >= n) {
+                row[x] = qRgb(0, 0, 0);
+                continue;
+            }
+            i = static_cast<qsizetype>(pos);
+        } else {
+            i = std::min<qsizetype>(n - 1, static_cast<qsizetype>(x) * n / w);
+        }
         row[x] = colourFor((bins.at(i) - m_floor) / m_span);
     }
     update();

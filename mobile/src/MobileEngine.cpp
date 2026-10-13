@@ -43,6 +43,8 @@ const QString kControlsVisibleKey = QStringLiteral("MobileControlsVisible");
 const QString kDeviceMicSelection = QStringLiteral("PC");
 constexpr int kPanPixelsSettleMs = 400;
 constexpr int kMinPanYPixels = 200;
+// Fraction of the span kept between the slice and the edge while tuning.
+constexpr double kPanFollowEdge = 0.1;
 constexpr double kDbPerSUnit = 6.0;
 
 } // namespace
@@ -104,9 +106,10 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::panFeedWaterfallRowReady, this,
-            [this](quint32 streamId, const QVector<float>& bins, double, double, quint32, qint64, bool) {
+            [this](quint32 streamId, const QVector<float>& bins, double lowMhz, double highMhz,
+                   quint32, qint64, bool) {
         if (m_pan && m_pan->wfStreamId() == streamId) {
-            emit waterfallRow(bins);
+            emit waterfallRow(bins, lowMhz, highMhz);
         }
     });
     connect(&rm.meterModel(), &MeterModel::sLevelChanged, this, [this](int sliceIndex, float dbm) {
@@ -526,12 +529,20 @@ void MobileEngine::tuneTo(double mhz)
     if (!m_slice || mhz <= 0.0) {
         return;
     }
-    const bool insidePan = m_pan && m_pan->bandwidthMhz() > 0.0
-        && std::abs(mhz - m_pan->centerMhz()) < m_pan->bandwidthMhz() / 2.0;
-    if (insidePan) {
-        m_slice->setFrequency(mhz);
-    } else {
+    if (!m_pan || m_pan->bandwidthMhz() <= 0.0) {
         m_slice->tuneAndRecenter(mhz);
+        return;
+    }
+    m_slice->setFrequency(mhz);
+    // Near or past an edge the view follows, keeping the slice
+    // kPanFollowEdge of a span inside it, so dragging keeps going up or down
+    // the band instead of stopping at the edge of the display.
+    const double bandwidth = m_pan->bandwidthMhz();
+    const double offset = mhz - m_pan->centerMhz();
+    const double limit = bandwidth * (0.5 - kPanFollowEdge);
+    if (std::abs(offset) > limit) {
+        const double center = offset > 0.0 ? mhz - limit : mhz + limit;
+        m_session.radioModel().requestPanCenter(m_pan->panId(), center);
     }
 }
 

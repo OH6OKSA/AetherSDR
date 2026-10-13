@@ -190,10 +190,11 @@ signals:
     void txMetersChanged();
     void dspChanged();
     void stepChanged();
-    // Frames of the active panadapter only. Spectrum bins are dBm.
-    // Waterfall rows are intensities on a backend-dependent scale.
+    // Frames of the active panadapter only. Spectrum bins are dBm and span
+    // the pan. Waterfall rows are intensities on a backend-dependent scale
+    // covering lowMhz..highMhz, which need not equal the pan's range.
     void spectrumFrame(const QVector<float>& binsDbm);
-    void waterfallRow(const QVector<float>& bins);
+    void waterfallRow(const QVector<float>& bins, double lowMhz, double highMhz);
 
 private:
     void startAudio();
