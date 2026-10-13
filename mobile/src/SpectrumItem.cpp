@@ -2,6 +2,7 @@
 
 #include "MobileEngine.h"
 
+#include <QDateTime>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -22,6 +23,8 @@ constexpr float kRangeSmoothing = 0.05f;
 // Minimum colour span, in the row's units (dB-like for both Flex intensity
 // and dBm), so a noise-only band stays dark instead of being stretched.
 constexpr float kMinimumSpan = 30.0f;
+// Row interval for the TX waterfall drawn from trace frames.
+constexpr qint64 kTxRowIntervalMs = 100;
 
 } // namespace
 
@@ -108,6 +111,18 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
             m_traceBottom += (bottom - m_traceBottom) * kTraceSmoothing;
             m_traceTop += (top - m_traceTop) * kTraceSmoothing;
         }
+        // Own transmission in the waterfall: the radio pauses waterfall rows
+        // during TX, so draw them from the trace on the trace's scale.
+        if (m_engine && m_engine->radioTransmitting() && !m_waterfall.isNull()) {
+            const qint64 now = QDateTime::currentMSecsSinceEpoch();
+            if (now >= m_nextTxRowMs) {
+                m_nextTxRowMs = now + kTxRowIntervalMs;
+                followView();
+                pushRow(binsDbm, m_viewLowMhz, m_viewHighMhz, m_traceBottom + kTraceBelowNoiseDb,
+                        std::max(kMinimumSpan, m_traceTop - m_traceBottom - kTraceBelowNoiseDb));
+                return;
+            }
+        }
     }
     update();
 }
@@ -144,7 +159,8 @@ void SpectrumItem::followView()
 
 void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, double highMhz)
 {
-    if (bins.isEmpty() || m_waterfall.isNull()) {
+    // While transmitting the TX rows come from the trace (onSpectrum).
+    if (bins.isEmpty() || m_waterfall.isNull() || (m_engine && m_engine->radioTransmitting())) {
         return;
     }
     followView();
@@ -165,6 +181,14 @@ void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, dou
         m_span += (span - m_span) * kRangeSmoothing;
     }
 
+    pushRow(bins, lowMhz, highMhz, m_floor, m_span);
+}
+
+void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double highMhz, float floor, float span)
+{
+    if (bins.isEmpty() || m_waterfall.isNull()) {
+        return;
+    }
     const int w = m_waterfall.width();
     const int h = m_waterfall.height();
     const qsizetype rowBytes = m_waterfall.bytesPerLine();
@@ -191,7 +215,7 @@ void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, dou
         } else {
             i = std::min<qsizetype>(n - 1, static_cast<qsizetype>(x) * n / w);
         }
-        row[x] = colourFor((bins.at(i) - m_floor) / m_span);
+        row[x] = colourFor((bins.at(i) - floor) / span);
     }
     update();
 }

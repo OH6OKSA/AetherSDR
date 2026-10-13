@@ -21,7 +21,6 @@ RowLayout {
             id: chip
             required property var modelData
             height: bar.compact ? 36 : 40
-            checkable: true
             checked: modelData.active
             leftPadding: 8
             rightPadding: 8

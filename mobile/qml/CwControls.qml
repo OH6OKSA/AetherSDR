@@ -86,7 +86,6 @@ ColumnLayout {
         Layout.fillWidth: true
         AppButton {
             text: qsTr("Break-in")
-            checkable: true
             checked: Engine.cwBreakIn
             Layout.fillWidth: true
             focusPolicy: Qt.NoFocus
@@ -94,7 +93,6 @@ ColumnLayout {
         }
         AppButton {
             text: qsTr("Decoder")
-            checkable: true
             checked: Engine.cwDecoderEnabled
             Layout.fillWidth: true
             focusPolicy: Qt.NoFocus
@@ -106,7 +104,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         visible: Engine.cwDecoderEnabled
-        implicitHeight: 110
+        implicitHeight: 130
         radius: Theme.radius
         color: Theme.background
         ColumnLayout {
@@ -123,8 +121,6 @@ ColumnLayout {
                 }
                 AppButton {
                     text: qsTr("Clear")
-                    font.pixelSize: 12
-                    implicitHeight: 28
                     focusPolicy: Qt.NoFocus
                     onClicked: Engine.clearCwDecoded()
                 }

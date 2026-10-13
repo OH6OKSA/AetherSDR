@@ -144,7 +144,7 @@ Page {
                 AppButton {
                     text: "−"
                     font.pixelSize: 22
-                    Layout.preferredWidth: page.compact ? 48 : 56
+                    Layout.preferredWidth: Theme.buttonWidth
                     Layout.preferredHeight: Theme.touchTarget
                     focusPolicy: Qt.NoFocus
                     onClicked: Engine.zoom(2.0)
@@ -152,7 +152,7 @@ Page {
                 AppButton {
                     text: "+"
                     font.pixelSize: 22
-                    Layout.preferredWidth: page.compact ? 48 : 56
+                    Layout.preferredWidth: Theme.buttonWidth
                     Layout.preferredHeight: Theme.touchTarget
                     focusPolicy: Qt.NoFocus
                     onClicked: Engine.zoom(0.5)
@@ -185,7 +185,6 @@ Page {
                     delegate: AppButton {
                         required property string modelData
                         text: modelData
-                        font.pixelSize: page.compact ? 13 : 15
                         leftPadding: 2
                         rightPadding: 2
                         Layout.fillWidth: true
@@ -207,19 +206,22 @@ Page {
                 Layout.fillHeight: true
             }
 
+            // Step buttons: land on round frequencies (tuneByHz).
             RowLayout {
-                spacing: Theme.spacing
+                Layout.fillWidth: true
+                spacing: Theme.spacing / 2
                 Repeater {
-                    model: [-1000, -100, -10, 10, 100, 1000]
+                    model: [-1000, -100, -10, -1, 1, 10, 100, 1000]
                     delegate: AppButton {
                         required property int modelData
-                        text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000
-                              ? modelData / 1000 + (page.compact ? "k" : " kHz")
-                              : modelData + (page.compact ? "" : " Hz"))
-                        Layout.preferredHeight: Theme.touchTarget
+                        text: (modelData > 0 ? "+" : "−") + (Math.abs(modelData) >= 1000
+                              ? Math.abs(modelData) / 1000 + "k" : Math.abs(modelData))
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 40
+                        Layout.preferredWidth: Theme.buttonWidth
+                        Layout.preferredHeight: Theme.touchTarget
+                        focusPolicy: Qt.NoFocus
                         onClicked: Engine.tuneByHz(modelData)
-                focusPolicy: Qt.NoFocus
                     }
                 }
             }
@@ -261,7 +263,6 @@ Page {
                         leftPadding: 2
                         rightPadding: 2
                         font.pixelSize: page.compact ? 13 : 15
-                        checkable: true
                         checked: Engine.mode === modelData
                         Layout.fillWidth: true
                         Layout.preferredHeight: Theme.touchTarget
@@ -284,8 +285,7 @@ Page {
                     delegate: AppButton {
                         required property int modelData
                         text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
-                        checkable: true
-                        checked: Math.abs((Engine.filterHigh - Engine.filterLow) - modelData) < 60
+                        checked: Engine.activeFilterPreset === modelData
                         Layout.fillWidth: true
                         Layout.preferredHeight: Theme.touchTarget
                         onClicked: Engine.setFilterWidth(modelData)
@@ -301,7 +301,6 @@ Page {
                     delegate: AppButton {
                         required property var modelData
                         text: modelData.label
-                        checkable: true
                         checked: Engine[modelData.key]
                         focusPolicy: Qt.NoFocus
                         Layout.fillWidth: true
@@ -318,7 +317,6 @@ Page {
                     delegate: AppButton {
                         required property string modelData
                         text: modelData
-                        checkable: true
                         checked: Engine.agcMode === modelData
                         focusPolicy: Qt.NoFocus
                         Layout.fillWidth: true

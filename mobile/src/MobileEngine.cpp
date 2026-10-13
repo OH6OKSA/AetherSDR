@@ -54,6 +54,8 @@ constexpr quint16 kDefaultWanUdpPort = 4993;
 constexpr int kWanReconnectMs = 5000;
 // Fraction of the span kept between the slice and the edge while tuning.
 constexpr double kPanFollowEdge = 0.1;
+// Coalescing interval for pan moves during a drag.
+constexpr int kPanMoveMs = 40;
 constexpr double kDbPerSUnit = 6.0;
 
 } // namespace
@@ -109,6 +111,13 @@ MobileEngine::MobileEngine(QObject* parent)
         selectActiveSlice();
     });
     connect(&rm, &RadioModel::panDimensionsNeeded, this, &MobileEngine::sendPanDimensions);
+    m_panMoveTimer.setSingleShot(true);
+    m_panMoveTimer.setInterval(kPanMoveMs);
+    connect(&m_panMoveTimer, &QTimer::timeout, this, [this] {
+        if (m_pan && m_pendingPanCenterMhz > 0.0) {
+            m_session.radioModel().requestPanCenter(m_pan->panId(), m_pendingPanCenterMhz);
+        }
+    });
     m_panPixelsTimer.setSingleShot(true);
     m_panPixelsTimer.setInterval(kPanPixelsSettleMs);
     connect(&m_panPixelsTimer, &QTimer::timeout, this, [this] {
@@ -120,6 +129,7 @@ MobileEngine::MobileEngine(QObject* parent)
     connect(&rm, &RadioModel::panFeedSpectrumReady, this,
             [this](quint32 streamId, const QVector<float>& bins, qint64, const SpectrumDecodeScale&) {
         if (m_pan && m_pan->panStreamId() == streamId) {
+            ++m_fftFramesSeen;
             emit spectrumFrame(bins);
         }
     });
@@ -127,7 +137,10 @@ MobileEngine::MobileEngine(QObject* parent)
             [this](quint32 streamId, const QVector<float>& bins, double lowMhz, double highMhz,
                    quint32, qint64, bool) {
         if (m_pan && m_pan->wfStreamId() == streamId) {
+            ++m_wfRowsSeen;
             emit waterfallRow(bins, lowMhz, highMhz);
+        } else {
+            m_otherWfStreamSeen = streamId;
         }
     });
     connect(&rm.meterModel(), &MeterModel::sLevelChanged, this, [this](int sliceIndex, float dbm) {
@@ -518,12 +531,16 @@ void MobileEngine::wireTransmit()
         }, Qt::QueuedConnection);
     });
     connect(&rm.transmitModel(), &TransmitModel::micStateChanged, this, [this] {
+        defaultMicToDevice();
         if (m_session.radioModel().transmitModel().micSelection() != kDeviceMicSelection) {
             releasePtt(QStringLiteral("mic input left this device"));
         }
         emit transmitStateChanged();
     });
-    connect(&rm.transmitModel(), &TransmitModel::micInputListChanged, this, &MobileEngine::transmitStateChanged);
+    connect(&rm.transmitModel(), &TransmitModel::micInputListChanged, this, [this] {
+        defaultMicToDevice();
+        emit transmitStateChanged();
+    });
     connect(&rm.transmitModel(), &TransmitModel::transmittingChanged, this, &MobileEngine::transmittingChanged);
     connect(&rm.transmitModel(), &TransmitModel::rfPowerChanged, this, &MobileEngine::rfPowerChanged);
     connect(&rm.meterModel(), &MeterModel::micMetersChanged, this,
@@ -989,6 +1006,20 @@ void MobileEngine::setMicGain(int gain)
     emit micGainChanged();
 }
 
+void MobileEngine::defaultMicToDevice()
+{
+    // On a phone or tablet the only microphone is the device itself, so each
+    // connection starts with the radio's mic input on PC. Once per
+    // connection: a later change made elsewhere is respected.
+    if (!m_micDefaultEnabled || m_micDefaulted || !canUseDeviceMicrophone()) {
+        return;
+    }
+    m_micDefaulted = true;
+    qCInfo(lcMobile) << "mic input" << m_session.radioModel().transmitModel().micSelection()
+                     << "-> PC (this device)";
+    useDeviceMicrophone();
+}
+
 void MobileEngine::useDeviceMicrophone()
 {
     if (canUseDeviceMicrophone()) {
@@ -1052,8 +1083,18 @@ void MobileEngine::tuneTo(double mhz)
     const double offset = mhz - m_pan->centerMhz();
     const double limit = bandwidth * (0.5 - kPanFollowEdge);
     if (std::abs(offset) > limit) {
-        const double center = offset > 0.0 ? mhz - limit : mhz + limit;
-        m_session.radioModel().requestPanCenter(m_pan->panId(), center);
+        panTo(offset > 0.0 ? mhz - limit : mhz + limit);
+    }
+}
+
+void MobileEngine::panTo(double centerMhz)
+{
+    if (!m_pan || centerMhz <= 0.0) {
+        return;
+    }
+    m_pendingPanCenterMhz = centerMhz;
+    if (!m_panMoveTimer.isActive()) {
+        m_panMoveTimer.start();
     }
 }
 
@@ -1597,6 +1638,23 @@ QList<int> MobileEngine::filterPresets() const
     return {1800, 2400, 2700, 3000};
 }
 
+int MobileEngine::activeFilterPreset() const
+{
+    // Edges sit ~95 Hz off the carrier in SSB/digital, and the radio's own
+    // defaults differ slightly from the presets, so match the nearest one.
+    const int width = filterHigh() - filterLow();
+    int best = 0;
+    int bestDiff = 0;
+    for (const int preset : filterPresets()) {
+        const int diff = std::abs(width - preset);
+        if (diff <= std::max(120, preset / 10) && (best == 0 || diff < bestDiff)) {
+            best = preset;
+            bestDiff = diff;
+        }
+    }
+    return best;
+}
+
 void MobileEngine::setFilterWidth(int widthHz)
 {
     if (!m_slice || widthHz <= 0) {
@@ -1620,7 +1678,28 @@ void MobileEngine::setFilterWidth(int widthHz)
 void MobileEngine::onConnectionStateChanged(bool connected)
 {
     m_connected = connected;
+    m_micDefaulted = false;
     if (connected) {
+        defaultMicToDevice();
+        // Display diagnostics for the Log page (e.g. SmartLink without a
+        // waterfall): what arrived in the first seconds, and on which streams.
+        m_fftFramesSeen = 0;
+        m_wfRowsSeen = 0;
+        m_otherWfStreamSeen = 0;
+        QTimer::singleShot(6000, this, [this] {
+            if (!m_connected) {
+                return;
+            }
+            qCInfo(lcMobile).noquote()
+                << QStringLiteral("display check: %1 pan=%2 fft=0x%3 wf=0x%4 frames=%5 wfRows=%6 otherWf=0x%7 px=%8x%9")
+                       .arg(m_session.radioModel().isWan() ? QStringLiteral("WAN") : QStringLiteral("LAN"))
+                       .arg(m_pan ? m_pan->panId() : QStringLiteral("-"))
+                       .arg(QString::number(m_pan ? m_pan->panStreamId() : 0, 16))
+                       .arg(QString::number(m_pan ? m_pan->wfStreamId() : 0, 16))
+                       .arg(m_fftFramesSeen).arg(m_wfRowsSeen)
+                       .arg(QString::number(m_otherWfStreamSeen, 16))
+                       .arg(m_panWidth).arg(m_panHeight);
+        });
         wireRxAudio();
         wireTxPacketSink();
         startAudio();
@@ -1733,6 +1812,8 @@ void MobileEngine::bindSlice(SliceModel* slice)
     if (slice) {
         m_sliceConnections.append(connect(slice, &SliceModel::frequencyChanged, this, &MobileEngine::frequencyChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::modeChanged));
+        // The preset set changes with the mode.
+        m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::filterChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::modeListChanged, this, &MobileEngine::modesChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::audioGainChanged, this, &MobileEngine::afGainChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::audioMuteChanged, this, &MobileEngine::mutedChanged));

@@ -57,6 +57,8 @@ class MobileEngine : public QObject {
     Q_PROPERTY(int filterLow READ filterLow NOTIFY filterChanged)
     Q_PROPERTY(int filterHigh READ filterHigh NOTIFY filterChanged)
     Q_PROPERTY(QList<int> filterPresets READ filterPresets NOTIFY modeChanged)
+    // The preset nearest the current passband width, or 0 if none is close.
+    Q_PROPERTY(int activeFilterPreset READ activeFilterPreset NOTIFY filterChanged)
     Q_PROPERTY(QStringList bands READ bands CONSTANT)
     Q_PROPERTY(bool bandsAvailable READ bandsAvailable NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastAddress READ lastAddress NOTIFY lastAddressChanged)
@@ -164,6 +166,7 @@ public:
     int filterHigh() const;
     // Passband widths (Hz) offered for the current mode.
     QList<int> filterPresets() const;
+    int activeFilterPreset() const;
     QStringList bands() const;
     bool bandsAvailable() const;
     QString lastAddress() const;
@@ -320,6 +323,8 @@ public:
     Q_INVOKABLE void stopTransmit(const QString& reason);
     // Switch the radio's transmit audio input to this device's microphone.
     Q_INVOKABLE void useDeviceMicrophone();
+    // Dev/screenshot runs: leave the radio's mic input alone.
+    void setMicDefaultEnabled(bool enabled) { m_micDefaultEnabled = enabled; }
     // Tune, recentring the pan when the target lies outside it.
     Q_INVOKABLE void tuneTo(double mhz);
     // Band change through the radio's band stack (Flex), which restores the
@@ -345,6 +350,9 @@ public:
     Q_INVOKABLE void tuneByHz(int hz);
     // Tune to a point on the display, rounded to the tuning step.
     Q_INVOKABLE void tuneToSnapped(double mhz);
+    // Move the view (pan centre) without retuning; coalesced so a drag sends
+    // the radio at most one request per kPanMoveMs.
+    Q_INVOKABLE void panTo(double centerMhz);
     // Multiply the pan span by factor (<1 zooms in), centred on the slice.
     Q_INVOKABLE void zoom(double factor);
     // The spectrum view reports its size so the radio sends matching frames.
@@ -400,6 +408,7 @@ private:
     void selectActiveSlice();
     void bindSlice(SliceModel* slice);
     void bindPan(PanadapterModel* pan);
+    void defaultMicToDevice();
     void sendPanDimensions(const QString& panId);
     void setConnectionState(const QString& state);
     void setLastError(const QString& error);
@@ -446,6 +455,11 @@ private:
     bool m_pttHeld{false};
     bool m_micPermissionRequested{false};
     bool m_connected{false};
+    bool m_micDefaulted{false};
+    int m_fftFramesSeen{0};
+    int m_wfRowsSeen{0};
+    quint32 m_otherWfStreamSeen{0};
+    bool m_micDefaultEnabled{true};
     RadioCapabilities m_caps;
     SmartLinkClient m_smartLink;
     WanConnection m_wan;
@@ -467,6 +481,8 @@ private:
     QString m_radioName;
     double m_sMeterDbm{-130.0};
     QTimer m_panPixelsTimer;
+    QTimer m_panMoveTimer;
+    double m_pendingPanCenterMhz{0.0};
     int m_panWidth{0};
     int m_panHeight{0};
 };

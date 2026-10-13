@@ -43,6 +43,9 @@ private:
     // frequencies after the pan is retuned or zoomed.
     void followView();
     void reportPixels();
+    // Scrolls the waterfall by one row coloured from bins over
+    // lowMhz..highMhz, with black at floor and full scale at floor + span.
+    void pushRow(const QVector<float>& bins, double lowMhz, double highMhz, float floor, float span);
     QRgb colourFor(float normalised) const;
 
     QPointer<MobileEngine> m_engine;
@@ -57,6 +60,9 @@ private:
     float m_traceTop{-40.0f};
     bool m_traceSeeded{false};
     double m_spectrumFraction{0.4};
+    // The radio sends no waterfall rows while transmitting; the trace's
+    // frames fill in, paced like the RX waterfall (as SpectrumWidget does).
+    qint64 m_nextTxRowMs{0};
 };
 
 } // namespace AetherSDR::mobile

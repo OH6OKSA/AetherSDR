@@ -39,7 +39,6 @@ ColumnLayout {
         AppButton {
             text: qsTr("MEM")
             visible: Engine.hasTunerMemories
-            checkable: true
             checked: Engine.atuMemories
             Layout.preferredWidth: 56
             leftPadding: 2
@@ -82,7 +81,6 @@ ColumnLayout {
         Layout.fillWidth: true
         AppButton {
             text: qsTr("PROC")
-            checkable: true
             checked: Engine.procEnabled
             Layout.preferredWidth: 64
             focusPolicy: Qt.NoFocus
@@ -95,7 +93,6 @@ ColumnLayout {
                 required property int index
                 required property string modelData
                 text: modelData
-                checkable: true
                 checked: Engine.procLevel === index
                 enabled: Engine.procEnabled
                 Layout.fillWidth: true
@@ -122,7 +119,6 @@ ColumnLayout {
         Layout.fillWidth: true
         AppButton {
             text: qsTr("MON")
-            checkable: true
             checked: Engine.monitor
             Layout.preferredWidth: 64
             focusPolicy: Qt.NoFocus

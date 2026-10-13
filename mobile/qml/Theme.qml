@@ -17,6 +17,9 @@ QtObject {
     readonly property color passband: "#ffd75e"
 
     readonly property int touchTarget: 48
+    // Standard button (the band buttons' size); PTT and KEY are larger.
+    readonly property int buttonWidth: 56
+    readonly property int buttonFont: 14
     readonly property int spacing: 12
     readonly property int radius: 8
 }

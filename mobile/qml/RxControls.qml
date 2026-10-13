@@ -21,7 +21,6 @@ ColumnLayout {
         Layout.fillWidth: true
         AppButton {
             text: row.label
-            checkable: true
             checked: row.on
             Layout.preferredWidth: 60
             leftPadding: 2
@@ -63,7 +62,6 @@ ColumnLayout {
         visible: Engine.squelchAvailable
         AppButton {
             text: qsTr("SQL")
-            checkable: true
             checked: Engine.squelchOn
             Layout.preferredWidth: 60
             leftPadding: 2
@@ -98,7 +96,6 @@ ColumnLayout {
             delegate: AppButton {
                 required property string modelData
                 text: modelData
-                checkable: true
                 checked: Engine.rxAntenna === modelData
                 leftPadding: 6
                 rightPadding: 6
@@ -123,7 +120,6 @@ ColumnLayout {
             delegate: AppButton {
                 required property string modelData
                 text: modelData
-                checkable: true
                 checked: Engine.txAntenna === modelData
                 leftPadding: 6
                 rightPadding: 6

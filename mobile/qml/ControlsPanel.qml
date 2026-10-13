@@ -53,7 +53,6 @@ ColumnLayout {
                         text: modelData
                         leftPadding: 2
                         rightPadding: 2
-                        checkable: true
                         checked: Engine.mode === modelData
                         Layout.fillWidth: true
                         Layout.preferredHeight: Theme.touchTarget
@@ -83,8 +82,7 @@ ColumnLayout {
                         delegate: AppButton {
                             required property int modelData
                             text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
-                            checkable: true
-                            checked: Math.abs((Engine.filterHigh - Engine.filterLow) - modelData) < 60
+                            checked: Engine.activeFilterPreset === modelData
                             Layout.fillWidth: true
                             onClicked: Engine.setFilterWidth(modelData)
                         }
@@ -97,7 +95,6 @@ ColumnLayout {
                         delegate: AppButton {
                             required property var modelData
                             text: modelData.label
-                            checkable: true
                             checked: Engine[modelData.key]
                             Layout.fillWidth: true
                             onClicked: Engine[modelData.key] = !Engine[modelData.key]
@@ -112,7 +109,6 @@ ColumnLayout {
                         delegate: AppButton {
                             required property string modelData
                             text: modelData
-                            checkable: true
                             checked: Engine.agcMode === modelData
                             Layout.fillWidth: true
                             onClicked: Engine.agcMode = modelData

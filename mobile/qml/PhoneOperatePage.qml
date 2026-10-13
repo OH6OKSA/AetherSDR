@@ -83,8 +83,8 @@ Page {
                     TapHandler { onTapped: freqDialog.open() }
                 }
                 Label { text: Engine.mode; color: Theme.accent; font.pixelSize: 18 }
-                AppButton { text: "−"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(2.0) }
-                AppButton { text: "+"; implicitWidth: 40; implicitHeight: 40; onClicked: Engine.zoom(0.5) }
+                AppButton { text: "−"; font.pixelSize: 20; implicitWidth: Theme.touchTarget; onClicked: Engine.zoom(2.0) }
+                AppButton { text: "+"; font.pixelSize: 20; implicitWidth: Theme.touchTarget; onClicked: Engine.zoom(0.5) }
                 Item { Layout.fillWidth: true }
             }
             // Two selectable meters side by side (tap to choose).
@@ -112,8 +112,7 @@ Page {
                         text: modelData
                         leftPadding: 2
                         rightPadding: 2
-                        font.pixelSize: 14
-                        width: 56
+                        width: Theme.buttonWidth
                         height: Theme.touchTarget
                         onClicked: Engine.selectBand(modelData)
                     }
@@ -134,13 +133,19 @@ Page {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 4
+                // Step buttons: land on round frequencies (tuneByHz).
                 Repeater {
-                    model: [-1000, -100, 100, 1000]
+                    model: [-1000, -100, -10, -1, 1, 10, 100, 1000]
                     delegate: AppButton {
                         required property int modelData
-                        text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000 ? modelData / 1000 + "k" : modelData)
+                        text: (modelData > 0 ? "+" : "−") + (Math.abs(modelData) >= 1000
+                              ? Math.abs(modelData) / 1000 + "k" : Math.abs(modelData))
+                        leftPadding: 1
+                        rightPadding: 1
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 40
+                        Layout.minimumWidth: 30
+                        Layout.preferredWidth: Theme.buttonWidth
+                        Layout.preferredHeight: Theme.touchTarget
                         onClicked: Engine.tuneByHz(modelData)
                     }
                 }
@@ -157,9 +162,8 @@ Page {
 
             AppButton {
                 text: qsTr("☰ Controls")
-                font.pixelSize: 14
                 Layout.fillWidth: true
-                Layout.preferredHeight: 40
+                Layout.preferredHeight: Theme.touchTarget
                 onClicked: controlsDrawer.open()
             }
 

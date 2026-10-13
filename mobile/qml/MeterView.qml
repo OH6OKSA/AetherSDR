@@ -77,7 +77,9 @@ Item {
         }
     }
 
-    TapHandler { onTapped: chooser.popup() }
+    // Open the chooser right under this meter (popup() alone opens at the
+    // last pointer position, which on touch can be anywhere).
+    TapHandler { onTapped: chooser.popup(meter, 0, meter.height) }
 
     Menu {
         id: chooser
@@ -85,9 +87,10 @@ Item {
             model: Engine.meterKinds
             delegate: MenuItem {
                 required property string modelData
-                text: modelData
-                checkable: true
-                checked: meter.kind === modelData
+                // A tick instead of a checkable item: a checkable item would
+                // toggle itself and lose the binding to the selection.
+                text: (meter.kind === modelData ? "✓  " : "     ") + modelData
+                font.bold: meter.kind === modelData
                 onTriggered: {
                     if (meter.side === "left") {
                         Engine.meterLeft = modelData

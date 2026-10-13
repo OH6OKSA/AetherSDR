@@ -33,7 +33,10 @@ radio interface, with no computer running alongside.
 
 **Receive**
 - Live panadapter and waterfall. Tap to tune (snapped to the tuning step),
-  drag to tune, pinch or use −/+ to zoom around the slice.
+  drag to tune, pinch or use −/+ to zoom around the slice. Press and hold,
+  then drag, to move the whole view without retuning. Holding the finger at
+  either edge keeps scrolling, faster nearer the edge.
+- Your own transmission shows in the waterfall.
 - Filter passband drawn on the display, on the correct side for USB/LSB and
   centred for CW/AM.
 - Mode, filter width presets, NR/NB/ANF, AGC (off/slow/med/fast), AF gain and
@@ -43,8 +46,8 @@ radio interface, with no computer running alongside.
   while on the air, and the choice is remembered.
 - Band buttons use the radio's own band stack, so each band comes back to its
   last frequency and mode.
-- Step buttons land on round frequencies: +10 Hz from 14.100002 goes to
-  14.100010, not 14.100012.
+- Step buttons from ±1 Hz to ±1 kHz land on round frequencies: +10 Hz from
+  14.100002 goes to 14.100010, not 14.100012.
 - RIT and XIT, squelch (FM/AM), RX and TX antenna selection.
 - Several slices and panadapters: add, select, close, choose the TX slice;
   other slices are marked on the display and tap to select.
@@ -54,8 +57,8 @@ radio interface, with no computer running alongside.
 **Transmit**
 - TUNE carrier with tune power, the radio's ATU (tune or bypass, memories)
   and the speech processor (PROC NOR/DX/DX+), monitor and radio mic level.
-- Hold-to-talk PTT from the device's microphone (the radio's mic input set to
-  `PC`), with RF power, mic gain and mic level, plus forward power and SWR
+- Hold-to-talk PTT from the device's microphone (the radio's mic input is
+  set to `PC` when the app connects), with RF power, mic gain and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
 - CW: hold-to-key button (radio-side keyer and sidetone), CWX text sent by
   the radio at the set speed, speed, pitch and break-in, plus the CW decoder
