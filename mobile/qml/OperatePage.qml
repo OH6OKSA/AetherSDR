@@ -360,6 +360,12 @@ Page {
                 Layout.fillWidth: true
             }
 
+            // RX/TX equalizer.
+            EqControls {
+                Layout.fillWidth: true
+                Layout.topMargin: Theme.spacing
+            }
+
             // Waterfall and spectrum levels.
             DisplayControls {
                 Layout.fillWidth: true

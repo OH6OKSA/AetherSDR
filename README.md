@@ -60,6 +60,8 @@ radio interface, with no computer running alongside.
   apps). The screen stays awake while connected.
 
 **Transmit**
+- TX audio passband (low and high cut) and the radio's 8-band RX and TX
+  equalizer, as in SmartSDR.
 - TUNE carrier with tune power, the radio's ATU (tune or bypass, memories)
   and the speech processor (PROC NOR/DX/DX+), monitor and radio mic level.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input is

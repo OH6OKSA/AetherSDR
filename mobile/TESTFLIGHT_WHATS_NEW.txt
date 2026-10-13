@@ -1,7 +1,7 @@
 AetherSDR Mobile – testattavaa
 
 Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti sekä laitteen malli osoitteeseen oh6oksa@gmail.com.
-⚠️ = lähetys: testaa pienellä teholla tai keinokuormaan.
+[TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
@@ -27,18 +27,21 @@ NÄKYMÄ (Controls → View, iPadissa myös sivupaneelissa)
 • 3D-näkymä (2D waterfall | 3D): kerro, onko se sujuva laitteellasi.
 
 SÄÄTIMET
+• Taajuuskorjain RX ja TX, 8 kaistaa (Controls → Audio).
 • Aktiivinen filtteri korostuu kaikissa modeissa.
 • Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
 • RIT/XIT, SQL ja antennivalinnat.
 • Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
 
-LÄHETYS ⚠️
+LÄHETYS [TX]
+• Lokin voi lähettää Log → Share (Mail, Viestit…).
 • Mikrofonitulo vaihtuu PC:ksi automaattisesti yhdistettäessä.
 • PTT lähettää mikrofonin ääntä. Jos ääntä ei kuulu, lähetä lokista rivi "mic capture".
 • TUNE ja ATU.
+• TX-suodattimen ala- ja yläraja (Controls → TX).
 • Oma lähetys näkyy vesiputouksessa.
 
-CW ⚠️
+CW [TX]
 • CW-modessa PTT-painike on KEY.
 • Muistipaikat M1–M6 (Controls → CW): napautus lähettää, pitkä painallus muokkaa. {CALL} = radion tunnus.
 • CWX-teksti, nopeus, pitch ja break-in.

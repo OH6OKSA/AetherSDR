@@ -106,6 +106,15 @@ class MobileEngine : public QObject {
     // Tuning lock of the active slice (the radio's slice lock; SliceModel
     // refuses tuning while it is on). tuneBlocked fires on a refused tune.
     Q_PROPERTY(bool locked READ locked WRITE setLocked NOTIFY lockedChanged)
+    // TX audio passband (radio: transmit filter_low/filter_high).
+    Q_PROPERTY(int txFilterLow READ txFilterLow WRITE setTxFilterLow NOTIFY txFilterChanged)
+    Q_PROPERTY(int txFilterHigh READ txFilterHigh WRITE setTxFilterHigh NOTIFY txFilterChanged)
+    // Radio's 8-band RX/TX equalizer (63 Hz … 8 kHz, −10…+10 dB).
+    Q_PROPERTY(QStringList eqBandLabels READ eqBandLabels CONSTANT)
+    Q_PROPERTY(bool eqTxEnabled READ eqTxEnabled NOTIFY eqChanged)
+    Q_PROPERTY(bool eqRxEnabled READ eqRxEnabled NOTIFY eqChanged)
+    Q_PROPERTY(QVariantList eqTxBands READ eqTxBands NOTIFY eqChanged)
+    Q_PROPERTY(QVariantList eqRxBands READ eqRxBands NOTIFY eqChanged)
     // CW memories (six, remembered): sent through CWX; {CALL} becomes the
     // radio's callsign.
     Q_PROPERTY(QStringList cwMemories READ cwMemories NOTIFY cwMemoriesChanged)
@@ -261,6 +270,18 @@ public:
     void setCwBreakIn(bool on);
     bool cwDecoderEnabled() const;
     bool locked() const;
+    int txFilterLow() const;
+    int txFilterHigh() const;
+    void setTxFilterLow(int hz);
+    void setTxFilterHigh(int hz);
+    QStringList eqBandLabels() const;
+    bool eqTxEnabled() const;
+    bool eqRxEnabled() const;
+    QVariantList eqTxBands() const;
+    QVariantList eqRxBands() const;
+    Q_INVOKABLE void setEqEnabled(bool tx, bool on);
+    Q_INVOKABLE void setEqBand(bool tx, int band, int dB);
+    Q_INVOKABLE void resetEq(bool tx);
     QStringList cwMemories() const;
     Q_INVOKABLE void setCwMemory(int index, const QString& text);
     Q_INVOKABLE void sendCwMemory(int index);
@@ -435,6 +456,8 @@ signals:
     void cwDecoderChanged();
     void displayLevelsChanged();
     void lockedChanged();
+    void txFilterChanged();
+    void eqChanged();
     void cwMemoriesChanged();
     void tuneBlocked();
     // Frames of the active panadapter only. Spectrum bins are dBm and span

@@ -144,6 +144,10 @@ ColumnLayout {
                         onClicked: Engine.muted = !Engine.muted
                     }
                 }
+                EqControls {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.spacing
+                }
             }
         }
 

@@ -168,4 +168,34 @@ ColumnLayout {
         text: qsTr("Use this device's microphone")
         onClicked: Engine.useDeviceMicrophone()
     }
+
+    // TX audio passband (low and high cut of the transmitted audio).
+    Label {
+        text: qsTr("TX filter  %1 – %2 Hz").arg(Engine.txFilterLow).arg(Engine.txFilterHigh)
+        color: Theme.textDim
+        font.pixelSize: 15
+        Layout.topMargin: Theme.spacing / 2
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        Label { text: qsTr("Low"); color: Theme.textDim; font.pixelSize: 13 }
+        Slider {
+            Layout.fillWidth: true
+            enabled: Engine.connectionState === "connected"
+            from: 0; to: 1000; stepSize: 10
+            value: Engine.txFilterLow
+            onMoved: Engine.txFilterLow = Math.round(value)
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        Label { text: qsTr("High"); color: Theme.textDim; font.pixelSize: 13 }
+        Slider {
+            Layout.fillWidth: true
+            enabled: Engine.connectionState === "connected"
+            from: 1000; to: 5000; stepSize: 50
+            value: Engine.txFilterHigh
+            onMoved: Engine.txFilterHigh = Math.round(value)
+        }
+    }
 }

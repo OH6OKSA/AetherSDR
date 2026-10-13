@@ -14,6 +14,7 @@
 #include "core/discovery/RadioDiscoverySource.h"
 #include "core/CwSidetoneGenerator.h"
 #include "models/CwRxModel.h"
+#include "models/EqualizerModel.h"
 #include "models/CwxModel.h"
 #include "models/DecoderAudioModel.h"
 #include "models/MeterModel.h"
@@ -559,6 +560,9 @@ void MobileEngine::wireTransmit()
     });
     connect(&rm.transmitModel(), &TransmitModel::transmittingChanged, this, &MobileEngine::transmittingChanged);
     connect(&rm.transmitModel(), &TransmitModel::rfPowerChanged, this, &MobileEngine::rfPowerChanged);
+    connect(&rm.transmitModel(), &TransmitModel::txFilterCutoffChanged, this, &MobileEngine::txFilterChanged);
+    connect(&rm.equalizerModel(), &EqualizerModel::txStateChanged, this, &MobileEngine::eqChanged);
+    connect(&rm.equalizerModel(), &EqualizerModel::rxStateChanged, this, &MobileEngine::eqChanged);
     connect(&rm.meterModel(), &MeterModel::micMetersChanged, this,
             [this](float micLevel, float, float micPeak, float compPeak) {
         m_micLevelDbfs = micLevel;
@@ -1555,6 +1559,98 @@ void MobileEngine::sendCwMemory(int index)
     sendCwx(text);
 }
 
+int MobileEngine::txFilterLow() const
+{
+    return m_session.radioModel().transmitModel().txFilterLow();
+}
+
+int MobileEngine::txFilterHigh() const
+{
+    return m_session.radioModel().transmitModel().txFilterHigh();
+}
+
+void MobileEngine::setTxFilterLow(int hz)
+{
+    if (m_connected && hz != txFilterLow()) {
+        m_session.radioModel().transmitModel().setTxFilterLow(hz);
+    }
+}
+
+void MobileEngine::setTxFilterHigh(int hz)
+{
+    if (m_connected && hz != txFilterHigh()) {
+        m_session.radioModel().transmitModel().setTxFilterHigh(hz);
+    }
+}
+
+QStringList MobileEngine::eqBandLabels() const
+{
+    QStringList labels;
+    for (int b = 0; b < EqualizerModel::BandCount; ++b) {
+        labels << EqualizerModel::bandLabel(static_cast<EqualizerModel::Band>(b));
+    }
+    return labels;
+}
+
+bool MobileEngine::eqTxEnabled() const
+{
+    return m_session.radioModel().equalizerModel().txEnabled();
+}
+
+bool MobileEngine::eqRxEnabled() const
+{
+    return m_session.radioModel().equalizerModel().rxEnabled();
+}
+
+QVariantList MobileEngine::eqTxBands() const
+{
+    QVariantList list;
+    const EqualizerModel& eq = m_session.radioModel().equalizerModel();
+    for (int b = 0; b < EqualizerModel::BandCount; ++b) {
+        list << eq.txBand(static_cast<EqualizerModel::Band>(b));
+    }
+    return list;
+}
+
+QVariantList MobileEngine::eqRxBands() const
+{
+    QVariantList list;
+    const EqualizerModel& eq = m_session.radioModel().equalizerModel();
+    for (int b = 0; b < EqualizerModel::BandCount; ++b) {
+        list << eq.rxBand(static_cast<EqualizerModel::Band>(b));
+    }
+    return list;
+}
+
+void MobileEngine::setEqEnabled(bool tx, bool on)
+{
+    if (!m_connected) {
+        return;
+    }
+    EqualizerModel& eq = m_session.radioModel().equalizerModel();
+    tx ? eq.setTxEnabled(on) : eq.setRxEnabled(on);
+}
+
+void MobileEngine::setEqBand(bool tx, int band, int dB)
+{
+    if (!m_connected || band < 0 || band >= EqualizerModel::BandCount) {
+        return;
+    }
+    const auto b = static_cast<EqualizerModel::Band>(band);
+    dB = std::clamp(dB, -10, 10);
+    EqualizerModel& eq = m_session.radioModel().equalizerModel();
+    if ((tx ? eq.txBand(b) : eq.rxBand(b)) != dB) {
+        tx ? eq.setTxBand(b, dB) : eq.setRxBand(b, dB);
+    }
+}
+
+void MobileEngine::resetEq(bool tx)
+{
+    for (int b = 0; b < EqualizerModel::BandCount; ++b) {
+        setEqBand(tx, b, 0);
+    }
+}
+
 bool MobileEngine::locked() const
 {
     return m_slice && m_slice->isLocked();
@@ -1814,6 +1910,8 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         emit transmitStateChanged();
         emit rfPowerChanged();
         emit tuneStateChanged();
+        emit txFilterChanged();
+        emit eqChanged();
         emit atuChanged();
         emit txAudioChanged();
         emit cwChanged();
