@@ -1,0 +1,41 @@
+name: TestFlight What to Test
+
+# Sets a build's TestFlight "What to Test" from mobile/TESTFLIGHT_WHATS_NEW.txt.
+# Called by the iOS build after a successful upload, or run by hand for an
+# existing build number.
+on:
+  workflow_call:
+    inputs:
+      build_number:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Build number (the iOS workflow run number)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  whats-new:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            mobile/TESTFLIGHT_WHATS_NEW.txt
+            .github/scripts
+      - name: Install PyJWT
+        run: python3 -m pip install --quiet 'pyjwt[crypto]==2.10.1'
+      - name: Set What to Test
+        env:
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          BUNDLE_ID: ${{ vars.AETHER_MOBILE_BUNDLE_ID || 'com.aethersdr.mobile' }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          NOTES_FILE: mobile/TESTFLIGHT_WHATS_NEW.txt
+        run: python3 .github/scripts/testflight_whats_new.py

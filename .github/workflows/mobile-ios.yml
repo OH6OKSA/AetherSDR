@@ -272,3 +272,12 @@ jobs:
             echo "deleting artifact $id"
             gh api -X DELETE "repos/$REPO/actions/artifacts/$id" || echo "could not delete $id"
           done
+
+  # TestFlight "What to Test" for this build, from mobile/TESTFLIGHT_WHATS_NEW.txt.
+  testflight-notes:
+    needs: ios-engine
+    if: success()
+    uses: ./.github/workflows/testflight-notes.yml
+    with:
+      build_number: ${{ github.run_number }}
+    secrets: inherit

@@ -1,0 +1,47 @@
+AetherSDR Mobile – testattavaa
+
+Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti sekä laitteen malli osoitteeseen oh6oksa@gmail.com.
+⚠️ = lähetys: testaa pienellä teholla tai keinokuormaan.
+
+YHTEYS
+• Suora yhteys omalla IP-osoitteella.
+• SmartLink: kirjaudu Connect-sivulla ja yhdistä radioon.
+• Disconnect ja uudelleenyhdistys, myös suoran ja SmartLinkin välillä: taajuuden, spektrin ja vesiputouksen pitää palata. Jos SmartLinkissä vesiputous puuttuu, lähetä lokista rivi "display check".
+
+VASTAANOTTO
+• Ääni jatkuu kotinäkymässä ja toisessa sovelluksessa, ja palaa puhelun tai Sirin jälkeen.
+• Sovellus pysyy samassa slicessä eikä hypi.
+
+VESIPUTOUS JA VIRITYS
+• Napautus virittää.
+• Raahaus suodattimen kaistan sisältä virittää; raahaus muualta siirtää näkymää, taajuus pysyy.
+• Virittäessä sormi näytön reunalla jatkaa vieritystä ja kiihtyy reunaa kohti.
+• Step-painikkeet ±1 Hz … ±1 kHz pyöristävät tasalukuihin (.002 +10 → .010).
+• Pinch ja −/+ zoomaavat.
+• Lock taajuuden vieressä estää virityksen ja välähtää, jos viritystä yritetään.
+• Taajuuden syöttö (napauta taajuutta): numerot ja taajuus näkyvät kokonaan myös iPhonen vaakatilassa.
+
+NÄKYMÄ (Controls → View, iPadissa myös sivupaneelissa)
+• Vesiputouksen Black level, Colour gain ja Auto.
+• Spektrin Auto tai Reference ja Range.
+• 3D-näkymä (2D waterfall | 3D): kerro, onko se sujuva laitteellasi.
+
+SÄÄTIMET
+• Aktiivinen filtteri korostuu kaikissa modeissa.
+• Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
+• RIT/XIT, SQL ja antennivalinnat.
+• Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
+
+LÄHETYS ⚠️
+• Mikrofonitulo vaihtuu PC:ksi automaattisesti yhdistettäessä.
+• PTT lähettää mikrofonin ääntä. Jos ääntä ei kuulu, lähetä lokista rivi "mic capture".
+• TUNE ja ATU.
+• Oma lähetys näkyy vesiputouksessa.
+
+CW ⚠️
+• CW-modessa PTT-painike on KEY.
+• Muistipaikat M1–M6 (Controls → CW): napautus lähettää, pitkä painallus muokkaa. {CALL} = radion tunnus.
+• CWX-teksti, nopeus, pitch ja break-in.
+• CW-dekooderi: teksti näkyy vesiputouksen yläreunassa.
+
+Testaa pysty- ja vaakatilassa; iPadilla myös Split View.
