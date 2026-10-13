@@ -141,7 +141,7 @@ Page {
                         text: (modelData > 0 ? "+" : "") + (Math.abs(modelData) >= 1000 ? modelData / 1000 + "k" : modelData)
                         Layout.fillWidth: true
                         Layout.preferredHeight: 40
-                        onClicked: Engine.tuneTo(Engine.frequencyMhz + modelData / 1e6)
+                        onClicked: Engine.tuneByHz(modelData)
                     }
                 }
             }

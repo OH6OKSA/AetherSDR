@@ -43,6 +43,11 @@ radio interface, with no computer running alongside.
   while on the air, and the choice is remembered.
 - Band buttons use the radio's own band stack, so each band comes back to its
   last frequency and mode.
+- Step buttons land on round frequencies: +10 Hz from 14.100002 goes to
+  14.100010, not 14.100012.
+- RIT and XIT, squelch (FM/AM), RX and TX antenna selection.
+- Several slices and panadapters: add, select, close, choose the TX slice;
+  other slices are marked on the display and tap to select.
 - Direct frequency entry from a keypad or a hardware keyboard.
 - RX audio on the device. The screen stays awake while connected.
 
@@ -52,16 +57,24 @@ radio interface, with no computer running alongside.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input set to
   `PC`), with RF power, mic gain and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
+- CW: hold-to-key button (radio-side keyer and sidetone), CWX text sent by
+  the radio at the set speed, speed, pitch and break-in, plus the CW decoder
+  with the decoded text along the bottom of the waterfall.
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The
   transmitter unkeys on release, on disconnect, when the app loses focus,
   when the layout changes and when the mic input leaves the device.
 
+**Remote (SmartLink)**
+- Sign in with your FlexRadio SmartLink account and connect to your radio
+  from anywhere, with Opus-compressed audio. The sign-in is kept in the iOS
+  Keychain on this device only; the password is never stored.
+
 **Made for the device**
 - A tablet layout and a phone layout. They switch live on rotation, Split
   View, Stage Manager and folding (iPhone Duo).
 - The waterfall gets the screen. On iPhone, the controls (Mode, DSP, Audio,
-  TX) live in a drawer that slides in over it when needed. On iPad the side
+  TX, CW) live in a drawer that slides in over it when needed. On iPad the side
   panel can be hidden into the same drawer. PTT always stays on screen.
 - Apple Pencil drags tune 10× finer, for zero-beating.
 - Magic Keyboard and trackpad: arrows tune, Space is PTT, +/− zoom, F opens
@@ -94,12 +107,13 @@ refreshed with every user-interface change.</sub>
 | iPad and iPhone builds, signing, TestFlight delivery | ✅ Automated in GitHub Actions |
 | RX audio on device | 🧪 In beta testing |
 | Pinch/−+ zoom and PTT hold on iOS | 🧪 Fixes in testing (builds 20–24) |
+| SmartLink remote, extra slices/panadapters | 🧪 New, in testing |
+| CW keying, CWX and decoder on air | ⏳ Not yet verified |
 | Transmit on air | ⏳ Not yet verified. Test at low power or into a dummy load. |
 | LAN discovery on iOS | ⏳ Needs Apple's multicast entitlement. Connect by IP for now. |
 
-**Next:** confirm RX audio and TX on devices, offer upstreaming through an
-RFC, add more controls (RIT/XIT, CW keying, more slices and pans), and
-SmartLink for remote access.
+**Next:** confirm RX audio, TX, CW and SmartLink on devices, and offer
+upstreaming through an RFC.
 
 ## Try it
 

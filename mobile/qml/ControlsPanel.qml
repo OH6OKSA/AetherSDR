@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// The tabbed operating controls (Mode, DSP, Audio, TX) shown in the
+// The tabbed operating controls (Mode, DSP, Audio, TX, CW) shown in the
 // slide-in controls drawer.
 ColumnLayout {
     id: panel
@@ -23,11 +23,13 @@ ColumnLayout {
 
     TabBar {
         id: tabs
+        objectName: "controlsTabs"
         Layout.fillWidth: true
         TabButton { text: qsTr("Mode") }
         TabButton { text: qsTr("DSP") }
         TabButton { text: qsTr("Audio") }
         TabButton { text: qsTr("TX") }
+        TabButton { text: qsTr("CW") }
     }
 
     StackLayout {
@@ -155,6 +157,16 @@ ColumnLayout {
             contentWidth: availableWidth
             TxControls {
                 width: txScroll.availableWidth
+            }
+        }
+
+        // CW: key, CWX, speed, pitch, break-in, decoder.
+        ScrollView {
+            id: cwScroll
+            clip: true
+            contentWidth: availableWidth
+            CwControls {
+                width: cwScroll.availableWidth
             }
         }
     }

@@ -10,6 +10,10 @@
 #include "core/backends/IRadioBackend.h"
 #include "core/backends/flex/PanadapterStream.h"
 #include "core/discovery/RadioDiscoverySource.h"
+#include "core/CwSidetoneGenerator.h"
+#include "models/CwRxModel.h"
+#include "models/CwxModel.h"
+#include "models/DecoderAudioModel.h"
 #include "models/MeterModel.h"
 #include "models/PanadapterModel.h"
 #include "models/SliceModel.h"
@@ -141,6 +145,7 @@ MobileEngine::MobileEngine(QObject* parent)
         AppSettings::instance().save();
     }
     wireSmartLink();
+    wireCw();
 
     m_discovery = makeLocalRadioDiscoverySource({.local = true, .simulator = true});
     connect(m_discovery.get(), &RadioDiscoverySource::radioChanged, this,
@@ -950,6 +955,11 @@ void MobileEngine::atuPressed()
 void MobileEngine::stopTransmit(const QString& reason)
 {
     releasePtt(reason);
+    setCwKey(false, reason);
+    if (m_cwxInput.valid()) {
+        m_cwxInput.stop();
+        m_cwxInput = {};
+    }
     if (m_session.radioModel().transmitModel().isTuning() && m_tuneInput.valid()) {
         m_tuneInput.stop();
         qCInfo(lcMobile).noquote() << "tune stopped:" << reason;
@@ -1086,6 +1096,19 @@ void MobileEngine::tuneBySteps(int steps)
         base += step;
     }
     tuneTo(static_cast<double>(base + steps * step) / 1e6);
+}
+
+void MobileEngine::tuneByHz(int hz)
+{
+    if (hz == 0) {
+        return;
+    }
+    const qint64 step = std::abs(static_cast<qint64>(hz));
+    const qint64 freq = std::llround(frequencyMhz() * 1e6);
+    // Floor/ceil to the grid; on the grid, take a full step.
+    qint64 target = hz > 0 ? (freq / step + 1) * step
+                           : ((freq + step - 1) / step - 1) * step;
+    tuneTo(static_cast<double>(target) / 1e6);
 }
 
 void MobileEngine::tuneToSnapped(double mhz)
@@ -1304,6 +1327,189 @@ void MobileEngine::addPanadapter()
     }
 }
 
+// ---- CW ----------------------------------------------------------------------
+
+namespace {
+constexpr int kCwDecodedMaxChars = 2000;
+const QString kCwDecoderKey = QStringLiteral("MobileCwDecoder");
+}
+
+void MobileEngine::wireCw()
+{
+    RadioModel& rm = m_session.radioModel();
+    // Local sidetone follows the key the radio actually sends, and the
+    // radio's sidetone, pitch and CW monitor gain.
+    connect(&rm, &RadioModel::cwKeyDownChanged, this, [this](bool down) {
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, down] { audio->setCwKeyDown(down); }, Qt::QueuedConnection);
+    });
+    auto syncSidetone = [this] {
+        const TransmitModel& tm = m_session.radioModel().transmitModel();
+        const bool on = tm.cwSidetone();
+        const float pitch = static_cast<float>(tm.cwPitch());
+        const float volume = static_cast<float>(tm.monGainCw()) / 100.0f;
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, on, pitch, volume] {
+            if (CwSidetoneGenerator* sidetone = audio->cwSidetone()) {
+                sidetone->setEnabled(on);
+                sidetone->setPitchHz(pitch);
+                sidetone->setVolume(volume);
+            }
+        }, Qt::QueuedConnection);
+        emit cwChanged();
+    };
+    connect(&rm.transmitModel(), &TransmitModel::phoneStateChanged, this, syncSidetone);
+    connect(&rm.transmitModel(), &TransmitModel::stateChanged, this, &MobileEngine::cwChanged);
+
+    m_cwDecoder = std::make_unique<CwRxModel>();
+    m_cwAudio = std::make_unique<DecoderAudioModel>(rm, DecoderAudioModel::Consumer::Cw);
+    connect(m_cwAudio.get(), &DecoderAudioModel::nativePcmReady, m_cwDecoder.get(), &CwRxModel::feed);
+    connect(m_cwAudio.get(), &DecoderAudioModel::pcmReady, m_cwDecoder.get(), &CwRxModel::feedFixed24);
+    connect(m_cwAudio.get(), &DecoderAudioModel::sourceReset, m_cwDecoder.get(), &CwRxModel::reset);
+    connect(m_cwDecoder.get(), &CwRxModel::textDecoded, this, [this](const QString& text, float) {
+        m_cwDecodedText += text;
+        if (m_cwDecodedText.size() > kCwDecodedMaxChars) {
+            m_cwDecodedText = m_cwDecodedText.right(kCwDecodedMaxChars);
+        }
+        emit cwDecoderChanged();
+    });
+    connect(m_cwDecoder.get(), &CwRxModel::statsUpdated, this, [this](float pitch, float speed) {
+        m_cwDecoderStats = QStringLiteral("%1 WPM  %2 Hz").arg(qRound(speed)).arg(qRound(pitch));
+        emit cwDecoderChanged();
+    });
+    connect(this, &MobileEngine::modeChanged, this, &MobileEngine::updateCwDecoder);
+}
+
+void MobileEngine::updateCwDecoder()
+{
+    if (!m_cwDecoder || !m_cwAudio) {
+        return;
+    }
+    const bool run = m_connected && cwDecoderEnabled() && cwMode() && m_slice;
+    m_cwAudio->setSlice(run ? m_slice.data() : nullptr);
+    m_cwAudio->setEnabled(run);
+    if (run && !m_cwDecoder->isRunning()) {
+        m_cwDecoder->start();
+    } else if (!run && m_cwDecoder->isRunning()) {
+        m_cwDecoder->stop();
+    }
+}
+
+bool MobileEngine::cwMode() const
+{
+    return m_slice && (m_slice->mode() == QLatin1String("CW") || m_slice->mode() == QLatin1String("CWL"));
+}
+
+bool MobileEngine::cwKeyAvailable() const
+{
+    return m_connected && m_caps.canTransmit;
+}
+
+bool MobileEngine::cwxAvailable() const
+{
+    return cwKeyAvailable() && m_session.radioModel().hasRadioSideCwKeyer();
+}
+
+int MobileEngine::cwSpeed() const { return m_session.radioModel().transmitModel().cwSpeed(); }
+int MobileEngine::cwPitch() const { return m_session.radioModel().transmitModel().cwPitch(); }
+bool MobileEngine::cwBreakIn() const { return m_session.radioModel().transmitModel().cwBreakIn(); }
+
+void MobileEngine::setCwSpeed(int wpm)
+{
+    if (!m_connected) {
+        return;
+    }
+    wpm = std::clamp(wpm, 5, 100);
+    m_session.radioModel().transmitModel().setCwSpeed(wpm);
+    m_session.radioModel().cwxModel().setSpeed(wpm);
+}
+
+void MobileEngine::setCwPitch(int hz)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setCwPitch(std::clamp(hz, 100, 6000));
+    }
+}
+
+void MobileEngine::setCwBreakIn(bool on)
+{
+    if (m_connected) {
+        m_session.radioModel().transmitModel().setCwBreakIn(on);
+    }
+}
+
+bool MobileEngine::cwDecoderEnabled() const
+{
+    return AppSettings::instance().value(kCwDecoderKey, QStringLiteral("False")).toString() == QLatin1String("True");
+}
+
+void MobileEngine::setCwDecoderEnabled(bool on)
+{
+    AppSettings::instance().setValue(kCwDecoderKey, on ? QStringLiteral("True") : QStringLiteral("False"));
+    AppSettings::instance().save();
+    updateCwDecoder();
+    emit cwDecoderChanged();
+}
+
+void MobileEngine::clearCwDecoded()
+{
+    m_cwDecodedText.clear();
+    emit cwDecoderChanged();
+}
+
+void MobileEngine::setCwKey(bool down, const QString& reason)
+{
+    if (!down) {
+        if (m_cwKeyHeld) {
+            m_cwKeyHeld = false;
+            m_cwKeyInput.stop();
+            qCInfo(lcMobile).noquote() << "CW key up:" << (reason.isEmpty() ? QStringLiteral("released") : reason);
+            emit cwChanged();
+        }
+        return;
+    }
+    if (m_cwKeyHeld || !cwKeyAvailable()) {
+        return;
+    }
+    m_cwKeyInput = m_session.radioModel().localTxController()->capture(TxController::Activity::CwKey);
+    m_cwKeyHeld = true;
+    if (!m_cwKeyInput.start()) {
+        m_cwKeyHeld = false;
+        m_cwKeyInput.stop();
+        setLastError(tr("The radio did not accept the CW key."));
+        return;
+    }
+    emit cwChanged();
+}
+
+void MobileEngine::sendCwx(const QString& text)
+{
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty() || !cwxAvailable()) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    if (!rm.cwxModel().canSend()) {
+        setLastError(tr("CW text cannot be sent right now."));
+        return;
+    }
+    m_cwxInput = rm.localTxController()->capture(TxController::Activity::Cwx);
+    if (!m_cwxInput.send(trimmed)) {
+        setLastError(tr("The radio did not accept the CW text."));
+        return;
+    }
+    qCInfo(lcMobile) << "CWX sent" << trimmed.size() << "characters";
+}
+
+void MobileEngine::stopCwx()
+{
+    if (m_cwxInput.valid()) {
+        m_cwxInput.stop();
+        m_cwxInput = {};
+    }
+    m_session.radioModel().cwxModel().clearBuffer();
+}
+
 int MobileEngine::stepHz() const
 {
     return m_slice && m_slice->stepHz() > 0 ? m_slice->stepHz() : 100;
@@ -1426,9 +1632,12 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         emit tuneStateChanged();
         emit atuChanged();
         emit txAudioChanged();
+        emit cwChanged();
+        updateCwDecoder();
         return;
     }
     stopTransmit(QStringLiteral("radio disconnected"));
+    updateCwDecoder();
     if (m_wanActive && !m_wanUserDisconnect) {
         qCInfo(lcMobile) << "remote session dropped; reconnecting";
         m_wanReconnectTimer.start();

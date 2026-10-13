@@ -41,6 +41,9 @@ int main(int argc, char* argv[])
         QStringLiteral("Control panel: visible or hidden (remembered), or drawer to also open the drawer (screenshots)."),
         QStringLiteral("state"));
     parser.addOption(controlsOption);
+    const QCommandLineOption controlsTabOption(QStringLiteral("controls-tab"),
+        QStringLiteral("With --controls drawer: tab to show (0 Mode … 4 CW)."), QStringLiteral("index"));
+    parser.addOption(controlsTabOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -92,10 +95,15 @@ int main(int argc, char* argv[])
     }
 
     if (parser.value(controlsOption) == QLatin1String("drawer")) {
-        QTimer::singleShot(6000, &app, [&qml] {
+        const QString tab = parser.value(controlsTabOption);
+        QTimer::singleShot(6000, &app, [&qml, tab] {
             for (QObject* root : qml.rootObjects()) {
                 if (QObject* drawer = root->findChild<QObject*>(QStringLiteral("controlsDrawer"))) {
                     QMetaObject::invokeMethod(drawer, "open");
+                }
+                if (!tab.isEmpty()) {
+                    for (QObject* tabs : root->findChildren<QObject*>(QStringLiteral("controlsTabs")))
+                        tabs->setProperty("currentIndex", tab.toInt());
                 }
             }
         });

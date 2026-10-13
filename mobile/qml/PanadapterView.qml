@@ -92,6 +92,28 @@ Rectangle {
         }
     }
 
+    // Latest decoded CW along the bottom of the waterfall.
+    Rectangle {
+        visible: Engine.cwDecoderEnabled && Engine.cwMode && Engine.cwDecodedText.length > 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 28
+        color: "#cc000000"
+        z: 3
+        Label {
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 8
+            text: Engine.cwDecodedText
+            color: "white"
+            font.family: "monospace"
+            font.pixelSize: 15
+            elide: Text.ElideLeft
+            verticalAlignment: Text.AlignVCenter
+        }
+    }
+
     // Slice marker: where the active slice sits inside the pan.
     Rectangle {
         visible: Engine.panBandwidthMhz > 0

@@ -51,6 +51,7 @@ qt_add_qml_module(aether-mobile
         qml/TxControls.qml
         qml/RxControls.qml
         qml/SliceBar.qml
+        qml/CwControls.qml
         qml/PhoneOperatePage.qml
 )
 

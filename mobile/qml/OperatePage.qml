@@ -218,7 +218,7 @@ Page {
                               : modelData + (page.compact ? "" : " Hz"))
                         Layout.preferredHeight: Theme.touchTarget
                         Layout.fillWidth: true
-                        onClicked: Engine.tuneTo(Engine.frequencyMhz + modelData / 1e6)
+                        onClicked: Engine.tuneByHz(modelData)
                 focusPolicy: Qt.NoFocus
                     }
                 }
@@ -346,6 +346,12 @@ Page {
                     text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
                     onClicked: Engine.muted = !Engine.muted
                 }
+            }
+
+            // CW: shown in CW modes (also reachable from the drawer's CW tab).
+            CwControls {
+                Layout.fillWidth: true
+                visible: Engine.cwMode
             }
 
             // Transmit: tune, ATU, PROC, monitor, power and microphone.

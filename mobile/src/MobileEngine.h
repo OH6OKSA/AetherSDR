@@ -24,6 +24,8 @@ class QThread;
 
 namespace AetherSDR {
 class AudioEngine;
+class CwRxModel;
+class DecoderAudioModel;
 class PanadapterModel;
 class RadioDiscoverySource;
 class SliceModel;
@@ -89,6 +91,16 @@ class MobileEngine : public QObject {
     Q_PROPERTY(int activeSliceId READ activeSliceId NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddSlice READ canAddSlice NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddPanadapter READ canAddPanadapter NOTIFY slicesChanged)
+    Q_PROPERTY(bool cwMode READ cwMode NOTIFY modeChanged)
+    Q_PROPERTY(bool cwKeyAvailable READ cwKeyAvailable NOTIFY transmitStateChanged)
+    Q_PROPERTY(bool cwxAvailable READ cwxAvailable NOTIFY transmitStateChanged)
+    Q_PROPERTY(bool cwKeyDown READ cwKeyDown NOTIFY cwChanged)
+    Q_PROPERTY(int cwSpeed READ cwSpeed WRITE setCwSpeed NOTIFY cwChanged)
+    Q_PROPERTY(int cwPitch READ cwPitch WRITE setCwPitch NOTIFY cwChanged)
+    Q_PROPERTY(bool cwBreakIn READ cwBreakIn WRITE setCwBreakIn NOTIFY cwChanged)
+    Q_PROPERTY(bool cwDecoderEnabled READ cwDecoderEnabled WRITE setCwDecoderEnabled NOTIFY cwDecoderChanged)
+    Q_PROPERTY(QString cwDecodedText READ cwDecodedText NOTIFY cwDecoderChanged)
+    Q_PROPERTY(QString cwDecoderStats READ cwDecoderStats NOTIFY cwDecoderChanged)
     Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
     Q_PROPERTY(int micGain READ micGain WRITE setMicGain NOTIFY micGainChanged)
     Q_PROPERTY(double micLevelDbfs READ micLevelDbfs NOTIFY txMetersChanged)
@@ -211,6 +223,22 @@ public:
     int activeSliceId() const;
     bool canAddSlice() const;
     bool canAddPanadapter() const;
+    // CW: straight key (hold), CWX text through the radio's keyer, speed,
+    // pitch, break-in, and the receive decoder (ggmorse, CW modes only).
+    bool cwMode() const;
+    bool cwKeyAvailable() const;
+    bool cwxAvailable() const;
+    bool cwKeyDown() const { return m_cwKeyHeld; }
+    int cwSpeed() const;
+    void setCwSpeed(int wpm);
+    int cwPitch() const;
+    void setCwPitch(int hz);
+    bool cwBreakIn() const;
+    void setCwBreakIn(bool on);
+    bool cwDecoderEnabled() const;
+    void setCwDecoderEnabled(bool on);
+    QString cwDecodedText() const { return m_cwDecodedText; }
+    QString cwDecoderStats() const { return m_cwDecoderStats; }
     // The active slice's tuning step (radio-reported), Hz.
     int stepHz() const;
     // Radio RF power setting (Flex rfpower, 0..100).
@@ -304,8 +332,17 @@ public:
     Q_INVOKABLE void makeTxSlice(int sliceId);
     // A new panadapter (with its own slice, created by the radio's defaults).
     Q_INVOKABLE void addPanadapter();
+    // Straight key: down while held. Every release path also keys up.
+    Q_INVOKABLE void setCwKey(bool down, const QString& reason = QString());
+    Q_INVOKABLE void sendCwx(const QString& text);
+    Q_INVOKABLE void stopCwx();
+    Q_INVOKABLE void clearCwDecoded();
     // Tune by whole tuning steps, landing on the step grid.
     Q_INVOKABLE void tuneBySteps(int steps);
+    // Step button: move by hz, landing on a multiple of |hz|. Off the grid
+    // the first press only reaches the next grid point in that direction
+    // (14.100002 +10 Hz -> 14.100010, -10 Hz -> 14.100000).
+    Q_INVOKABLE void tuneByHz(int hz);
     // Tune to a point on the display, rounded to the tuning step.
     Q_INVOKABLE void tuneToSnapped(double mhz);
     // Multiply the pan span by factor (<1 zooms in), centred on the slice.
@@ -346,6 +383,8 @@ signals:
     void squelchChanged();
     void antennaChanged();
     void slicesChanged();
+    void cwChanged();
+    void cwDecoderChanged();
     // Frames of the active panadapter only. Spectrum bins are dBm and span
     // the pan. Waterfall rows are intensities on a backend-dependent scale
     // covering lowMhz..highMhz, which need not equal the pan's range.
@@ -373,6 +412,8 @@ private:
     void stopDeviceMicrophoneCapture();
     void releasePtt(const QString& reason);
     void wireSmartLink();
+    void wireCw();
+    void updateCwDecoder();
     void startWanConnect();
     void setSmartLinkState(const QString& state);
 
@@ -389,6 +430,13 @@ private:
     TxController::Input m_pttInput;
     TxController::Input m_tuneInput;
     TxController::Input m_atuInput;
+    TxController::Input m_cwKeyInput;
+    TxController::Input m_cwxInput;
+    bool m_cwKeyHeld{false};
+    std::unique_ptr<CwRxModel> m_cwDecoder;
+    std::unique_ptr<DecoderAudioModel> m_cwAudio;
+    QString m_cwDecodedText;
+    QString m_cwDecoderStats;
     double m_atuTunedFreqMhz{-1.0};
     double m_compressionDb{0.0};
     double m_alcDbfs{-100.0};
