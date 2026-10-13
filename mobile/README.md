@@ -89,3 +89,18 @@ archives, signs and uploads the build. After Apple finishes processing it
 Testers install the TestFlight app and accept the invitation. Each tester
 enters their own radio's IP address in the app.
 
+
+
+## Developer link
+
+For on-device debugging the app can stream its log to a developer PC and
+take screenshots on request. It is off by default; turn it on in the app
+(Log page → Developer link, enter the PC's address). On the PC run
+
+    mobile/tools/devlink.py serve --out /some/dir
+    mobile/tools/devlink.py send '{"cmd":"screenshot"}'
+
+The app connects out to port 47100 (allow it in the PC's firewall). It
+accepts only receive and display commands (screenshot, state, set on an
+allow-list, tune, mode, band, zoom, drawer); nothing on the link can key
+the transmitter.

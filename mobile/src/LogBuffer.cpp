@@ -79,6 +79,7 @@ void LogBuffer::install()
 void LogBuffer::append(const QString& line)
 {
     m_lines.append(line);
+    emit lineAdded(line);
     if (m_lines.size() > kMaxLines) {
         m_lines.remove(0, m_lines.size() - kMaxLines);
     }

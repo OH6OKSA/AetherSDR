@@ -1,4 +1,5 @@
 #include "AudioSession.h"
+#include "DevLink.h"
 #include "LogBuffer.h"
 #include "MobileEngine.h"
 
@@ -56,6 +57,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
+    const QCommandLineOption devLinkOption(QStringLiteral("devlink"),
+        QStringLiteral("Developer link to <host>, or off (remembered)."), QStringLiteral("host"));
+    parser.addOption(devLinkOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -87,6 +91,16 @@ int main(int argc, char* argv[])
     QObject::connect(&qml, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     qml.loadFromModule("AetherMobile", "Main");
+    if (parser.isSet(devLinkOption)) {
+        const QString host = parser.value(devLinkOption);
+        if (host == QLatin1String("off")) {
+            AetherSDR::mobile::DevLink::instance()->setEnabled(false);
+        } else {
+            AetherSDR::mobile::DevLink::instance()->setHost(host);
+            AetherSDR::mobile::DevLink::instance()->setEnabled(true);
+        }
+    }
+    AetherSDR::mobile::DevLink::instance()->attach(&engine, &qml);
 
     if (parser.isSet(sizeOption) && !qml.rootObjects().isEmpty()) {
         const QStringList wh = parser.value(sizeOption).split(QLatin1Char('x'));

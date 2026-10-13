@@ -22,6 +22,8 @@ qt_add_executable(aether-mobile
     src/Spectrum3DItem.h
     src/ScreenAwake.h
     src/LogBuffer.cpp
+    src/DevLink.cpp
+    src/DevLink.h
     src/LogBuffer.h
     src/SecureStore.h
     src/AudioSession.h

@@ -38,6 +38,33 @@ Popup {
             AppButton { text: qsTr("Close"); onClicked: popup.close() }
         }
 
+        // Developer link (off by default): streams this log to a developer's
+        // PC and lets it take screenshots. It cannot transmit.
+        RowLayout {
+            Layout.fillWidth: true
+            Switch {
+                id: devSwitch
+                checked: DevLink.enabled
+                onToggled: DevLink.enabled = checked
+            }
+            Label { text: qsTr("Developer link"); color: Theme.text; font.pixelSize: 15 }
+            TextField {
+                Layout.fillWidth: true
+                text: DevLink.host
+                placeholderText: qsTr("PC address")
+                inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhNoPredictiveText
+                font.pixelSize: 15
+                onEditingFinished: DevLink.host = text
+            }
+            Label {
+                text: DevLink.status
+                color: DevLink.status === "connected" ? Theme.accent : Theme.textDim
+                font.pixelSize: 13
+                elide: Text.ElideRight
+                Layout.maximumWidth: 160
+            }
+        }
+
         ListView {
             id: list
             Layout.fillWidth: true

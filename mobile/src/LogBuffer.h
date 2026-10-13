@@ -39,6 +39,7 @@ public:
 
 signals:
     void linesChanged();
+    void lineAdded(const QString& line);
 
 private:
     // Private so QML must go through create() and share instance().
