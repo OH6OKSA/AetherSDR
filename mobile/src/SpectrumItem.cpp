@@ -26,9 +26,6 @@ constexpr float kRangeSmoothing = 0.05f;
 constexpr float kMinimumSpan = 30.0f;
 // Row interval for the TX waterfall drawn from trace frames.
 constexpr qint64 kTxRowIntervalMs = 100;
-// 3D: one new ridge per interval (each redraws the CPU image).
-constexpr qint64 kDssRowIntervalMs = 100;
-constexpr float kDssZCurve = 0.70f;  // as the desktop's default
 
 } // namespace
 
@@ -52,13 +49,7 @@ void SpectrumItem::setEngine(MobileEngine* engine)
         connect(m_engine, &MobileEngine::spectrumFrame, this, &SpectrumItem::onSpectrum);
         connect(m_engine, &MobileEngine::waterfallRow, this, &SpectrumItem::onWaterfallRow);
         connect(m_engine, &MobileEngine::panGeometryChanged, this, &SpectrumItem::followView);
-        connect(m_engine, &MobileEngine::displayLevelsChanged, this, [this] {
-            if (!m_engine->spectrum3D() && m_dss.hasData()) {
-                m_dss.clear();
-            }
-            m_dss.invalidate();
-            update();
-        });
+        connect(m_engine, &MobileEngine::displayLevelsChanged, this, [this] { update(); });
         reportPixels();
     }
     emit engineChanged();
@@ -134,15 +125,8 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
             m_reportedBottom = m_traceBottom;
             emit traceScaleChanged();
         }
+        // In 3D the waterfall area belongs to Spectrum3DItem (GPU).
         if (m_engine && m_engine->spectrum3D()) {
-            const qint64 now = QDateTime::currentMSecsSinceEpoch();
-            if (now >= m_nextDssRowMs) {
-                m_nextDssRowMs = now + kDssRowIntervalMs;
-                followView();
-                m_dssCenterMhz = m_engine->panCenterMhz();
-                m_dssBandwidthMhz = m_engine->panBandwidthMhz();
-                m_dss.pushRow(binsDbm, m_dssCenterMhz, m_dssBandwidthMhz);
-            }
             update();
             return;
         }
@@ -190,14 +174,6 @@ void SpectrumItem::followView()
     }
     m_viewLowMhz = low;
     m_viewHighMhz = high;
-    if (m_dss.hasData() && m_dssBandwidthMhz > 0.0) {
-        const double center = (low + high) / 2.0;
-        const double bandwidth = high - low;
-        m_dss.reprojectFrequencyFrame(m_dssCenterMhz, m_dssBandwidthMhz, center, bandwidth,
-                                      m_traceBottom + kTraceBelowNoiseDb);
-        m_dssCenterMhz = center;
-        m_dssBandwidthMhz = bandwidth;
-    }
 }
 
 void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, double highMhz)
@@ -300,22 +276,7 @@ void SpectrumItem::paint(QPainter* painter)
     const qreal specH = height() * m_spectrumFraction;
 
     if (m_engine && m_engine->spectrum3D()) {
-        // Floor at the noise, height scale from the trace range; colour over
-        // at most 45 dB, gamma-shaped by colour gain (the desktop's 3D Gain).
-        const QSize px(static_cast<int>(w), static_cast<int>(height() - specH));
-        if (m_dss.hasData() && !px.isEmpty()) {
-            const float floorDbm = std::round((m_traceBottom + kTraceBelowNoiseDb) * 2.0f) / 2.0f;
-            const float rangeDb = std::round(std::clamp(m_traceTop - floorDbm, 20.0f, 100.0f) * 2.0f) / 2.0f;
-            const float colorRange = std::min(rangeDb, DssRenderer::kColorSpanDb);
-            const int gain = m_engine->wfColorGain();
-            const float gamma = std::pow(4.0f, (50.0f - gain) / 50.0f);
-            auto palette = [this, floorDbm, colorRange, gamma](float dbm) {
-                return colourFor(std::pow(std::clamp((dbm - floorDbm) / colorRange, 0.0f, 1.0f), gamma));
-            };
-            painter->drawImage(QPointF(0, specH),
-                               m_dss.image(px, 0, floorDbm, rangeDb, kDssZCurve, palette,
-                                           static_cast<quint64>(gain), QColor(QStringLiteral("#0b0f14"))));
-        }
+        // Drawn by Spectrum3DItem on top.
     } else if (!m_waterfall.isNull()) {
         painter->drawImage(QPointF(0, specH), m_waterfall);
     }

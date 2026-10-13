@@ -17,6 +17,19 @@ Rectangle {
         engine: Engine
     }
 
+    // 3D stacked trace on the GPU, over the waterfall area.
+    Spectrum3DItem {
+        visible: Engine.spectrum3D
+        engine: Engine
+        x: 0
+        y: Math.round(parent.height * spectrum.spectrumFraction)
+        width: parent.width
+        height: parent.height - y
+        floorDbm: spectrum.traceBottomDbm + 8
+        rangeDb: Math.max(20, Math.min(100, spectrum.traceTopDbm - spectrum.traceBottomDbm - 8))
+        colorGain: Engine.wfColorGain
+    }
+
     // Filter passband between the slice's filter edges (Hz offsets from the
     // carrier, so it sits on the correct side for USB/LSB and centred for
     // CW/AM): a fill over the spectrum and bright edge lines through the

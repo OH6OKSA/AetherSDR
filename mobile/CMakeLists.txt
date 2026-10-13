@@ -2,7 +2,7 @@
 # the radio directly (no PC or aetherd in between). Configured from the root
 # CMakeLists.txt only when AETHER_MOBILE is ON. See mobile/README.md.
 
-find_package(Qt6 6.12 REQUIRED COMPONENTS Quick QuickControls2)
+find_package(Qt6 6.12 REQUIRED COMPONENTS Quick QuickControls2 GuiPrivate)
 
 qt_standard_project_setup(REQUIRES 6.12)
 
@@ -18,7 +18,8 @@ qt_add_executable(aether-mobile
     src/RadioListModel.h
     src/SpectrumItem.cpp
     src/SpectrumItem.h
-    ${CMAKE_SOURCE_DIR}/src/gui/DssRenderer.cpp
+    src/Spectrum3DItem.cpp
+    src/Spectrum3DItem.h
     src/ScreenAwake.h
     src/LogBuffer.cpp
     src/LogBuffer.h
@@ -68,6 +69,19 @@ target_link_libraries(aether-mobile PRIVATE
     aethercore
     Qt6::Quick
     Qt6::QuickControls2
+    # QRhi (<rhi/qrhi.h>) for the GPU 3D view.
+    Qt6::GuiPrivate
+)
+
+# Precompiled shaders for Spectrum3DItem (SPIR-V, GLSL, HLSL and Metal in
+# one .qsb). Regenerate after editing shaders/*.vert|frag with
+#   qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 -o X.qsb X
+# so the iOS build needs no Qt ShaderTools.
+qt_add_resources(aether-mobile "spectrum3d_shaders"
+    PREFIX "/"
+    FILES
+        shaders/spectrum3d.vert.qsb
+        shaders/spectrum3d.frag.qsb
 )
 
 if(MSVC)
