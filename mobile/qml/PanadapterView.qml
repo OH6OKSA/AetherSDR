@@ -126,6 +126,66 @@ Rectangle {
            + parent.width / 2 - width / 2
     }
 
+    // dBm scale on the left of the spectrum (the reference level control of
+    // SmartSDR/AetherSDR): drag it up or down to move the trace. A drag
+    // switches the trace to manual; Auto in the View tab gives it back.
+    Item {
+        id: scaleStrip
+        z: 4
+        width: 40
+        height: parent.height * spectrum.spectrumFraction
+        readonly property real topDbm: spectrum.traceTopDbm
+        readonly property real bottomDbm: spectrum.traceBottomDbm
+        readonly property real range: Math.max(1, topDbm - bottomDbm)
+        // The smallest round step that keeps labels at least 18 px apart.
+        readonly property int step: {
+            for (const st of [10, 20, 30, 50, 100]) {
+                if (st / range * height >= 18) return st
+            }
+            return 100
+        }
+        Rectangle { anchors.fill: parent; color: Theme.surface; opacity: scaleDrag.pressed ? 0.85 : 0.55 }
+        Repeater {
+            model: {
+                const ticks = []
+                for (let d = Math.ceil(scaleStrip.bottomDbm / scaleStrip.step) * scaleStrip.step;
+                     d <= scaleStrip.topDbm; d += scaleStrip.step) ticks.push(d)
+                return ticks
+            }
+            delegate: Label {
+                required property int modelData
+                x: 3
+                y: (scaleStrip.topDbm - modelData) / scaleStrip.range * scaleStrip.height - height / 2
+                visible: y > 0 && y < scaleStrip.height - height
+                text: modelData
+                color: Theme.textDim
+                font.pixelSize: 11
+            }
+        }
+        MouseArea {
+            id: scaleDrag
+            anchors.fill: parent
+            preventStealing: true
+            property real startTop: 0
+            property real startY: 0
+            property real span: 90
+            onPressed: (mouse) => {
+                startTop = scaleStrip.topDbm
+                span = scaleStrip.range
+                startY = mouse.y
+                if (Engine.traceAutoRange) {
+                    Engine.traceRangeDb = Math.round(span)
+                    Engine.traceRefDbm = Math.round(startTop)
+                    Engine.traceAutoRange = false
+                }
+            }
+            // The trace follows the finger: dragging down raises the top level.
+            onPositionChanged: (mouse) => {
+                Engine.traceRefDbm = Math.round(startTop + (mouse.y - startY) / height * span)
+            }
+        }
+    }
+
     function mhzAt(x) {
         return Engine.panCenterMhz + (x / panArea.width - 0.5) * Engine.panBandwidthMhz
     }

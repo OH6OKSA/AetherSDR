@@ -24,6 +24,7 @@ VESIPUTOUS JA VIRITYS
 NÄKYMÄ (Controls → View, iPadissa myös sivupaneelissa)
 • Vesiputouksen Black level, Colour gain ja Auto.
 • Spektrin Auto tai Reference ja Range.
+• dBm-asteikko spektrin vasemmassa reunassa: raahaa ylös/alas siirtääksesi spektriä.
 • 3D-näkymä (2D waterfall | 3D): kerro, onko se sujuva laitteellasi.
 
 SÄÄTIMET

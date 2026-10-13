@@ -127,6 +127,13 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
             m_traceBottom += (bottom - m_traceBottom) * kTraceSmoothing;
             m_traceTop += (top - m_traceTop) * kTraceSmoothing;
         }
+        // Tell the scale strip when the scale moved by at least 1 dB.
+        if (std::abs(m_traceTop - m_reportedTop) >= 1.0f
+            || std::abs(m_traceBottom - m_reportedBottom) >= 1.0f) {
+            m_reportedTop = m_traceTop;
+            m_reportedBottom = m_traceBottom;
+            emit traceScaleChanged();
+        }
         if (m_engine && m_engine->spectrum3D()) {
             const qint64 now = QDateTime::currentMSecsSinceEpoch();
             if (now >= m_nextDssRowMs) {

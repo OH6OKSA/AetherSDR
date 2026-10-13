@@ -20,6 +20,10 @@ class SpectrumItem : public QQuickPaintedItem {
     QML_ELEMENT
     Q_PROPERTY(AetherSDR::mobile::MobileEngine* engine READ engine WRITE setEngine NOTIFY engineChanged)
     Q_PROPERTY(double spectrumFraction READ spectrumFraction WRITE setSpectrumFraction NOTIFY spectrumFractionChanged)
+    // The trace's current scale (dBm at the top and bottom of the spectrum
+    // area), for the dBm scale strip and its drag.
+    Q_PROPERTY(double traceTopDbm READ traceTopDbm NOTIFY traceScaleChanged)
+    Q_PROPERTY(double traceBottomDbm READ traceBottomDbm NOTIFY traceScaleChanged)
 
 public:
     explicit SpectrumItem(QQuickItem* parent = nullptr);
@@ -27,6 +31,8 @@ public:
     MobileEngine* engine() const { return m_engine; }
     void setEngine(MobileEngine* engine);
     double spectrumFraction() const { return m_spectrumFraction; }
+    double traceTopDbm() const { return m_traceTop; }
+    double traceBottomDbm() const { return m_traceBottom; }
     void setSpectrumFraction(double fraction);
 
     void paint(QPainter* painter) override;
@@ -34,6 +40,7 @@ public:
 signals:
     void engineChanged();
     void spectrumFractionChanged();
+    void traceScaleChanged();
 
 protected:
     void geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) override;
@@ -61,6 +68,8 @@ private:
     float m_traceBottom{-130.0f};
     float m_traceTop{-40.0f};
     bool m_traceSeeded{false};
+    float m_reportedTop{0.0f};
+    float m_reportedBottom{0.0f};
     double m_spectrumFraction{0.4};
     // The radio sends no waterfall rows while transmitting; the trace's
     // frames fill in, paced like the RX waterfall (as SpectrumWidget does).

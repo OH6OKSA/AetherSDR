@@ -38,6 +38,8 @@ radio interface, with no computer running alongside.
   desktop; while tuning, holding the finger at either edge keeps scrolling,
   faster nearer the edge. Pinch or use −/+ to zoom around the slice.
 - Your own transmission shows in the waterfall.
+- dBm scale on the spectrum: drag it up or down to move the trace, as
+  the reference level in SmartSDR and AetherSDR.
 - Waterfall black level and colour gain, and the spectrum's reference level
   and range (or Auto), in the View tab. Remembered on the device.
 - Tuning lock next to the frequency.
