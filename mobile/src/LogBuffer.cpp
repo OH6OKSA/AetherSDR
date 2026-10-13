@@ -22,6 +22,12 @@ std::atomic<bool> s_bufferAlive{false};
 
 bool worthKeeping(const QMessageLogContext& context, QtMsgType type, const QString& message)
 {
+    // Qt's iOS accessibility bridge repeats this ~30 times a second when the
+    // system queries the UI; it says nothing about the app and flooded the
+    // log (and the main thread with it).
+    if (message.contains(QLatin1String("a11y element")) || message.contains(QLatin1String("invalid accessible interface"))) {
+        return false;
+    }
     if (type == QtWarningMsg || type == QtCriticalMsg || type == QtFatalMsg) {
         return true;
     }

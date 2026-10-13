@@ -186,9 +186,17 @@ jobs:
           xcodebuild -project build-xcode/AetherSDR.xcodeproj -scheme aether-mobile \
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/aether-mobile.xcarchive" archive \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=NO DEBUG_INFORMATION_FORMAT=dwarf-with-dsym \
             2>&1 | tee xcode-archive.log | grep -E "error:|ARCHIVE" || true
           test -d "$RUNNER_TEMP/aether-mobile.xcarchive"
+          # Symbols of exactly the binary that goes to TestFlight, so tester
+          # crash reports (.ips) can be symbolized (the Ninja .ipa above is a
+          # different build with different UUIDs and offsets).
+          mkdir -p testflight-symbols
+          cp -R "$RUNNER_TEMP/aether-mobile.xcarchive/dSYMs/." testflight-symbols/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/aether-mobile.xcarchive/Products/Applications/aether-mobile.app/aether-mobile" \
+            testflight-symbols/ 2>/dev/null || true
+          ls -la testflight-symbols
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -240,6 +248,14 @@ jobs:
             xcode-export.log
             build-ios/CMakeCache.txt
             build-ios/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+      - name: Upload TestFlight symbols
+        if: success()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-symbols
+          path: testflight-symbols
           if-no-files-found: ignore
       - name: Upload unsigned app bundle
         if: success()

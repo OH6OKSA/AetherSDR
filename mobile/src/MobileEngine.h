@@ -560,6 +560,7 @@ private:
     bool m_micPermissionRequested{false};
     bool m_connected{false};
     bool m_micDefaulted{false};
+    bool m_displayActive{true};
     int m_fftFramesSeen{0};
     int m_wfRowsSeen{0};
     quint32 m_otherWfStreamSeen{0};

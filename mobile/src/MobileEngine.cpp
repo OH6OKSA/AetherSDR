@@ -100,6 +100,15 @@ MobileEngine::MobileEngine(QObject* parent)
         if (state != Qt::ApplicationActive) {
             stopTransmit(QStringLiteral("application inactive"));
         }
+        // Nobody sees the display while the app is not in front: stop feeding
+        // the spectrum, waterfall and 3D view (audio keeps playing). iOS kills
+        // an app whose main thread is busy when it moves to the background
+        // (scene-update watchdog, seen on testers' iPads), and it saves power.
+        const bool active = state == Qt::ApplicationActive;
+        if (active != m_displayActive) {
+            m_displayActive = active;
+            qCInfo(lcMobile) << "display" << (active ? "resumed" : "paused (app not in front)");
+        }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
     connect(&rm, &RadioModel::sliceRemoved, this, [this](int) {
@@ -152,7 +161,9 @@ MobileEngine::MobileEngine(QObject* parent)
             [this](quint32 streamId, const QVector<float>& bins, qint64, const SpectrumDecodeScale&) {
         if (m_pan && m_pan->panStreamId() == streamId) {
             ++m_fftFramesSeen;
-            emit spectrumFrame(bins);
+            if (m_displayActive) {
+                emit spectrumFrame(bins);
+            }
         }
     });
     connect(&rm, &RadioModel::panFeedWaterfallRowReady, this,
@@ -160,7 +171,9 @@ MobileEngine::MobileEngine(QObject* parent)
                    quint32, qint64, bool) {
         if (m_pan && m_pan->wfStreamId() == streamId) {
             ++m_wfRowsSeen;
-            emit waterfallRow(bins, lowMhz, highMhz);
+            if (m_displayActive) {
+                emit waterfallRow(bins, lowMhz, highMhz);
+            }
         } else {
             m_otherWfStreamSeen = streamId;
         }

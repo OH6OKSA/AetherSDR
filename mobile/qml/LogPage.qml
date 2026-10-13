@@ -19,7 +19,7 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             Label {
-                text: qsTr("Log (%1 lines)").arg(LogBuffer.lines.length)
+                text: qsTr("Log (%1 lines)").arg(popup.opened ? LogBuffer.lines.length : 0)
                 color: Theme.text
                 font.pixelSize: 22
                 Layout.fillWidth: true
@@ -70,7 +70,9 @@ Popup {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: LogBuffer.lines
+            // Only while the page is open: every new line replaces the model,
+            // and rebuilding wrapped text rows is main-thread work.
+            model: popup.opened ? LogBuffer.lines : []
             onCountChanged: positionViewAtEnd()
             delegate: Text {
                 required property string modelData
