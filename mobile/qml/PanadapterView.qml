@@ -164,10 +164,14 @@ Rectangle {
         }
         Rectangle { anchors.fill: parent; color: Theme.surface; opacity: scaleDrag.pressed ? 0.85 : 0.55 }
         Repeater {
+            // Bounded: a non-finite scale (no data yet) must never spin here.
             model: {
                 const ticks = []
-                for (let d = Math.ceil(scaleStrip.bottomDbm / scaleStrip.step) * scaleStrip.step;
-                     d <= scaleStrip.topDbm; d += scaleStrip.step) ticks.push(d)
+                const top = scaleStrip.topDbm
+                const bottom = scaleStrip.bottomDbm
+                if (!isFinite(top) || !isFinite(bottom) || top <= bottom) return ticks
+                for (let d = Math.ceil(bottom / scaleStrip.step) * scaleStrip.step;
+                     d <= top && ticks.length < 30; d += scaleStrip.step) ticks.push(d)
                 return ticks
             }
             delegate: Label {

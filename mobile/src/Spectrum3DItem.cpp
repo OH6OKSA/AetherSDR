@@ -178,7 +178,7 @@ void Spectrum3DItem::onSpectrum(const QVector<float>& binsDbm)
         for (qsizetype i = a + 1; i < b && i < n; ++i) {
             peak = std::max(peak, binsDbm.at(i));
         }
-        row.dbm[c] = peak;
+        row.dbm[c] = std::isfinite(peak) ? std::clamp(peak, -200.0f, 50.0f) : -200.0f;
     }
     row.centerMhz = m_engine->panCenterMhz();
     row.bandwidthMhz = m_engine->panBandwidthMhz();

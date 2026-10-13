@@ -97,9 +97,16 @@ void SpectrumItem::reportPixels()
 
 void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
 {
+    // Non-finite bins (empty frames) would make the scale infinite.
     m_spectrum = binsDbm;
-    if (!binsDbm.isEmpty()) {
-        QVector<float> sorted = binsDbm;
+    for (float& v : m_spectrum) {
+        if (!std::isfinite(v)) {
+            v = -200.0f;
+        }
+        v = std::clamp(v, -200.0f, 50.0f);
+    }
+    if (!m_spectrum.isEmpty()) {
+        QVector<float> sorted = m_spectrum;
         std::sort(sorted.begin(), sorted.end());
         const float noise = sorted.at(sorted.size() / 2);
         const float peak = sorted.last();
@@ -132,7 +139,7 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
             if (now >= m_nextTxRowMs) {
                 m_nextTxRowMs = now + kTxRowIntervalMs;
                 followView();
-                pushRow(binsDbm, m_viewLowMhz, m_viewHighMhz, m_traceBottom + kTraceBelowNoiseDb,
+                pushRow(m_spectrum, m_viewLowMhz, m_viewHighMhz, m_traceBottom + kTraceBelowNoiseDb,
                         std::max(kMinimumSpan, m_traceTop - m_traceBottom - kTraceBelowNoiseDb));
                 return;
             }
