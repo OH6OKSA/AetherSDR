@@ -53,6 +53,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption frequencyDialogOption(QStringLiteral("frequency-dialog"),
         QStringLiteral("Open the frequency entry dialog (screenshots)."));
     parser.addOption(frequencyDialogOption);
+    const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
+        QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
+    parser.addOption(spectrum3dOption);
     const QCommandLineOption screenshotOption(QStringLiteral("screenshot"),
         QStringLiteral("Save the window to <file> after <ms> (default 8000), muted, then quit."),
         QStringLiteral("file"));
@@ -109,6 +112,9 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (parser.isSet(spectrum3dOption)) {
+        engine.setSpectrum3D(parser.value(spectrum3dOption) == QLatin1String("on"));
+    }
     if (parser.isSet(frequencyDialogOption)) {
         QTimer::singleShot(6000, &app, [&qml] {
             for (QObject* root : qml.rootObjects()) {

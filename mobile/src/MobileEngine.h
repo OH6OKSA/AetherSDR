@@ -106,6 +106,9 @@ class MobileEngine : public QObject {
     // Tuning lock of the active slice (the radio's slice lock; SliceModel
     // refuses tuning while it is on). tuneBlocked fires on a refused tune.
     Q_PROPERTY(bool locked READ locked WRITE setLocked NOTIFY lockedChanged)
+    // CW memories (six, remembered): sent through CWX; {CALL} becomes the
+    // radio's callsign.
+    Q_PROPERTY(QStringList cwMemories READ cwMemories NOTIFY cwMemoriesChanged)
     // Display levels (remembered, client-side like the desktop's SW auto
     // black): the waterfall's black level and colour gain shift and stretch
     // the auto-tracked range (Auto off freezes it); the trace is auto-ranged
@@ -116,6 +119,9 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool traceAutoRange READ traceAutoRange WRITE setTraceAutoRange NOTIFY displayLevelsChanged)
     Q_PROPERTY(int traceRefDbm READ traceRefDbm WRITE setTraceRefDbm NOTIFY displayLevelsChanged)
     Q_PROPERTY(int traceRangeDb READ traceRangeDb WRITE setTraceRangeDb NOTIFY displayLevelsChanged)
+    // 3D stacked trace (the desktop's 3DSS, CPU-drawn) in place of the
+    // 2D waterfall.
+    Q_PROPERTY(bool spectrum3D READ spectrum3D WRITE setSpectrum3D NOTIFY displayLevelsChanged)
     Q_PROPERTY(QString cwDecodedText READ cwDecodedText NOTIFY cwDecoderChanged)
     Q_PROPERTY(QString cwDecoderStats READ cwDecoderStats NOTIFY cwDecoderChanged)
     Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
@@ -255,6 +261,9 @@ public:
     void setCwBreakIn(bool on);
     bool cwDecoderEnabled() const;
     bool locked() const;
+    QStringList cwMemories() const;
+    Q_INVOKABLE void setCwMemory(int index, const QString& text);
+    Q_INVOKABLE void sendCwMemory(int index);
     void setLocked(bool on);
     bool wfAutoLevel() const { return displayInt("MobileWfAuto", 1) != 0; }
     void setWfAutoLevel(bool on) { setDisplayInt("MobileWfAuto", on ? 1 : 0); }
@@ -268,6 +277,8 @@ public:
     void setTraceRefDbm(int v) { setDisplayInt("MobileTraceRef", std::clamp(v, -140, 0)); }
     int traceRangeDb() const { return displayInt("MobileTraceRange", 90); }
     void setTraceRangeDb(int v) { setDisplayInt("MobileTraceRange", std::clamp(v, 20, 150)); }
+    bool spectrum3D() const { return displayInt("MobileSpectrum3D", 0) != 0; }
+    void setSpectrum3D(bool on) { setDisplayInt("MobileSpectrum3D", on ? 1 : 0); }
     void setCwDecoderEnabled(bool on);
     QString cwDecodedText() const { return m_cwDecodedText; }
     QString cwDecoderStats() const { return m_cwDecoderStats; }
@@ -424,6 +435,7 @@ signals:
     void cwDecoderChanged();
     void displayLevelsChanged();
     void lockedChanged();
+    void cwMemoriesChanged();
     void tuneBlocked();
     // Frames of the active panadapter only. Spectrum bins are dBm and span
     // the pan. Waterfall rows are intensities on a backend-dependent scale
@@ -517,6 +529,9 @@ private:
     QTimer m_panPixelsTimer;
     QTimer m_panMoveTimer;
     double m_pendingPanCenterMhz{0.0};
+    QTimer m_panPreviewEndTimer;
+    double m_panPreviewMhz{0.0};
+    qint64 m_panPreviewUntilMs{0};
     int m_panWidth{0};
     int m_panHeight{0};
 };

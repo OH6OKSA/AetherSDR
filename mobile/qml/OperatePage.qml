@@ -395,8 +395,11 @@ Page {
                 Layout.preferredHeight: (page.compact ? 2 : 3) * Theme.touchTarget
                 // Stays enabled while held: disabling a pressed button cancels
                 // the press, which would unkey mid-transmission.
-                enabled: Engine.transmitAvailable || Engine.tuning || pressed
-                text: Engine.tuning ? qsTr("TUNE") : Engine.transmitting ? qsTr("TX") : qsTr("PTT")
+                // In CW modes the button is the straight key (KEY), in the same place.
+                readonly property bool keyMode: Engine.cwMode && !Engine.tuning
+                enabled: (keyMode ? Engine.cwKeyAvailable : Engine.transmitAvailable) || Engine.tuning || pressed
+                text: Engine.tuning ? qsTr("TUNE") : keyMode ? (Engine.cwKeyDown ? qsTr("KEY ●") : qsTr("KEY"))
+                      : Engine.transmitting ? qsTr("TX") : qsTr("PTT")
                 focusPolicy: Qt.NoFocus
                 font.pixelSize: 32
                 font.bold: true
@@ -412,7 +415,7 @@ Page {
                 }
                 background: Rectangle {
                     radius: Theme.radius
-                    color: Engine.transmitting || Engine.tuning ? Theme.transmit
+                    color: Engine.transmitting || Engine.tuning || Engine.cwKeyDown ? Theme.transmit
                          : ptt.enabled ? Theme.pttReady : Theme.surface
                     border.width: Engine.transmitting ? 3 : ptt.enabled ? 2 : 1
                     border.color: Engine.transmitting ? "white"
@@ -420,9 +423,11 @@ Page {
                 }
                 // Hold to transmit; release (or losing the touch) always unkeys.
                 // While the tune carrier is on, PTT is its off switch.
-                onPressed: Engine.tuning ? Engine.stopTransmit("PTT pressed during tune") : Engine.setPtt(true)
-                onReleased: Engine.setPtt(false, "button released")
-                onCanceled: Engine.setPtt(false, "touch cancelled by the system")
+                onPressed: Engine.tuning ? Engine.stopTransmit("PTT pressed during tune")
+                         : keyMode ? Engine.setCwKey(true) : Engine.setPtt(true)
+                onReleased: keyMode ? Engine.setCwKey(false, "key released") : Engine.setPtt(false, "button released")
+                onCanceled: keyMode ? Engine.setCwKey(false, "touch cancelled by the system")
+                                    : Engine.setPtt(false, "touch cancelled by the system")
             }
         }
     }
@@ -438,7 +443,10 @@ Page {
         height: page.portrait ? Math.min(page.height * 0.5, 560) : page.height
         dim: false
         dragMargin: 0
-        onAboutToShow: Engine.setPtt(false, "controls drawer opened")
+        onAboutToShow: {
+            Engine.setPtt(false, "controls drawer opened")
+            Engine.setCwKey(false, "controls drawer opened")
+        }
         background: Rectangle {
             color: Theme.surface
             opacity: 0.96

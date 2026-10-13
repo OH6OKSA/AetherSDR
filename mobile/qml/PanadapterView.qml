@@ -130,16 +130,9 @@ Rectangle {
         return Engine.panCenterMhz + (x / panArea.width - 0.5) * Engine.panBandwidthMhz
     }
 
-    // Press and hold, then drag: the whole view moves (pan centre) and the
-    // slice stays where it is. Reset by the next press.
-    property bool holdToPan: false
-
     // Tap (finger, Pencil or pointer) tunes to the touched point on
-    // the tuning-step grid. A long press arms view panning.
+    // the tuning-step grid.
     TapHandler {
-        longPressThreshold: 0.4
-        onPressedChanged: if (pressed) panArea.holdToPan = false
-        onLongPressed: panArea.holdToPan = true
         onTapped: (eventPoint) => {
             if (Engine.panBandwidthMhz > 0) {
                 Engine.tuneToSnapped(panArea.mhzAt(eventPoint.position.x))
@@ -147,9 +140,10 @@ Rectangle {
         }
     }
 
-    // Finger drag moves the tuning in the drag's direction (right = up in
-    // frequency), one pan width per screen width; after a long press it
-    // moves the view instead. Holding the finger in the edge zone keeps
+    // Finger drag, as on the desktop (SpectrumWidget): started inside the
+    // filter passband it tunes (the slice follows the finger); started
+    // anywhere else it grabs the display and moves the view, slice
+    // unchanged. While tuning, holding the finger in either edge zone keeps
     // going, faster the closer to the edge.
     DragHandler {
         id: drag
@@ -157,37 +151,38 @@ Rectangle {
         acceptedDevices: PointerDevice.TouchScreen | PointerDevice.Mouse | PointerDevice.TouchPad
         xAxis.enabled: true
         yAxis.enabled: false
-        property bool panning: false
+        property bool tuning: false
         property real startMhz: 0
         property real edgeMhz: 0
         readonly property real span: Engine.panBandwidthMhz > 0 ? Engine.panBandwidthMhz : 0.2
         readonly property real edgeZone: 0.12
         // -1..1: how deep the finger is in the left/right edge zone.
         readonly property real edgeDepth: {
-            if (!active) return 0
+            if (!active || !tuning) return 0
             const f = centroid.position.x / panArea.width
             if (f < edgeZone) return -Math.min(1, (edgeZone - f) / edgeZone)
             if (f > 1 - edgeZone) return Math.min(1, (f - 1 + edgeZone) / edgeZone)
             return 0
         }
         function apply() {
-            const mhz = startMhz + translation.x / panArea.width * span + edgeMhz
-            if (panning) Engine.panTo(mhz)
-            else Engine.tuneTo(mhz)
+            const shift = translation.x / panArea.width * span
+            if (tuning) Engine.tuneTo(startMhz + shift + edgeMhz)
+            else Engine.panTo(startMhz - shift)
         }
         onActiveChanged: {
-            if (active) {
-                panning = panArea.holdToPan
-                startMhz = panning ? Engine.panCenterMhz : Engine.frequencyMhz
-                edgeMhz = 0
-            } else {
-                panArea.holdToPan = false
-            }
+            if (!active) return
+            // The passband, widened to a finger's width.
+            const x = centroid.pressPosition.x
+            const half = Math.max(passband.width, 48) / 2
+            const mid = passband.x + passband.width / 2
+            tuning = passband.visible && Math.abs(x - mid) <= half
+            startMhz = tuning ? Engine.frequencyMhz : Engine.panCenterMhz
+            edgeMhz = 0
         }
         onTranslationChanged: apply()
     }
-    // Edge auto-scroll: from a quarter span per second at the zone's inner
-    // border up to three spans per second at the very edge.
+    // Edge auto-scroll while tuning: from a quarter span per second at the
+    // zone's inner border up to three spans per second at the very edge.
     Timer {
         interval: 50
         repeat: true
@@ -198,17 +193,6 @@ Rectangle {
             drag.edgeMhz += Math.sign(d) * spansPerSecond * drag.span * interval / 1000
             drag.apply()
         }
-    }
-    Label {
-        visible: panArea.holdToPan
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 8
-        z: 4
-        text: qsTr("◀  move view  ▶")
-        color: Theme.text
-        font.pixelSize: 14
-        padding: 6
-        background: Rectangle { color: Theme.surfaceRaised; radius: Theme.radius; opacity: 0.9 }
     }
 
     // Apple Pencil drags tune ten times finer, for zero-beating.

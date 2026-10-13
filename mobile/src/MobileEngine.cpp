@@ -26,6 +26,7 @@
 #include <QJSEngine>
 #include <QLoggingCategory>
 #include <QThread>
+#include <QDateTime>
 #include <QTimer>
 
 #include <algorithm>
@@ -56,6 +57,8 @@ constexpr int kWanReconnectMs = 5000;
 constexpr double kPanFollowEdge = 0.1;
 // Coalescing interval for pan moves during a drag.
 constexpr int kPanMoveMs = 40;
+// How long a dragged pan centre is shown before the radio's echo rules again.
+constexpr int kPanPreviewHoldMs = 700;
 constexpr double kDbPerSUnit = 6.0;
 
 } // namespace
@@ -118,6 +121,10 @@ MobileEngine::MobileEngine(QObject* parent)
         selectActiveSlice();
     });
     connect(&rm, &RadioModel::panDimensionsNeeded, this, &MobileEngine::sendPanDimensions);
+    m_panPreviewEndTimer.setSingleShot(true);
+    m_panPreviewEndTimer.setInterval(kPanPreviewHoldMs + 20);
+    // Back to the radio's centre (normally the same by now).
+    connect(&m_panPreviewEndTimer, &QTimer::timeout, this, &MobileEngine::panGeometryChanged);
     m_panMoveTimer.setSingleShot(true);
     m_panMoveTimer.setInterval(kPanMoveMs);
     connect(&m_panMoveTimer, &QTimer::timeout, this, [this] {
@@ -1094,7 +1101,7 @@ void MobileEngine::tuneTo(double mhz)
     // kPanFollowEdge of a span inside it, so dragging keeps going up or down
     // the band instead of stopping at the edge of the display.
     const double bandwidth = m_pan->bandwidthMhz();
-    const double offset = mhz - m_pan->centerMhz();
+    const double offset = mhz - panCenterMhz();
     const double limit = bandwidth * (0.5 - kPanFollowEdge);
     if (std::abs(offset) > limit) {
         panTo(offset > 0.0 ? mhz - limit : mhz + limit);
@@ -1110,6 +1117,10 @@ void MobileEngine::panTo(double centerMhz)
     if (!m_panMoveTimer.isActive()) {
         m_panMoveTimer.start();
     }
+    m_panPreviewMhz = centerMhz;
+    m_panPreviewUntilMs = QDateTime::currentMSecsSinceEpoch() + kPanPreviewHoldMs;
+    m_panPreviewEndTimer.start();
+    emit panGeometryChanged();
 }
 
 QStringList MobileEngine::bands() const
@@ -1491,6 +1502,52 @@ void MobileEngine::setCwBreakIn(bool on)
     if (m_connected) {
         m_session.radioModel().transmitModel().setCwBreakIn(on);
     }
+}
+
+namespace {
+constexpr int kCwMemoryCount = 6;
+QString cwMemoryKey(int index)
+{
+    return QStringLiteral("MobileCwMemory%1").arg(index + 1);
+}
+const char* const kCwMemoryDefaults[kCwMemoryCount] = {
+    "CQ CQ CQ DE {CALL} {CALL} K", "{CALL}", "5NN TU", "TU 73", "QRZ?", "AGN?",
+};
+} // namespace
+
+QStringList MobileEngine::cwMemories() const
+{
+    QStringList list;
+    for (int i = 0; i < kCwMemoryCount; ++i) {
+        list << AppSettings::instance().value(cwMemoryKey(i), QString::fromLatin1(kCwMemoryDefaults[i])).toString();
+    }
+    return list;
+}
+
+void MobileEngine::setCwMemory(int index, const QString& text)
+{
+    if (index < 0 || index >= kCwMemoryCount) {
+        return;
+    }
+    AppSettings::instance().setValue(cwMemoryKey(index), text.trimmed().toUpper());
+    AppSettings::instance().save();
+    emit cwMemoriesChanged();
+}
+
+void MobileEngine::sendCwMemory(int index)
+{
+    const QStringList list = cwMemories();
+    if (index < 0 || index >= list.size() || list.at(index).isEmpty()) {
+        return;
+    }
+    QString text = list.at(index);
+    const QString call = m_session.radioModel().callsign().trimmed().toUpper();
+    if (text.contains(QLatin1String("{CALL}")) && call.isEmpty()) {
+        setLastError(tr("The radio has no callsign set for {CALL}."));
+        return;
+    }
+    text.replace(QLatin1String("{CALL}"), call);
+    sendCwx(text);
 }
 
 bool MobileEngine::locked() const
@@ -2023,7 +2080,16 @@ QString MobileEngine::sMeterText() const
 
 double MobileEngine::panCenterMhz() const
 {
-    return m_pan ? m_pan->centerMhz() : 0.0;
+    if (!m_pan) {
+        return 0.0;
+    }
+    // While a drag moves the view, show where it is going, not the radio's
+    // last echo, so the waterfall and markers follow the finger at once
+    // (as SpectrumWidget's pan-drag preview does).
+    if (m_panPreviewUntilMs > QDateTime::currentMSecsSinceEpoch()) {
+        return m_panPreviewMhz;
+    }
+    return m_pan->centerMhz();
 }
 
 double MobileEngine::panBandwidthMhz() const

@@ -18,6 +18,7 @@ qt_add_executable(aether-mobile
     src/RadioListModel.h
     src/SpectrumItem.cpp
     src/SpectrumItem.h
+    ${CMAKE_SOURCE_DIR}/src/gui/DssRenderer.cpp
     src/ScreenAwake.h
     src/LogBuffer.cpp
     src/LogBuffer.h

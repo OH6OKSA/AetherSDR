@@ -10,33 +10,32 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
-    // Straight key: down while held. Release, a cancelled touch or losing
-    // the foreground always keys up.
-    AppButton {
-        id: key
+    // Memories: tap sends (CWX), press and hold edits. {CALL} = the radio's
+    // callsign. The straight key is the KEY button in PTT's place.
+    GridLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 56
-        text: Engine.cwKeyDown ? qsTr("KEY ●") : qsTr("KEY")
-        enabled: Engine.cwKeyAvailable || pressed
-        font.pixelSize: 20
-        font.bold: true
-        focusPolicy: Qt.NoFocus
-        background: Rectangle {
-            radius: Theme.radius
-            color: Engine.cwKeyDown ? Theme.transmit : key.enabled ? Theme.pttReady : Theme.surface
-            border.width: 2
-            border.color: Theme.transmit
+        visible: Engine.cwxAvailable
+        columns: 3
+        columnSpacing: Theme.spacing / 2
+        rowSpacing: Theme.spacing / 2
+        Repeater {
+            model: Engine.cwMemories
+            delegate: AppButton {
+                required property int index
+                required property string modelData
+                text: "M" + (index + 1) + "  " + modelData
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: Theme.touchTarget
+                focusPolicy: Qt.NoFocus
+                onClicked: Engine.sendCwMemory(index)
+                onPressAndHold: {
+                    memoryEditor.index = index
+                    memoryEditor.text = modelData
+                    memoryEditor.open()
+                }
+            }
         }
-        contentItem: Text {
-            text: key.text
-            font: key.font
-            color: key.enabled ? "white" : Theme.textDim
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-        onPressed: Engine.setCwKey(true)
-        onReleased: Engine.setCwKey(false, "key released")
-        onCanceled: Engine.setCwKey(false, "touch cancelled by the system")
     }
 
     // CWX: text sent by the radio's keyer at the set speed.
@@ -136,6 +135,48 @@ ColumnLayout {
                 elide: Text.ElideLeft
                 verticalAlignment: Text.AlignBottom
                 clip: true
+            }
+        }
+    }
+
+    // Edits one memory.
+    Dialog {
+        id: memoryEditor
+        property int index: 0
+        property alias text: memoryField.text
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(420, parent ? parent.width - 24 : 400)
+        modal: true
+        padding: Theme.spacing
+        background: Rectangle { color: Theme.surface; radius: Theme.radius; border.color: Theme.surfaceRaised }
+        onOpened: memoryField.forceActiveFocus()
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing
+            Label {
+                text: qsTr("Memory M%1   ({CALL} = your callsign)").arg(memoryEditor.index + 1)
+                color: Theme.textDim
+                font.pixelSize: 14
+            }
+            TextField {
+                id: memoryField
+                Layout.fillWidth: true
+                font.pixelSize: 17
+                inputMethodHints: Qt.ImhUppercaseOnly | Qt.ImhNoPredictiveText
+                onAccepted: save.clicked()
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                AppButton { text: qsTr("Cancel"); Layout.fillWidth: true; onClicked: memoryEditor.close() }
+                AppButton {
+                    id: save
+                    text: qsTr("Save")
+                    Layout.fillWidth: true
+                    onClicked: {
+                        Engine.setCwMemory(memoryEditor.index, memoryField.text)
+                        memoryEditor.close()
+                    }
+                }
             }
         }
     }

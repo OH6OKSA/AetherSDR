@@ -6,6 +6,8 @@
 #include <QVector>
 #include <QtQml/qqmlregistration.h>
 
+#include "gui/DssRenderer.h"
+
 namespace AetherSDR::mobile {
 
 class MobileEngine;
@@ -63,6 +65,11 @@ private:
     // The radio sends no waterfall rows while transmitting; the trace's
     // frames fill in, paced like the RX waterfall (as SpectrumWidget does).
     qint64 m_nextTxRowMs{0};
+    // 3D stacked trace: rows from the trace frames, paced (CPU drawing).
+    DssRenderer m_dss;
+    qint64 m_nextDssRowMs{0};
+    double m_dssCenterMhz{0.0};
+    double m_dssBandwidthMhz{0.0};
 };
 
 } // namespace AetherSDR::mobile

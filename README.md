@@ -32,10 +32,11 @@ radio interface, with no computer running alongside.
 ## Features
 
 **Receive**
-- Live panadapter and waterfall. Tap to tune (snapped to the tuning step),
-  drag to tune, pinch or use −/+ to zoom around the slice. Press and hold,
-  then drag, to move the whole view without retuning. Holding the finger at
-  either edge keeps scrolling, faster nearer the edge.
+- Live panadapter and waterfall, or the 3D stacked trace (the desktop's
+  3DSS renderer). Tap to tune (snapped to the tuning step). Drag inside the
+  filter passband to tune, anywhere else to move the view, as on the
+  desktop; while tuning, holding the finger at either edge keeps scrolling,
+  faster nearer the edge. Pinch or use −/+ to zoom around the slice.
 - Your own transmission shows in the waterfall.
 - Waterfall black level and colour gain, and the spectrum's reference level
   and range (or Auto), in the View tab. Remembered on the device.
@@ -64,8 +65,9 @@ radio interface, with no computer running alongside.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input is
   set to `PC` when the app connects), with RF power, mic gain and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
-- CW: hold-to-key button (radio-side keyer and sidetone), CWX text sent by
-  the radio at the set speed, speed, pitch and break-in, plus the CW decoder
+- CW: in CW modes the PTT button is the straight key (radio-side keyer and
+  sidetone); six editable memories ({CALL} = your callsign) and CWX text
+  sent by the radio at the set speed; speed, pitch and break-in, plus the CW decoder
   with the decoded text along the top of the waterfall.
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The

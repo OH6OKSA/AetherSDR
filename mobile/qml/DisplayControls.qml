@@ -10,6 +10,24 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
+    // 2D waterfall or the 3D stacked trace.
+    RowLayout {
+        Layout.fillWidth: true
+        AppButton {
+            text: qsTr("2D waterfall")
+            checked: !Engine.spectrum3D
+            Layout.fillWidth: true
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.spectrum3D = false
+        }
+        AppButton {
+            text: qsTr("3D")
+            checked: Engine.spectrum3D
+            Layout.fillWidth: true
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.spectrum3D = true
+        }
+    }
     RowLayout {
         Layout.fillWidth: true
         Label { text: qsTr("Waterfall"); color: Theme.textDim; font.pixelSize: 16; Layout.fillWidth: true }
