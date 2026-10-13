@@ -28,7 +28,11 @@ public:
 
     QStringList lines() const { return m_lines; }
     Q_INVOKABLE QString text() const { return m_lines.join(QLatin1Char('\n')); }
+    // The log with a header (app version, OS) for a report.
+    Q_INVOKABLE QString report() const;
     Q_INVOKABLE void copyToClipboard() const;
+    // iOS share sheet (Mail, Messages, …); copies where there is none.
+    Q_INVOKABLE bool share() const;
     Q_INVOKABLE void clear();
     // GUI thread only; the message handler queues calls here.
     void append(const QString& line);

@@ -24,7 +24,16 @@ Popup {
                 font.pixelSize: 22
                 Layout.fillWidth: true
             }
-            AppButton { text: qsTr("Copy"); onClicked: LogBuffer.copyToClipboard() }
+            AppButton { text: qsTr("Share"); onClicked: LogBuffer.share() }
+            AppButton {
+                id: copyButton
+                text: copiedTimer.running ? qsTr("Copied ✓") : qsTr("Copy")
+                onClicked: {
+                    LogBuffer.copyToClipboard()
+                    copiedTimer.restart()
+                }
+                Timer { id: copiedTimer; interval: 2000 }
+            }
             AppButton { text: qsTr("Clear"); onClicked: LogBuffer.clear() }
             AppButton { text: qsTr("Close"); onClicked: popup.close() }
         }

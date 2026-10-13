@@ -24,13 +24,14 @@ qt_add_executable(aether-mobile
     src/LogBuffer.h
     src/SecureStore.h
     src/AudioSession.h
+    src/ShareText.h
     ${AETHER_MOBILE_RESOURCES}
 )
 if(IOS)
-    target_sources(aether-mobile PRIVATE ios/ScreenAwake.mm ios/SecureStore.mm ios/AudioSession.mm)
+    target_sources(aether-mobile PRIVATE ios/ScreenAwake.mm ios/SecureStore.mm ios/AudioSession.mm ios/ShareText.mm)
     target_link_libraries(aether-mobile PRIVATE "-framework Security" "-framework AVFAudio")
 else()
-    target_sources(aether-mobile PRIVATE src/ScreenAwake.cpp src/SecureStore.cpp src/AudioSession.cpp)
+    target_sources(aether-mobile PRIVATE src/ScreenAwake.cpp src/SecureStore.cpp src/AudioSession.cpp src/ShareText.cpp)
 endif()
 
 # Must precede qt_add_qml_module, which reads it when writing the qmldir.

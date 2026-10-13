@@ -1,6 +1,8 @@
 #include "LogBuffer.h"
 
-#include <QClipboard>
+#include "ShareText.h"
+
+#include <QSysInfo>
 #include <QDateTime>
 #include <QGuiApplication>
 #include <QJSEngine>
@@ -83,9 +85,20 @@ void LogBuffer::append(const QString& line)
     emit linesChanged();
 }
 
+QString LogBuffer::report() const
+{
+    return QStringLiteral("AetherSDR Mobile %1 — %2\n\n%3")
+        .arg(QGuiApplication::applicationVersion(), QSysInfo::prettyProductName(), text());
+}
+
 void LogBuffer::copyToClipboard() const
 {
-    QGuiApplication::clipboard()->setText(text());
+    copyText(report());
+}
+
+bool LogBuffer::share() const
+{
+    return shareText(QStringLiteral("AetherSDR Mobile log"), report());
 }
 
 void LogBuffer::clear()
