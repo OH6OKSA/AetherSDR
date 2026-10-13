@@ -122,6 +122,11 @@ MobileEngine::MobileEngine(QObject* parent)
     connect(&rm, &RadioModel::panadapterAdded, this, [this](PanadapterModel* pan) {
         sendPanDimensions(pan->panId());
         selectActiveSlice();
+        emit slicesChanged();
+    });
+    connect(&rm, &RadioModel::panadapterRemoved, this, [this](const QString&) {
+        selectActiveSlice();
+        emit slicesChanged();
     });
     connect(&rm, &RadioModel::panDimensionsNeeded, this, &MobileEngine::sendPanDimensions);
     m_panPreviewEndTimer.setSingleShot(true);
@@ -1416,6 +1421,35 @@ void MobileEngine::makeTxSlice(int sliceId)
     }
 }
 
+int MobileEngine::panCount() const
+{
+    return m_connected ? static_cast<int>(m_session.radioModel().panadapters().size()) : 0;
+}
+
+void MobileEngine::closeOtherPanadapters()
+{
+    RadioModel& rm = m_session.radioModel();
+    if (!m_pan) {
+        return;
+    }
+    const QString keep = m_pan->panId();
+    QStringList closing;
+    for (PanadapterModel* pan : rm.panadapters()) {
+        if (pan && pan->panId() != keep) {
+            closing << pan->panId();
+        }
+    }
+    for (SliceModel* s : rm.slices()) {
+        if (s->isTxSlice() && closing.contains(s->panId())) {
+            stopTransmit(QStringLiteral("TX slice's panadapter closed"));
+        }
+    }
+    qCInfo(lcMobile) << "closing other panadapters" << closing << "keeping" << keep;
+    for (const QString& id : std::as_const(closing)) {
+        rm.removePanadapter(id);
+    }
+}
+
 void MobileEngine::addPanadapter()
 {
     if (canAddPanadapter()) {
@@ -1913,14 +1947,15 @@ void MobileEngine::onConnectionStateChanged(bool connected)
                 return;
             }
             qCInfo(lcMobile).noquote()
-                << QStringLiteral("display check: %1 pan=%2 fft=0x%3 wf=0x%4 frames=%5 wfRows=%6 otherWf=0x%7 px=%8x%9")
+                << QStringLiteral("display check: %1 pans=%10 pan=%2 fft=0x%3 wf=0x%4 frames=%5 wfRows=%6 otherWf=0x%7 px=%8x%9")
                        .arg(m_session.radioModel().isWan() ? QStringLiteral("WAN") : QStringLiteral("LAN"))
                        .arg(m_pan ? m_pan->panId() : QStringLiteral("-"))
                        .arg(QString::number(m_pan ? m_pan->panStreamId() : 0, 16))
                        .arg(QString::number(m_pan ? m_pan->wfStreamId() : 0, 16))
                        .arg(m_fftFramesSeen).arg(m_wfRowsSeen)
                        .arg(QString::number(m_otherWfStreamSeen, 16))
-                       .arg(m_panWidth).arg(m_panHeight);
+                       .arg(m_panWidth).arg(m_panHeight)
+                       .arg(m_session.radioModel().panadapters().size());
         });
         wireRxAudio();
         wireTxPacketSink();

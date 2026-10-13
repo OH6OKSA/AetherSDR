@@ -54,6 +54,17 @@ RowLayout {
         focusPolicy: Qt.NoFocus
         onClicked: Engine.addSlice()
     }
+    // The app shows one panadapter; any others still stream to the device
+    // (bandwidth, packet loss) and hold the radio's panadapter slots.
+    AppButton {
+        text: qsTr("Close %1 other pans").arg(Engine.panCount - 1)
+        visible: Engine.panCount > 1
+        leftPadding: 6
+        rightPadding: 6
+        Layout.preferredHeight: Theme.touchTarget
+        focusPolicy: Qt.NoFocus
+        onClicked: Engine.closeOtherPanadapters()
+    }
     AppButton {
         text: qsTr("+ Pan")
         visible: Engine.canAddPanadapter

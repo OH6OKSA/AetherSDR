@@ -34,6 +34,7 @@ SÄÄTIMET
 • Mittareille oma valinta vastaanottoon ja lähetykseen (esim. S/Power ja lähetyksessä SWR/Power).
 • RIT/XIT, SQL ja antennivalinnat.
 • Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
+• "Close N other pans": sovellus näyttää yhden panadapterin; ylimääräiset kuluttavat kaistaa ja varaavat radion paikat.
 
 LÄHETYS [TX]
 • Lokin voi lähettää Log → Share (Mail, Viestit…).
@@ -50,3 +51,5 @@ CW [TX]
 • CW-dekooderi: teksti näkyy vesiputouksen yläreunassa.
 
 Testaa pysty- ja vaakatilassa; iPadilla myös Split View.
+
+Kehittäjälinkki (Log → Developer link) on vain kehittäjän omaan käyttöön; pidä se pois päältä.

@@ -95,6 +95,8 @@ class MobileEngine : public QObject {
     Q_PROPERTY(int activeSliceId READ activeSliceId NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddSlice READ canAddSlice NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddPanadapter READ canAddPanadapter NOTIFY slicesChanged)
+    // This client's panadapters. The app shows one; the others still stream.
+    Q_PROPERTY(int panCount READ panCount NOTIFY slicesChanged)
     Q_PROPERTY(bool cwMode READ cwMode NOTIFY modeChanged)
     Q_PROPERTY(bool cwKeyAvailable READ cwKeyAvailable NOTIFY transmitStateChanged)
     Q_PROPERTY(bool cwxAvailable READ cwxAvailable NOTIFY transmitStateChanged)
@@ -260,6 +262,7 @@ public:
     int activeSliceId() const;
     bool canAddSlice() const;
     bool canAddPanadapter() const;
+    int panCount() const;
     // CW: straight key (hold), CWX text through the radio's keyer, speed,
     // pitch, break-in, and the receive decoder (ggmorse, CW modes only).
     bool cwMode() const;
@@ -406,6 +409,9 @@ public:
     Q_INVOKABLE void makeTxSlice(int sliceId);
     // A new panadapter (with its own slice, created by the radio's defaults).
     Q_INVOKABLE void addPanadapter();
+    // Closes this client's panadapters other than the one shown (and the
+    // slices on them).
+    Q_INVOKABLE void closeOtherPanadapters();
     // Straight key: down while held. Every release path also keys up.
     Q_INVOKABLE void setCwKey(bool down, const QString& reason = QString());
     Q_INVOKABLE void sendCwx(const QString& text);

@@ -12,6 +12,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QImageWriter>
+#include <QQuickItem>
+#include <QQuickItemGrabResult>
 #include <QQuickWindow>
 #include <QSysInfo>
 
@@ -196,7 +199,7 @@ void DevLink::handle(const QJsonObject& command)
     auto fail = [&reply](const QString& why) { reply({{QStringLiteral("error"), why}}); };
 
     if (cmd == QLatin1String("screenshot")) {
-        reply(screenshot());
+        screenshot(id);
     } else if (cmd == QLatin1String("state")) {
         reply(state());
     } else if (!m_engine) {
@@ -257,25 +260,44 @@ QJsonObject DevLink::state() const
     return s;
 }
 
-QJsonObject DevLink::screenshot() const
+void DevLink::screenshot(const QJsonValue& id)
 {
+    auto fail = [this, &id](const QString& why) {
+        send({{QStringLiteral("t"), QStringLiteral("reply")}, {QStringLiteral("cmd"), QStringLiteral("screenshot")},
+              {QStringLiteral("id"), id}, {QStringLiteral("error"), why}});
+    };
     QQuickWindow* window = nullptr;
     if (m_qml && !m_qml->rootObjects().isEmpty()) {
         window = qobject_cast<QQuickWindow*>(m_qml->rootObjects().constFirst());
     }
-    if (!window) {
-        return {{QStringLiteral("error"), QStringLiteral("no window")}};
+    if (!window || !window->contentItem()) {
+        fail(QStringLiteral("no window"));
+        return;
     }
-    QImage image = window->grabWindow();
-    if (image.width() > kShotMaxWidth) {
-        image = image.scaledToWidth(kShotMaxWidth, Qt::SmoothTransformation);
+    // Popups and drawers live in the overlay, which is a child of the
+    // content item, so they are in the grab too.
+    const QSharedPointer<QQuickItemGrabResult> grab = window->contentItem()->grabToImage();
+    if (!grab) {
+        fail(QStringLiteral("grab refused (window not exposed?)"));
+        return;
     }
-    QByteArray jpeg;
-    QBuffer buffer(&jpeg);
-    buffer.open(QIODevice::WriteOnly);
-    image.save(&buffer, "JPG", 80);
-    return {{QStringLiteral("width"), image.width()}, {QStringLiteral("height"), image.height()},
-            {QStringLiteral("jpeg"), QString::fromLatin1(jpeg.toBase64())}};
+    connect(grab.data(), &QQuickItemGrabResult::ready, this, [this, grab, id] {
+        QImage image = grab->image();
+        if (image.width() > kShotMaxWidth) {
+            image = image.scaledToWidth(kShotMaxWidth, Qt::SmoothTransformation);
+        }
+        // JPEG when the image plugin is there (smaller), PNG otherwise.
+        const bool jpeg = QImageWriter::supportedImageFormats().contains("jpeg");
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, jpeg ? "JPG" : "PNG", jpeg ? 80 : -1);
+        send({{QStringLiteral("t"), QStringLiteral("reply")}, {QStringLiteral("cmd"), QStringLiteral("screenshot")},
+              {QStringLiteral("id"), id}, {QStringLiteral("width"), image.width()},
+              {QStringLiteral("height"), image.height()},
+              {QStringLiteral("format"), jpeg ? QStringLiteral("jpeg") : QStringLiteral("png")},
+              {QStringLiteral("jpeg"), QString::fromLatin1(bytes.toBase64())}});
+    });
 }
 
 } // namespace AetherSDR::mobile

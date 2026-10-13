@@ -54,11 +54,12 @@ class Link:
                     self.note(f"hello {json.dumps(msg, ensure_ascii=False)}")
                 elif kind == "reply":
                     if "jpeg" in msg:
-                        name = datetime.datetime.now().strftime("shot-%H%M%S.jpg")
+                        ext = "png" if msg.get("format") == "png" else "jpg"
+                        name = datetime.datetime.now().strftime(f"shot-%H%M%S.{ext}")
                         path = os.path.join(self.out, name)
                         with open(path, "wb") as f:
                             f.write(base64.b64decode(msg.pop("jpeg")))
-                        with open(os.path.join(self.out, "latest.jpg"), "wb") as f:
+                        with open(os.path.join(self.out, f"latest.{ext}"), "wb") as f:
                             f.write(open(path, "rb").read())
                         msg["path"] = path
                     fut = self.waiting.pop(msg.get("id"), None)

@@ -52,7 +52,8 @@ private:
     void onReadyRead();
     void handle(const QJsonObject& command);
     QJsonObject state() const;
-    QJsonObject screenshot() const;
+    // Replies asynchronously (grabToImage): grabWindow did not return on iOS/Metal.
+    void screenshot(const QJsonValue& id);
     void sendLogLine(const QString& line);
 
     QPointer<MobileEngine> m_engine;
