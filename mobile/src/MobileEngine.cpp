@@ -1,5 +1,7 @@
 #include "MobileEngine.h"
 
+#include "AudioSession.h"
+
 #include "ScreenAwake.h"
 #include "SecureStore.h"
 
@@ -687,6 +689,9 @@ void MobileEngine::startDeviceMicrophoneCapture()
     if (!ensureMicrophonePermission()) {
         return;
     }
+    // Make sure the play-and-record session is active before the input opens
+    // (it can be lost to another app or an interruption).
+    configureAudioSession();
     const int gain = AppSettings::instance().value(QStringLiteral("PcMicGain"), 100).toInt();
     const QHostAddress address = m_session.radioModel().radioAddress();
     AudioEngine* audio = m_audio;

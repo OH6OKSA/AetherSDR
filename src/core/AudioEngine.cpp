@@ -9030,6 +9030,27 @@ bool AudioEngine::startTxStream(const QHostAddress& radioAddress, quint16 radioP
     m_audioSource = new QAudioSource(dev, fmt, this);
     m_audioSource->start(m_micBuffer);
 
+#ifdef Q_OS_IOS
+    // iPhone/iPad microphones are mono; a stereo request can pass the format
+    // check yet fail to initialise the input AudioUnit. Retry once in mono.
+    if (m_audioSource->state() == QAudio::StoppedState && fmt.channelCount() == 2) {
+        qCWarning(lcAudio) << "AudioEngine: stereo mic open failed on iOS; retrying mono";
+        delete m_audioSource;
+        m_audioSource = nullptr;
+        fmt.setChannelCount(1);
+        noteTxAttempt(fmt);
+        if (applyNegotiatedFormat(fmt)) {
+            m_audioSource = new QAudioSource(dev, fmt, this);
+            m_audioSource->start(m_micBuffer);
+        }
+    }
+    if (!m_audioSource) {
+        qCWarning(lcAudio) << "AudioEngine: failed to prepare mono TX input on iOS";
+        delete m_micBuffer; m_micBuffer = nullptr;
+        return false;
+    }
+#endif
+
     if (m_audioSource->state() == QAudio::StoppedState) {
         const QString error = audioErrorName(m_audioSource->error());
         qCWarning(lcAudio) << "AudioEngine: failed to start audio source";
