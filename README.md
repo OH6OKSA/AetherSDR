@@ -56,11 +56,19 @@ radio interface, with no computer running alongside.
   touch target with its choices behind it: the antennas open their
   chooser; the width and the flags the mode's eight filter widths and the
   radio's DSP (NR, NB, ANF, APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where
-  the radio has them); AGC its modes; the speaker mutes, the lock locks.
+  the radio has them); AGC its modes, AGC threshold and RF gain; the
+  speaker mutes, the lock locks.
+- **Split**, as SmartSDR and AetherSDR: SPLIT on the info panel adds a TX
+  slice 1 kHz (CW) or 5 kHz up, muted, with transmit and focus to tune the
+  offset; tap again to end it.
+- RF gain shown at the top right of the spectrum; a preamp or attenuator
+  step shows on the waterfall and trace, as on the desktop.
 - **Beat cancel (BC)**, as on Kenwood rigs: the app finds steady carriers
   in the receive audio (someone tuning up on the frequency) and notches
   them out within ~0.15 s, leaving voice alone. Voice modes only.
-- AGC threshold and AF gain in the controls.
+- AF gain in the controls; RIT and XIT −/+ run while held, faster the
+  longer.
+- Notices and refusals pop up in the middle of the display.
 - Two meters on the slice row, SmartSDR style. Tap either one to choose S,
   Power, SWR, ALC, Mic, Compression, PA temperature or supply voltage,
   separately for receive and transmit (e.g. S and Power, then SWR and Power
@@ -87,9 +95,11 @@ radio interface, with no computer running alongside.
   set to `PC` when the app connects), with RF power, mic gain and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
 - CW: in CW modes the PTT button is the straight key (radio-side keyer and
-  sidetone); six editable memories ({CALL} = your callsign) and CWX text
+  sidetone); editable memories ({CALL} = your callsign) and CWX text
   sent by the radio at the set speed; speed, pitch and break-in, plus the CW decoder
-  with the decoded text along the top of the waterfall.
+  with the decoded text along the top of the waterfall (what you send shows
+  there too). Nine memories; the callsign {CALL} sends can be set in the
+  app (written to the radio).
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The
   transmitter unkeys on release, on disconnect, when the app loses focus,
@@ -105,7 +115,8 @@ radio interface, with no computer running alongside.
   View, Stage Manager and folding (iPhone Duo).
 - The waterfall gets the screen. On iPhone, the controls (DSP, Audio, TX,
   CW, View, Profiles, Memory) live in a drawer that slides in over it when needed. On iPad the side
-  panel can be hidden into the same drawer. PTT always stays on screen.
+  panel can be hidden into the same drawer. PTT/KEY always stays on screen:
+  the drawer carries it at the bottom, never covering it.
 - Apple Pencil drags tune 10× finer, for zero-beating.
 - Magic Keyboard and trackpad: arrows tune, Space is PTT, +/− zoom, F opens
   frequency entry, scroll tunes and ⌘-scroll zooms.
