@@ -84,16 +84,7 @@ Page {
                 }
                 Label { text: Engine.mode; color: Theme.accent; font.pixelSize: 18 }
                 LockButton { implicitWidth: 44 }
-                AppButton { text: "−"; font.pixelSize: 20; implicitWidth: Theme.touchTarget; onClicked: Engine.zoom(2.0) }
-                AppButton { text: "+"; font.pixelSize: 20; implicitWidth: Theme.touchTarget; onClicked: Engine.zoom(0.5) }
                 Item { Layout.fillWidth: true }
-            }
-            // Two selectable meters side by side (tap to choose).
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.spacing
-                MeterView { side: "left"; compact: true; Layout.fillWidth: true; Layout.preferredWidth: 1 }
-                MeterView { side: "right"; compact: true; Layout.fillWidth: true; Layout.preferredWidth: 1 }
             }
 
             // Horizontally scrolling band strip.

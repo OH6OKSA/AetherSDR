@@ -208,6 +208,39 @@ Rectangle {
         }
     }
 
+    // Zoom out / in, bottom left of the waterfall as in AetherSDR.
+    Row {
+        z: 5
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: 6
+        spacing: 4
+        AppButton {
+            text: "−"
+            font.pixelSize: 16
+            implicitWidth: 32
+            implicitHeight: 32
+            width: 32
+            height: 32
+            padding: 0
+            opacity: 0.85
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.zoom(2.0)
+        }
+        AppButton {
+            text: "+"
+            font.pixelSize: 16
+            implicitWidth: 32
+            implicitHeight: 32
+            width: 32
+            height: 32
+            padding: 0
+            opacity: 0.85
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.zoom(0.5)
+        }
+    }
+
     function mhzAt(x) {
         return Engine.panCenterMhz + (x / panArea.width - 0.5) * Engine.panBandwidthMhz
     }

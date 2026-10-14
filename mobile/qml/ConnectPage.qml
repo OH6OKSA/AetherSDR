@@ -32,10 +32,12 @@ Page {
         id: scroll
         anchors.fill: parent
         // Clear of the notch / Dynamic Island and the home indicator.
-        anchors.leftMargin: 2 * Theme.spacing + scroll.SafeArea.margins.left
-        anchors.rightMargin: 2 * Theme.spacing + scroll.SafeArea.margins.right
-        anchors.topMargin: 2 * Theme.spacing + scroll.SafeArea.margins.top
-        anchors.bottomMargin: Theme.spacing + scroll.SafeArea.margins.bottom
+        // The page's safe area, not the ScrollView's own: margins taken from
+        // the item they move made a binding loop (logged on iPad).
+        anchors.leftMargin: 2 * Theme.spacing + page.SafeArea.margins.left
+        anchors.rightMargin: 2 * Theme.spacing + page.SafeArea.margins.right
+        anchors.topMargin: 2 * Theme.spacing + page.SafeArea.margins.top
+        anchors.bottomMargin: Theme.spacing + page.SafeArea.margins.bottom
         contentWidth: availableWidth
         clip: true
 

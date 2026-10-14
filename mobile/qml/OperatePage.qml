@@ -143,38 +143,7 @@ Page {
                 LockButton {
                     Layout.preferredHeight: Theme.touchTarget
                 }
-                // Zoom the pan out / in around the slice.
-                AppButton {
-                    text: "−"
-                    font.pixelSize: 22
-                    Layout.preferredWidth: Theme.buttonWidth
-                    Layout.preferredHeight: Theme.touchTarget
-                    focusPolicy: Qt.NoFocus
-                    onClicked: Engine.zoom(2.0)
-                }
-                AppButton {
-                    text: "+"
-                    font.pixelSize: 22
-                    Layout.preferredWidth: Theme.buttonWidth
-                    Layout.preferredHeight: Theme.touchTarget
-                    focusPolicy: Qt.NoFocus
-                    onClicked: Engine.zoom(0.5)
-                }
-                // Two selectable meters (tap to choose), fixed width so a
-                // changing reading never resizes the row.
-                RowLayout {
-                    spacing: Theme.spacing
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: page.compact ? 280 : 400
-                    MeterView {
-                        side: "left"; compact: page.compact
-                        Layout.fillWidth: true; Layout.minimumWidth: 110; Layout.preferredWidth: 190
-                    }
-                    MeterView {
-                        side: "right"; compact: page.compact
-                        Layout.fillWidth: true; Layout.minimumWidth: 110; Layout.preferredWidth: 190
-                    }
-                }
+                Item { Layout.fillWidth: true }
             }
 
             // Band stack (Flex): one row, buttons share the width. Each band
