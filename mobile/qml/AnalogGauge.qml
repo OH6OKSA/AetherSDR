@@ -15,9 +15,9 @@ Item {
     property string text: ""
     property bool compact: false
     // Size unit: 1.0 at a 66 px face; text and strokes follow it.
-    readonly property real unit: height / 66
-    // Room for the inner dBm scale and the title only on larger faces.
-    readonly property bool roomy: unit >= 1.3
+    readonly property real unit: Math.min(height / 72, width / 165)
+    // Room for the inner dBm scale and the title only on large faces.
+    readonly property bool roomy: width >= 260 && height >= 130
 
     // Eased needle, so meter jitter reads like a real movement.
     property real shown: live ? Math.max(min, Math.min(max, value)) : min
@@ -64,13 +64,13 @@ Item {
             const header = Math.round(15 * gauge.unit)
             // A wide, shallow arc whose centre sits at the bottom middle, as
             // on the AetherSDR meter: the needle hub is a dark half disc there.
-            const half = 50 * Math.PI / 180
-            // Radius from the width; the centre sits below the face so the
-            // arc is wide and shallow, with the hub's top showing at the bottom.
+            // The needle's pivot at the bottom middle, as on the AetherSDR
+            // meter; the arc spans 116 degrees above it.
+            const half = 58 * Math.PI / 180
             const top = header + fontPx + 4
-            const radius = Math.max(10, (w / 2 - fontPx * 2.2) / Math.sin(half))
             const cx = w / 2
-            const cy = top + radius
+            const cy = h - 3
+            const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 2.2) / Math.sin(half)))
             const start = -Math.PI / 2 - half
             const end = -Math.PI / 2 + half
             const span = gauge.max - gauge.min
@@ -129,7 +129,8 @@ Item {
             ctx.stroke()
 
             // Hub: a dark half disc with a warm glow, as on the desktop.
-            const hub = Math.max(10, cy - h + 9 * gauge.unit)
+            // The needle's balance/pivot cap: small, as on a real meter.
+            const hub = Math.max(4, radius * 0.13)
             const glow = ctx.createRadialGradient(cx, cy, hub * 0.6, cx, cy, hub * 2.2)
             glow.addColorStop(0, "rgba(255,170,90,0.35)")
             glow.addColorStop(1, "rgba(255,170,90,0)")

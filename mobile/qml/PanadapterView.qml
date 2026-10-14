@@ -215,12 +215,13 @@ Rectangle {
         // Scales with the panadapter: about 28 % of its width, an analog face
         // 0.4 of that high but at most 30 % of the panadapter's height; too
         // little height for a readable dial (iPhone landscape) gives bars.
+        // (Dial 0.55 of its width high: pivot at the bottom, arc above.)
         readonly property real faceWidth: Math.max(110, Math.min(240, panArea.width * 0.28))
-        readonly property real dialHeight: Math.min(faceWidth * 0.40, panArea.height * 0.30)
+        readonly property real dialHeight: Math.min(faceWidth * 0.55, panArea.height * 0.32)
         z: 6
         y: 4
         // An analog face keeps its proportions: as wide as its height allows.
-        width: meterView.analog ? Math.min(faceWidth, dialHeight / 0.40) : faceWidth
+        width: meterView.analog ? Math.min(faceWidth, dialHeight / 0.55) : faceWidth
         height: meterView.implicitHeight + 8
         radius: Theme.radius
         color: Theme.surface
