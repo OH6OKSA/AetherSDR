@@ -238,36 +238,30 @@ Rectangle {
     MeterBadge { side: "left"; x: scaleStrip.visible ? scaleStrip.width + 4 : 4 }
     MeterBadge { side: "right"; x: panArea.width - width - 4 }
 
-    // Zoom out / in, bottom left of the waterfall as in AetherSDR.
+    // Zoom out / in, bottom left of the waterfall as in AetherSDR. Together
+    // the size of one step button below (eight across the same width), each
+    // half of it.
     Row {
+        id: zoomRow
+        readonly property real stepWidth: (panArea.width - 7 * Theme.spacing / 2) / 8
         z: 5
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: 6
-        spacing: 4
-        AppButton {
-            text: "−"
-            font.pixelSize: 16
-            implicitWidth: 32
-            implicitHeight: 32
-            width: 32
-            height: 32
-            padding: 0
-            opacity: 0.85
-            focusPolicy: Qt.NoFocus
-            onClicked: Engine.zoom(2.0)
-        }
-        AppButton {
-            text: "+"
-            font.pixelSize: 16
-            implicitWidth: 32
-            implicitHeight: 32
-            width: 32
-            height: 32
-            padding: 0
-            opacity: 0.85
-            focusPolicy: Qt.NoFocus
-            onClicked: Engine.zoom(0.5)
+        spacing: 2
+        Repeater {
+            model: [{ label: "−", factor: 2.0 }, { label: "+", factor: 0.5 }]
+            delegate: AppButton {
+                required property var modelData
+                text: modelData.label
+                font.pixelSize: Math.round(Theme.buttonFont * 1.3)
+                width: Math.max(32, zoomRow.stepWidth / 2 - 1)
+                height: Theme.touchTarget
+                padding: 0
+                opacity: 0.85
+                focusPolicy: Qt.NoFocus
+                onClicked: Engine.zoom(modelData.factor)
+            }
         }
     }
 

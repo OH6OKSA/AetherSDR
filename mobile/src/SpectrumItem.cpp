@@ -250,6 +250,56 @@ void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double hig
     update();
 }
 
+void SpectrumItem::drawFrequencyAxis(QPainter* painter, qreal w, qreal specH) const
+{
+    // Frequency scale at the top of the waterfall, as AetherSDR's: ticks on
+    // a round step (1/2/5 x 10^n kHz) giving labels about 110 px apart.
+    if (!m_engine || m_engine->panBandwidthMhz() <= 0.0 || w <= 0) {
+        return;
+    }
+    const double span = m_engine->panBandwidthMhz();
+    const double low = m_engine->panCenterMhz() - span / 2.0;
+    const double wantedMhz = span * 110.0 / w;
+    double step = 1e-6;  // 1 Hz
+    for (const double decade : {1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0}) {
+        bool found = false;
+        for (const double m : {1.0, 2.0, 5.0}) {
+            if (decade * m >= wantedMhz) {
+                step = decade * m;
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            break;
+        }
+    }
+    const qreal axisH = std::clamp(height() * 0.03, 16.0, 22.0);
+    painter->fillRect(QRectF(0, specH, w, axisH), QColor(11, 15, 20, 215));
+    QFont font = painter->font();
+    font.setPixelSize(static_cast<int>(axisH * 0.62));
+    painter->setFont(font);
+    // Decimals: enough to tell neighbouring labels apart.
+    const int decimals = step >= 0.1 ? 1 : step >= 0.01 ? 2 : step >= 0.001 ? 3 : step >= 0.0001 ? 4 : 5;
+    const double first = std::ceil(low / step) * step;
+    for (double f = first; f <= low + span; f += step) {
+        const qreal x = (f - low) / span * w;
+        painter->setPen(QColor(230, 237, 243, 150));
+        painter->drawLine(QPointF(x, specH), QPointF(x, specH + axisH * 0.3));
+        const QString label = QString::number(f, 'f', decimals);
+        const QRectF box(x - 50, specH + axisH * 0.25, 100, axisH * 0.75);
+        if (box.left() < 0 || box.right() > w) {
+            // Only labels that fit whole; keep the tick.
+            const qreal textW = painter->fontMetrics().horizontalAdvance(label);
+            if (x - textW / 2 < 2 || x + textW / 2 > w - 2) {
+                continue;
+            }
+        }
+        painter->setPen(QColor(200, 210, 220));
+        painter->drawText(box, Qt::AlignHCenter | Qt::AlignVCenter, label);
+    }
+}
+
 QRgb SpectrumItem::colourFor(float v) const
 {
     v = std::clamp(v, 0.0f, 1.0f);
@@ -280,6 +330,7 @@ void SpectrumItem::paint(QPainter* painter)
     if (!m_waterfall.isNull()) {
         painter->drawImage(QPointF(0, specH), m_waterfall);
     }
+    drawFrequencyAxis(painter, w, specH);
     // In 3D the spectrum area belongs to Spectrum3DItem (GPU), as on the
     // desktop: the stacked trace replaces the trace, the waterfall stays.
     if (m_engine && m_engine->spectrum3D()) {
