@@ -122,7 +122,7 @@ is a touch target with its choices behind it:
 | **2.7K** | Receive filter width | Filters and DSP |
 | Speaker | Audio on (blue) / muted (red) | Mute or unmute |
 | Lock | Tuning lock open / locked | Lock or unlock tuning (flashes when a tune is refused) |
-| **NB NR ANF …** | DSP, bright when on | Filters and DSP |
+| **NB NR ANF NRL …** | Every DSP the radio offers, bright when on (on an iPhone the rarer ones only while on) | Filters and DSP |
 | **AGC-M** | AGC mode | AGC mode, AGC threshold and RF gain |
 
 On an iPhone the panel is one row (under the frequency in portrait).

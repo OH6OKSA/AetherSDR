@@ -33,20 +33,19 @@ Item {
         if (hz <= 0) return ""
         return hz >= 1000 ? (hz / 1000).toFixed(1).replace(/\.0$/, "") + "K" : hz + ""
     }
-    // Flags in a fixed order, lit when on; mode-dependent ones only where
-    // they apply (APF and QSK in CW, BC in voice); the extra radio filters
-    // only while on.
     readonly property var flags: {
         Engine.dspKeys.length   // re-evaluate on DSP changes
+        const keys = Engine.dspKeys
         const out = []
-        for (const k of ["NB", "NR", "ANF"]) {
-            out.push({ text: k, on: Engine.dspOn(k) })
+        // Every DSP the radio and mode offer, lit when on. On one line
+        // (phones) the rarer ones only while on: there is no room for all.
+        const base = ["NB", "NR", "ANF", "APF", "BC"]
+        for (const k of ["NB", "NR", "ANF", "NRL", "ANFL", "ANFT", "NRS", "RNN", "NRF", "APF", "BC"]) {
+            if (keys.indexOf(k) < 0) continue
+            const on = Engine.dspOn(k)
+            if (info.singleLine && !on && base.indexOf(k) < 0) continue
+            out.push({ text: k, on: on })
         }
-        for (const k of ["NRL", "ANFL", "ANFT", "NRS", "RNN", "NRF"]) {
-            if (Engine.dspOn(k)) out.push({ text: k, on: true })
-        }
-        if (Engine.dspKeys.indexOf("APF") >= 0) out.push({ text: "APF", on: Engine.dspOn("APF") })
-        if (Engine.dspKeys.indexOf("BC") >= 0) out.push({ text: "BC", on: Engine.dspOn("BC") })
         if (Engine.cwMode) out.push({ text: "QSK", on: Engine.cwBreakIn })
         return out
     }
