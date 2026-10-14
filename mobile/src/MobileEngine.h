@@ -79,7 +79,8 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool nb READ nb WRITE setNb NOTIFY dspChanged)
     Q_PROPERTY(bool anf READ anf WRITE setAnf NOTIFY dspChanged)
     // The radio-side DSP toggles this radio and mode offer (as the desktop
-    // VFO's DSP grid): NR NB ANF, APF in CW, the LMS/FFT and 8000-series sets.
+    // VFO's DSP grid): NR NB ANF, APF in CW, the LMS/FFT and 8000-series sets,
+    // and the app's own beat cancel (BC) in voice modes.
     Q_PROPERTY(QStringList dspKeys READ dspKeys NOTIFY dspChanged)
     Q_PROPERTY(QString agcMode READ agcMode WRITE setAgcMode NOTIFY dspChanged)
     // AGC threshold (AGC-T, 0…100) of the active slice.
@@ -266,6 +267,10 @@ public:
     QStringList dspKeys() const;
     Q_INVOKABLE bool dspOn(const QString& key) const;
     Q_INVOKABLE void setDsp(const QString& key, bool on);
+    // Beat cancel (BC, client-side): remembered; runs in voice modes only.
+    bool beatCancelSetting() const;
+    bool beatCancelMode() const;
+    void applyBeatCancel();
     QString agcMode() const;
     void setAgcMode(const QString& mode);
     QStringList agcModes() const;

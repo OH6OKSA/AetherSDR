@@ -5692,9 +5692,27 @@ void AudioEngine::processMixedRxAudioData(const QByteArray& pcm,
         // One set of scratch buffers for every source, as before this change:
         // writeAudio runs on the audio thread and each call finishes before
         // the next begins, so a Kiwi block and a main block never share one.
+        // Beat cancel (BC) on the radio's own receive audio, ahead of the
+        // chain: steady carriers (someone tuning up) are notched out.
+        // Skipped during TX like the chain.
+        const QByteArray* chainInput = &data;
+        const bool beatCancel = source == RxDspSource::Main && !externalSource
+            && !bypassRxChainForTx && m_beatCancelEnabled.load(std::memory_order_relaxed);
+        if (beatCancel) {
+            const int rate = m_rxProducerRate.load();
+            if (!m_beatCancelWasOn || m_beatCanceller.sampleRate() != std::max(8000, rate)) {
+                m_beatCanceller.setSampleRate(rate);
+            }
+            m_beatCancelScratch = data;
+            m_beatCanceller.processStereo(reinterpret_cast<float*>(m_beatCancelScratch.data()),
+                static_cast<int>(m_beatCancelScratch.size() / (2 * qsizetype(sizeof(float)))));
+            chainInput = &m_beatCancelScratch;
+        }
+        m_beatCancelWasOn = beatCancel;
+
         const QByteArray* postEqSource = nullptr;
         const QByteArray* stageSource = runRxChain(
-            m_rxChainPacked.load(std::memory_order_acquire), data, chainModules,
+            m_rxChainPacked.load(std::memory_order_acquire), *chainInput, chainModules,
             m_rxChainScratch, bypassRxChainForTx, &postEqSource);
 
         // Tap post-EQ audio into the ring buffer for the editor's FFT

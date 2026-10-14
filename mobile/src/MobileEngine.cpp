@@ -2083,6 +2083,30 @@ int MobileEngine::filterHigh() const
     return m_slice ? m_slice->filterHigh() : 0;
 }
 
+bool MobileEngine::beatCancelMode() const
+{
+    if (!m_slice) {
+        return false;
+    }
+    const QString m = m_slice->mode();
+    return m == QLatin1String("USB") || m == QLatin1String("LSB") || m == QLatin1String("AM")
+        || m == QLatin1String("SAM") || m == QLatin1String("DSB") || ModeFilters::isFmMode(m)
+        || m == QLatin1String("DFM");
+}
+
+bool MobileEngine::beatCancelSetting() const
+{
+    return AppSettings::instance().value(QStringLiteral("MobileBeatCancel"), QStringLiteral("0")).toString()
+        == QLatin1String("1");
+}
+
+void MobileEngine::applyBeatCancel()
+{
+    if (m_audio) {
+        m_audio->setBeatCancelEnabled(beatCancelSetting() && beatCancelMode());
+    }
+}
+
 QStringList MobileEngine::dspKeys() const
 {
     if (!m_slice) {
@@ -2107,6 +2131,10 @@ QStringList MobileEngine::dspKeys() const
         }
         keys << QStringLiteral("NRF");
     }
+    // Client-side: beat cancel (this app's audio, not the radio).
+    if (beatCancelMode()) {
+        keys << QStringLiteral("BC");
+    }
     return keys;
 }
 
@@ -2125,6 +2153,7 @@ bool MobileEngine::dspOn(const QString& key) const
     if (key == QLatin1String("NRS")) return m_slice->nrsOn();
     if (key == QLatin1String("RNN")) return m_slice->rnnOn();
     if (key == QLatin1String("NRF")) return m_slice->nrfOn();
+    if (key == QLatin1String("BC")) return beatCancelSetting();
     return false;
 }
 
@@ -2143,6 +2172,12 @@ void MobileEngine::setDsp(const QString& key, bool on)
     else if (key == QLatin1String("NRS")) m_slice->setNrs(on);
     else if (key == QLatin1String("RNN")) m_slice->setRnn(on);
     else if (key == QLatin1String("NRF")) m_slice->setNrf(on);
+    else if (key == QLatin1String("BC")) {
+        AppSettings::instance().setValue(QStringLiteral("MobileBeatCancel"), on ? QStringLiteral("1") : QStringLiteral("0"));
+        AppSettings::instance().save();
+        applyBeatCancel();
+        emit dspChanged();
+    }
 }
 
 QList<int> MobileEngine::filterPresets() const
@@ -2336,6 +2371,7 @@ void MobileEngine::bindSlice(SliceModel* slice)
     }
     m_sliceConnections.clear();
     m_slice = slice;
+    applyBeatCancel();
     if (slice) {
         m_sliceConnections.append(connect(slice, &SliceModel::frequencyChanged, this, &MobileEngine::frequencyChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::modeChanged));
@@ -2357,6 +2393,8 @@ void MobileEngine::bindSlice(SliceModel* slice)
         }
         // The DSP set changes with the mode (APF in CW, none of the 8000s in FM).
         m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::dspChanged));
+        // Beat cancel only on voice: it would notch CW and data tones.
+        m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::applyBeatCancel));
         m_sliceConnections.append(connect(slice, &SliceModel::agcModeChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::agcThresholdChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::stepChanged, this, &MobileEngine::stepChanged));

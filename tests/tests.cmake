@@ -3705,6 +3705,14 @@ add_executable(biquad_test
 target_include_directories(biquad_test PRIVATE src)
 add_test(NAME biquad_test COMMAND biquad_test)
 
+add_executable(beat_canceller_test
+    tests/beat_canceller_test.cpp
+    src/core/BeatCanceller.cpp
+    src/core/Biquad.cpp
+)
+target_include_directories(beat_canceller_test PRIVATE src)
+add_test(NAME beat_canceller_test COMMAND beat_canceller_test)
+
 
 # Socket/device-free tests of the real optional wrappers. The local C API
 # substitutes only apply half-gain and expose sample counts; these tests do

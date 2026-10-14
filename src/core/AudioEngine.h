@@ -4,6 +4,7 @@
 
 #include <QObject>
 #include "RxChainRunner.h"
+#include "BeatCanceller.h"
 
 #include <QAudioSink>
 #include <QAudioSource>
@@ -338,6 +339,10 @@ public:
     // Client-side NR2 (spectral noise reduction)
     // Q_INVOKABLE: called from main thread, runs on audio worker thread (#502)
     Q_INVOKABLE void setNr2Enabled(bool on);
+    // Beat cancel (BC): notch steady carriers out of the main receive audio.
+    // Off by default; any thread.
+    void setBeatCancelEnabled(bool on) { m_beatCancelEnabled.store(on, std::memory_order_relaxed); }
+    bool beatCancelEnabled() const { return m_beatCancelEnabled.load(std::memory_order_relaxed); }
     bool nr2Enabled() const { return m_nr2Enabled.load(); }
     // NR2 user-adjustable parameters (thread-safe via atomic in SpectralNR)
     void setNr2GainMax(float v);
@@ -1475,6 +1480,12 @@ private:
     // because runRxChain() takes them together — the stages run in the
     // operator's order, so no one buffer belongs to a fixed position.
     RxChainScratch m_rxChainScratch;
+    // Beat cancel: audio thread state, its scratch and the last state seen
+    // (reset on each enable so old tracks don't linger).
+    std::atomic<bool> m_beatCancelEnabled{false};
+    BeatCanceller m_beatCanceller;
+    QByteArray m_beatCancelScratch;
+    bool m_beatCancelWasOn{false};
     // Post-EQ analyzer tap. One ring per path, mono (L+R averaged).
     // Audio thread writes via tapClientEqRxStereo() / tapClientEqTxFloat32();
     // UI thread snapshots via the public

@@ -998,6 +998,7 @@ set(CORE_SOURCES
     src/core/AetherRxProfiles.cpp
     src/core/AetherTxProfiles.cpp
     src/core/Biquad.cpp
+    src/core/BeatCanceller.cpp
     src/core/StereoBiquad.cpp
     src/core/ClientEq.cpp
     src/core/ClientComp.cpp
