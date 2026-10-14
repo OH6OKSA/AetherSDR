@@ -7,6 +7,7 @@
 #include "core/PacketLossConcealment.h"
 #include "core/VitaBinCoverage.h"
 #include "core/backends/flex/VitaSequenceLossReport.h"
+#include "core/backends/flex/VitaSequenceTracker.h"
 
 #include <QObject>
 #include <QUdpSocket>
@@ -319,6 +320,10 @@ private:
     void restartAllStreamSequences();
     struct StreamStats {
         int  lastSeq{-1};
+        // Spectrum, waterfall and meter streams: losses net of reordering
+        // (audio keeps the per-packet check its concealment relies on).
+        VitaSequenceTracker reorderTracker;
+        int  reorderedCount{0};
         int  errorCount{0};
         int  totalCount{0};
         bool started{false};       // this instance has seen its first packet
