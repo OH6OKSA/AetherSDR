@@ -115,7 +115,19 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
-    connect(&rm, &RadioModel::sliceRemoved, this, [this](int) {
+    connect(&rm, &RadioModel::sliceRemoved, this, [this](int id) {
+        // The split's TX slice closed (here, another client or the radio):
+        // transmit goes back to the RX slice; either side gone ends split.
+        if (id == m_splitTxId || id == m_splitRxId) {
+            if (id == m_splitTxId) {
+                if (SliceModel* rx = m_session.radioModel().slice(m_splitRxId)) {
+                    rx->setTxSlice(true);
+                }
+            }
+            qCInfo(lcMobile) << "split off: slice" << id << "closed";
+            m_splitRxId = m_splitTxId = -1;
+            m_splitPending = false;
+        }
         selectActiveSlice();
         emit slicesChanged();
     });
@@ -1464,6 +1476,53 @@ void MobileEngine::addSlice()
     rm.addSliceOnPan(pan->panId());
 }
 
+bool MobileEngine::splitActive() const
+{
+    return m_splitPending || (m_splitTxId >= 0 && m_session.radioModel().slice(m_splitTxId));
+}
+
+bool MobileEngine::splitAvailable() const
+{
+    return splitActive() || (m_slice && canAddSlice() && m_caps.canTransmit);
+}
+
+void MobileEngine::toggleSplit()
+{
+    RadioModel& rm = m_session.radioModel();
+    if (splitActive()) {
+        SliceModel* rx = rm.slice(m_splitRxId);
+        SliceModel* tx = rm.slice(m_splitTxId);
+        stopTransmit(QStringLiteral("split off"));
+        if (rx) {
+            rx->setTxSlice(true);
+        }
+        m_splitPending = false;
+        m_splitRxId = m_splitTxId = -1;
+        if (tx && rm.slices().size() > 1) {
+            rm.removeSlice(tx->sliceId());
+        }
+        if (rx) {
+            selectSlice(rx->sliceId());
+        }
+        qCInfo(lcMobile) << "split off";
+        emit slicesChanged();
+        return;
+    }
+    if (!m_slice || !m_pan || !canAddSlice()) {
+        setLastError(tr("No free slice for the transmit side of a split."));
+        return;
+    }
+    const QString mode = m_slice->mode();
+    const bool cw = mode == QLatin1String("CW") || mode == QLatin1String("CWL") || mode == QLatin1String("CWU");
+    const double txMhz = m_slice->frequency() + (cw ? 0.001 : 0.005);
+    m_splitRxId = m_slice->sliceId();
+    m_splitTxId = -1;
+    m_splitPending = true;
+    setLastError(QString());
+    rm.addSliceOnPan(m_pan->panId(), txMhz);
+    emit slicesChanged();
+}
+
 void MobileEngine::removeSlice(int sliceId)
 {
     RadioModel& rm = m_session.radioModel();
@@ -1645,13 +1704,14 @@ void MobileEngine::setCwBreakIn(bool on)
 }
 
 namespace {
-constexpr int kCwMemoryCount = 6;
+constexpr int kCwMemoryCount = 9;
 QString cwMemoryKey(int index)
 {
     return QStringLiteral("MobileCwMemory%1").arg(index + 1);
 }
 const char* const kCwMemoryDefaults[kCwMemoryCount] = {
     "CQ CQ CQ DE {CALL} {CALL} K", "{CALL}", "5NN TU", "TU 73", "QRZ?", "AGN?",
+    "QRL?", "R R TU 73", "",
 };
 } // namespace
 
@@ -2054,6 +2114,13 @@ void MobileEngine::sendCwx(const QString& text)
         return;
     }
     qCInfo(lcMobile) << "CWX sent" << trimmed.size() << "characters";
+    // What we send shows in the decoder's text too, marked, so the exchange
+    // reads both ways (the receiver hears nothing of it while transmitting).
+    m_cwDecodedText += QStringLiteral("\n[TX] %1\n").arg(trimmed.toUpper());
+    if (m_cwDecodedText.size() > kCwDecodedMaxChars) {
+        m_cwDecodedText = m_cwDecodedText.right(kCwDecodedMaxChars);
+    }
+    emit cwDecoderChanged();
 }
 
 void MobileEngine::stopCwx()
@@ -2375,6 +2442,20 @@ void MobileEngine::wireRxAudio()
 
 void MobileEngine::onSliceAdded(SliceModel* slice)
 {
+    // The split's TX slice: same mode as the RX slice, muted (the RX slice
+    // is what you listen to), transmits, and gets focus to tune the offset.
+    if (m_splitPending && slice->sliceId() != m_splitRxId) {
+        m_splitPending = false;
+        m_splitTxId = slice->sliceId();
+        if (SliceModel* rx = m_session.radioModel().slice(m_splitRxId); rx && slice->mode() != rx->mode()) {
+            slice->setMode(rx->mode());
+        }
+        slice->setAudioMute(true);
+        slice->setTxSlice(true);
+        qCInfo(lcMobile) << "split on: RX slice" << m_splitRxId << "TX slice" << m_splitTxId
+                         << "at" << slice->frequency();
+        QMetaObject::invokeMethod(this, [this, id = m_splitTxId] { selectSlice(id); }, Qt::QueuedConnection);
+    }
     connect(slice, &SliceModel::activeChanged, this, [this](bool) { selectActiveSlice(); });
     for (auto signal : {&SliceModel::frequencyChanged}) {
         connect(slice, signal, this, &MobileEngine::slicesChanged);

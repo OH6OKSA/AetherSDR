@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AetherMobile
 
 // The active slice at a glance and in reach, after the slice flag of
-// SmartSDR-style clients: slice letter, TX tag, RX antenna (blue), TX
+// SmartSDR-style clients: slice letter, TX tag, SPLIT, RX antenna (blue), TX
 // antenna (red), filter width, the speaker and the tuning lock; then the
 // DSP flags (lit when on) and AGC, which can run long. Each is a
 // finger-sized target with its choices behind it: antennas open their
@@ -21,7 +21,7 @@ Item {
         }
         return null
     }
-    readonly property real fontPx: singleLine ? Math.round(Theme.buttonFont * 0.95)
+    readonly property real fontPx: singleLine ? Math.round(Theme.buttonFont * 0.85)
                                               : Math.round(Theme.buttonFont * 1.15)
     // Height of a row, and so of every target in it.
     readonly property real rowH: singleLine ? Theme.touchTarget : Math.round(Theme.touchTarget * 0.8)
@@ -66,8 +66,9 @@ Item {
         property alias color: label.color
         property real fontPx: 16
         property real rowH: 40
+        property real pad: 12
         signal tapped()
-        implicitWidth: label.implicitWidth + 12
+        implicitWidth: label.implicitWidth + pad
         implicitHeight: rowH
         Rectangle {
             anchors.fill: parent
@@ -133,12 +134,25 @@ Item {
                     }
                 }
             }
+            // Split, as the SPLIT badge of the SmartSDR/AetherSDR slice
+            // flag: tap for a TX slice beside this one, tap again to end it.
+            Hit {
+                objectName: "splitHit"
+                visible: Engine.splitAvailable
+                text: "SPLIT"
+                color: Engine.splitActive ? Theme.warning : info.dim
+                fontPx: info.fontPx
+                rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
+                onTapped: Engine.toggleSplit()
+            }
             Hit {
                 visible: Engine.rxAntenna.length > 0
                 text: Engine.rxAntenna
                 color: info.rxColor
                 fontPx: info.fontPx
                 rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
                 onTapped: rxChooser.open()
             }
             Hit {
@@ -147,6 +161,7 @@ Item {
                 color: Theme.transmit
                 fontPx: info.fontPx
                 rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
                 onTapped: txChooser.open()
             }
             Hit {
@@ -155,11 +170,12 @@ Item {
                 color: info.rxColor
                 fontPx: info.fontPx
                 rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
                 onTapped: filterChooser.open()
             }
             // Speaker: tap to mute.
             Item {
-                implicitWidth: Math.max(info.rowH * 0.9, speaker.width + 12)
+                implicitWidth: info.singleLine ? speaker.width + 10 : Math.max(info.rowH * 0.9, speaker.width + 12)
                 implicitHeight: info.rowH
                 Canvas {
                     id: speaker
@@ -192,7 +208,7 @@ Item {
             }
             // Tuning lock: tap to lock; flashes when a tune is refused.
             Item {
-                implicitWidth: Math.max(info.rowH * 0.9, lockIcon.width + 12)
+                implicitWidth: info.singleLine ? lockIcon.width + 12 : Math.max(info.rowH * 0.9, lockIcon.width + 12)
                 implicitHeight: info.rowH
                 Rectangle {
                     anchors.fill: parent
@@ -247,7 +263,7 @@ Item {
             spacing: 0
             // DSP flags: tap for the filter/DSP chooser.
             Item {
-                implicitWidth: flagRow.implicitWidth + 12
+                implicitWidth: flagRow.implicitWidth + (info.singleLine ? 6 : 12)
                 implicitHeight: info.rowH
                 Rectangle {
                     anchors.fill: parent
@@ -277,6 +293,7 @@ Item {
                 color: info.rxColor
                 fontPx: info.fontPx
                 rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
                 onTapped: agcChooser.open()
             }
         }

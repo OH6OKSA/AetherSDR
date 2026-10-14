@@ -108,6 +108,9 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QVariantList slices READ slices NOTIFY slicesChanged)
     Q_PROPERTY(int activeSliceId READ activeSliceId NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddSlice READ canAddSlice NOTIFY slicesChanged)
+    // Split, as SmartSDR/AetherSDR: a TX slice beside the RX slice.
+    Q_PROPERTY(bool splitActive READ splitActive NOTIFY slicesChanged)
+    Q_PROPERTY(bool splitAvailable READ splitAvailable NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddPanadapter READ canAddPanadapter NOTIFY slicesChanged)
     // This client's panadapters. The app shows one; the others still stream.
     Q_PROPERTY(int panCount READ panCount NOTIFY slicesChanged)
@@ -139,7 +142,7 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool eqRxEnabled READ eqRxEnabled NOTIFY eqChanged)
     Q_PROPERTY(QVariantList eqTxBands READ eqTxBands NOTIFY eqChanged)
     Q_PROPERTY(QVariantList eqRxBands READ eqRxBands NOTIFY eqChanged)
-    // CW memories (six, remembered): sent through CWX; {CALL} becomes the
+    // CW memories (nine, remembered): sent through CWX; {CALL} becomes the
     // radio's callsign.
     Q_PROPERTY(QStringList cwMemories READ cwMemories NOTIFY cwMemoriesChanged)
     // Display levels (remembered, client-side like the desktop's SW auto
@@ -477,6 +480,13 @@ public:
     Q_INVOKABLE void setFilterWidth(int widthHz);
     Q_INVOKABLE void selectSlice(int sliceId);
     Q_INVOKABLE void addSlice();
+    // Split on: a TX slice on the same pan, 1 kHz up in CW, 5 kHz up
+    // otherwise, same mode, muted, takes transmit and focus (to tune the TX
+    // offset); the RX slice keeps listening. Off: transmit back to the RX
+    // slice and the TX slice closes.
+    Q_INVOKABLE void toggleSplit();
+    bool splitActive() const;
+    bool splitAvailable() const;
     Q_INVOKABLE void removeSlice(int sliceId);
     Q_INVOKABLE void makeTxSlice(int sliceId);
     // A new panadapter (with its own slice, created by the radio's defaults).
@@ -590,6 +600,11 @@ private:
     std::unique_ptr<RadioDiscoverySource> m_discovery;
     QThread* m_audioThread{nullptr};
     AudioEngine* m_audio{nullptr};
+    // Split: the listening and transmitting slices (-1: none); pending while
+    // the TX slice is being created.
+    int m_splitRxId{-1};
+    int m_splitTxId{-1};
+    bool m_splitPending{false};
     QList<QMetaObject::Connection> m_rxAudioConnections;
     QList<QMetaObject::Connection> m_sliceConnections;
     QList<QMetaObject::Connection> m_panConnections;
