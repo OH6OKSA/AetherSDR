@@ -4,12 +4,11 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• BC (beat cancel): Filter-napin valikossa, puhemodeissa. Poistaa virityskantoaallon (joku tunaa taajuudella) noin 0,15 s:ssa; puheeseen ei saa vaikuttaa. Kerro, toimiiko oikeassa tilanteessa.
-• Filter-nappi lukon vieressä: näyttää leveyden ja päällä olevat DSP:t (esim. 2.7 kHz · NB). Valikossa moden 8 filtteriä ja radion DSP:t (NR, NB, ANF, NRL…).
-• Mode: napauta modea taajuuden vieressä.
-• Mittarit slice-rivillä slicen ja +Slice/+Pan-nappien välissä; kummallekin oma tyyli (palkki/analoginen) mittarin omasta valikosta.
-• TX-slice punaisella TX-merkillä; useat slicet allekkain.
-• Taajuusasteikko vesiputouksen yläreunassa.
+• Infopalkki taajuuden vieressä: slice, TX, RX- ja TX-antenni, filtterin leveys, kaiutin, lukko, DSP-tilat ja AGC. Napauta: antenni → antennivalinta, leveys tai DSP → filtterit ja DSP (NR, NB, ANF… ja BC), AGC → AGC-tila, kaiutin → mute, lukko → lukitus. Filter- ja lukkonappi poistuivat, samoin AGC, antennit ja Mute Controlsista.
+• Mittarit slice-rivin laidoilla, slicet keskellä 2×2 (kokeile 3–4 slicella myös iPhonella). Mittarit pysyvät oikean muotoisina pienillä näytöillä.
+• +Slice ja +Pan vesiputouksen oikeassa alakulmassa.
+• BC (beat cancel; infopalkki → DSP, puhemodeissa) poistaa virityskantoaallon ja kirjaa sen lokiin; kokeile, kun joku virittää taajuudella.
+• Lokissa näkyy buildin numero; turhat "sequence errors" -rivit poistuivat.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
@@ -26,7 +25,7 @@ VESIPUTOUS JA VIRITYS
 • Virittäessä sormi näytön reunalla jatkaa vieritystä ja kiihtyy reunaa kohti.
 • Step-painikkeet ±1 Hz … ±1 kHz pyöristävät tasalukuihin (.002 +10 → .010).
 • Pinch ja −/+ (vesiputouksen vasen alakulma) zoomaavat.
-• Lock taajuuden vieressä estää virityksen ja välähtää, jos viritystä yritetään.
+• Lukko (infopalkissa) estää virityksen ja välähtää, jos viritystä yritetään.
 • Taajuuden syöttö (napauta taajuutta): numerot ja taajuus näkyvät kokonaan myös iPhonen vaakatilassa.
 
 NÄKYMÄ (Controls → View, iPadissa myös sivupaneelissa)
@@ -42,9 +41,10 @@ SÄÄTIMET
 • Taajuuskorjain RX ja TX, 8 kaistaa (Controls → Audio).
 • Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
 • Mittareille oma valinta vastaanottoon ja lähetykseen (esim. S/Power ja lähetyksessä SWR/Power).
-• RIT/XIT, SQL ja antennivalinnat; RF gain antennien alla; AGC-T AGC-painikkeiden alla.
+• Mode: napauta modea taajuuden vieressä.
+• RIT/XIT, SQL, RF gain ja AGC-T (Controls → DSP).
 • Muistit (Controls → Memory): napautus virittää, Save tallentaa, pitkä painallus poistaa.
-• Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
+• Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen (pitkä painallus).
 • "Close N other pans": sovellus näyttää yhden panadapterin; ylimääräiset kuluttavat kaistaa ja varaavat radion paikat.
 
 LÄHETYS [TX]
