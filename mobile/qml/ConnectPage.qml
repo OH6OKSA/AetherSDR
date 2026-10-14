@@ -54,6 +54,8 @@ Page {
                     font.bold: true
                     Layout.fillWidth: true
                 }
+                Label { text: "v" + Engine.appVersion; color: Theme.textDim; font.pixelSize: 13 }
+                AppButton { text: qsTr("Manual"); onClicked: Qt.openUrlExternally(Engine.manualUrl) }
                 AppButton { text: qsTr("Log"); onClicked: logPage.open() }
             }
 

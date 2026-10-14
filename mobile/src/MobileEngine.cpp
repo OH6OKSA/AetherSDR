@@ -1,5 +1,7 @@
 #include "MobileEngine.h"
 
+#include <QCoreApplication>
+
 #include "gui/ModeFilterPresets.h"
 #include "gui/VoiceModeGate.h"
 
@@ -2715,6 +2717,17 @@ void MobileEngine::setLastError(const QString& error)
     // show again.
     m_lastError = error;
     emit lastErrorChanged();
+}
+
+QString MobileEngine::appVersion() const
+{
+    return QStringLiteral("%1 (%2)").arg(QCoreApplication::applicationVersion(),
+                                         QStringLiteral(AETHER_MOBILE_BUILD_NUMBER));
+}
+
+QString MobileEngine::manualUrl() const
+{
+    return QStringLiteral("https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/MANUAL.md");
 }
 
 QString MobileEngine::callsign() const

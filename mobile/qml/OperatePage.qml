@@ -85,6 +85,12 @@ Page {
                 font.pixelSize: 18
                 Layout.fillWidth: true
             }
+            // App version and build, so a screenshot or report says which.
+            Label {
+                text: "v" + Engine.appVersion
+                color: Theme.textDim
+                font.pixelSize: 13
+            }
             ToolButton {
                 // Pinned panel: hide it. Hidden: open it as a drawer over the
                 // waterfall.
@@ -97,6 +103,11 @@ Page {
                         controlsDrawer.open()
                     }
                 }
+            }
+            ToolButton {
+                text: qsTr("Manual")
+                focusPolicy: Qt.NoFocus
+                onClicked: Qt.openUrlExternally(Engine.manualUrl)
             }
             ToolButton {
                 text: qsTr("Log")

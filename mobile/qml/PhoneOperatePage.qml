@@ -44,11 +44,18 @@ Page {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
+            // App version and build, so a screenshot or report says which.
+            Label {
+                text: Engine.appVersion
+                color: Theme.textDim
+                font.pixelSize: 11
+            }
             ToolButton {
                 text: qsTr("Controls")
                 focusPolicy: Qt.NoFocus
                 onClicked: controlsDrawer.open()
             }
+            ToolButton { text: qsTr("Manual"); focusPolicy: Qt.NoFocus; onClicked: Qt.openUrlExternally(Engine.manualUrl) }
             ToolButton { text: qsTr("Log"); focusPolicy: Qt.NoFocus; onClicked: logPage.open() }
             ToolButton { text: qsTr("Disconnect"); onClicked: Engine.disconnectRadio() }
         }
