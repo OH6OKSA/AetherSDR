@@ -14,10 +14,30 @@ Item {
     property bool live: false
     property string text: ""
     property bool compact: false
-    // Size unit: 1.0 at a 66 px face; text and strokes follow it.
-    readonly property real unit: Math.min(height / 72, width / 165)
+    // Size unit, from the height: text and strokes follow it. The host can
+    // size the width to fitWidth; a narrower face shrinks the unit too.
+    readonly property real unit: Math.min(height / 95, width / 140)
     // Room for the inner dBm scale and the title only on large faces.
     readonly property bool roomy: width >= 260 && height >= 130
+
+    // Geometry shared by the canvas and fitWidth (pivot at the bottom
+    // middle, the arc spanning 116 degrees above it).
+    readonly property real fontPx: Math.max(7, Math.round(8.5 * unit))
+    readonly property real headerFont: Math.max(10, Math.round(12 * unit))
+    readonly property real header: Math.round(headerFont * 1.25)
+    // The scale labels sit in a band just under the header.
+    readonly property real arcTop: header + fontPx * 1.5 + 3
+    readonly property real halfAngle: 58 * Math.PI / 180
+    // Width that holds the arc and its labels at this height, and the
+    // header (name + a value like "-102 dBm"): no empty sides.
+    readonly property real fitWidth: {
+        const u = height / 95
+        const f = Math.max(7, Math.round(8.5 * u))
+        const hf = Math.max(10, Math.round(12 * u))
+        const r = Math.max(10, height - 3 - (Math.round(hf * 1.25) + f * 1.5 + 3))
+        const arc = 2 * ((r + 4 + f * 0.8) * Math.sin(halfAngle) + f * 1.4)
+        return Math.ceil(Math.max(arc, hf * 8.5))
+    }
 
     // Eased needle, so meter jitter reads like a real movement.
     property real shown: live ? Math.max(min, Math.min(max, value)) : min
@@ -60,18 +80,17 @@ Item {
             const ctx = getContext("2d")
             const w = width, h = height
             ctx.reset()
-            const fontPx = Math.max(7, Math.round(8.5 * gauge.unit))
-            const header = Math.round(15 * gauge.unit)
+            const fontPx = gauge.fontPx
             // A wide, shallow arc whose centre sits at the bottom middle, as
             // on the AetherSDR meter: the needle hub is a dark half disc there.
             // The needle's pivot at the bottom middle, as on the AetherSDR
             // meter; the arc spans 116 degrees above it.
-            const half = 58 * Math.PI / 180
+            const half = gauge.halfAngle
             // Clear of the header text: the top scale labels sit above the arc.
-            const top = header + fontPx * 1.9 + 6
+            const top = gauge.arcTop
             const cx = w / 2
             const cy = h - 3
-            const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 2.2) / Math.sin(half)))
+            const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 1.4) / Math.sin(half) - 4 - fontPx * 0.8))
             const start = -Math.PI / 2 - half
             const end = -Math.PI / 2 + half
             const span = gauge.max - gauge.min
@@ -157,7 +176,7 @@ Item {
         x: 2; y: 0
         text: gauge.kind === "S" && gauge.live ? gauge.parts[0] : gauge.shortName
         color: "#3fb6ff"
-        font.pixelSize: Math.max(10, Math.round(12 * gauge.unit))
+        font.pixelSize: gauge.headerFont
         font.bold: true
     }
     Text {
@@ -178,7 +197,7 @@ Item {
         elide: Text.ElideLeft
         text: gauge.valueText
         color: gauge.live && gauge.value >= gauge.red ? Theme.transmit : Theme.text
-        font.pixelSize: Math.max(10, Math.round(12 * gauge.unit))
+        font.pixelSize: gauge.headerFont
         font.bold: true
     }
 }

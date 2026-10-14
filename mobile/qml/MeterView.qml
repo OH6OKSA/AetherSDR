@@ -24,6 +24,8 @@ Item {
     // Height of an analog face; the host sizes it to the space available.
     property real faceHeight: compact ? 66 : 92
     implicitHeight: analog ? faceHeight : (compact ? 34 : 44)
+    // Width the analog face needs at its height (no empty sides).
+    readonly property real analogFitWidth: gauge.fitWidth
 
     // value, min, max, text, alarm level and whether the reading is live
     readonly property var reading: {
@@ -57,6 +59,7 @@ Item {
     }
 
     AnalogGauge {
+        id: gauge
         anchors.fill: parent
         visible: meter.analog
         compact: meter.compact

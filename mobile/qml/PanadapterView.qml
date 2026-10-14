@@ -219,9 +219,9 @@ Rectangle {
         readonly property real faceWidth: Math.max(110, Math.min(240, panArea.width * 0.28))
         readonly property real dialHeight: Math.min(faceWidth * 0.55, panArea.height * 0.32)
         z: 6
-        y: 4
-        // An analog face keeps its proportions: as wide as its height allows.
-        width: meterView.analog ? Math.min(faceWidth, dialHeight / 0.55) : faceWidth
+        y: 2
+        // An analog face is as wide as its dial and labels need, no wider.
+        width: meterView.analog ? Math.min(faceWidth, meterView.analogFitWidth + 8) : faceWidth
         height: meterView.implicitHeight + 8
         radius: Theme.radius
         color: Theme.surface
