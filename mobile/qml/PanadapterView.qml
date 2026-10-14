@@ -237,6 +237,29 @@ Rectangle {
         }
     }
 
+    // RF gain at the top right of the spectrum, under the right meter, as
+    // the desktop shows the preamp/attenuator on the display.
+    Rectangle {
+        z: 5
+        visible: Engine.connectionState === "connected"
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 6
+        width: rfText.implicitWidth + 12
+        height: rfText.implicitHeight + 6
+        radius: 4
+        color: Theme.surface
+        opacity: 0.85
+        Text {
+            id: rfText
+            anchors.centerIn: parent
+            text: qsTr("RF %1%2 dB").arg(Engine.rfGain > 0 ? "+" : "").arg(Engine.rfGain)
+            color: Engine.rfGain > 0 ? "#3fb6ff" : Engine.rfGain < 0 ? Theme.warning : Theme.text
+            font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+            font.bold: true
+        }
+    }
+
     // "+ Slice" / "+ Pan", bottom right of the waterfall, the size of the
     // zoom buttons (wider only where the label needs it, iPhone).
     Row {
