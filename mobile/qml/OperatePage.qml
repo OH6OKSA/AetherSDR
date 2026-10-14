@@ -56,6 +56,8 @@ Page {
     // The info panel goes under the frequency only where the frequency row
     // has no room for it (narrow Split View).
     readonly property bool infoUnder: width < 700
+    // PTT height, shared with the drawer's copy of the button.
+    readonly property real pttHeight: (compact ? 2 : 3) * Theme.touchTarget
     readonly property bool portrait: height > width
     // Landscape side column: the control panel, or just a PTT strip when the
     // panel is hidden. Fixed, so content can never widen it off screen.
@@ -235,45 +237,11 @@ Page {
                 Layout.fillHeight: true
             }
 
-            AppButton {
+            PttButton {
                 id: ptt
                 Layout.fillWidth: true
-                Layout.preferredHeight: (page.compact ? 2 : 3) * Theme.touchTarget
-                // Stays enabled while held: disabling a pressed button cancels
-                // the press, which would unkey mid-transmission.
-                // In CW modes the button is the straight key (KEY), in the same place.
-                readonly property bool keyMode: Engine.cwMode && !Engine.tuning
-                enabled: (keyMode ? Engine.cwKeyAvailable : Engine.transmitAvailable) || Engine.tuning || pressed
-                text: Engine.tuning ? qsTr("TUNE") : keyMode ? (Engine.cwKeyDown ? qsTr("KEY ●") : qsTr("KEY"))
-                      : Engine.transmitting ? qsTr("TX") : qsTr("PTT")
-                focusPolicy: Qt.NoFocus
-                font.pixelSize: 32
-                font.bold: true
-                // Ready, unavailable and transmitting must look different at a
-                // glance: ready has a bright border and label, unavailable is dim.
-                contentItem: Text {
-                    text: ptt.text
-                    font: ptt.font
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    color: ptt.enabled ? "white" : Theme.textDim
-                    opacity: ptt.enabled ? 1.0 : 0.5
-                }
-                background: Rectangle {
-                    radius: Theme.radius
-                    color: Engine.transmitting || Engine.tuning || Engine.cwKeyDown ? Theme.transmit
-                         : ptt.enabled ? Theme.pttReady : Theme.surface
-                    border.width: Engine.transmitting ? 3 : ptt.enabled ? 2 : 1
-                    border.color: Engine.transmitting ? "white"
-                                : ptt.enabled ? Theme.transmit : Theme.surfaceRaised
-                }
-                // Hold to transmit; release (or losing the touch) always unkeys.
-                // While the tune carrier is on, PTT is its off switch.
-                onPressed: Engine.tuning ? Engine.stopTransmit("PTT pressed during tune")
-                         : keyMode ? Engine.setCwKey(true) : Engine.setPtt(true)
-                onReleased: keyMode ? Engine.setCwKey(false, "key released") : Engine.setPtt(false, "button released")
-                onCanceled: keyMode ? Engine.setCwKey(false, "touch cancelled by the system")
-                                    : Engine.setPtt(false, "touch cancelled by the system")
+                Layout.preferredHeight: page.pttHeight
+                fontPx: 32
             }
         }
     }
@@ -299,15 +267,27 @@ Page {
             radius: Theme.radius
         }
 
-        ControlsPanel {
+        // The controls scroll above the drawer's own PTT/KEY, which sits where
+        // the page's button is: the drawer never covers it.
+        ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.spacing
             anchors.bottomMargin: Theme.spacing + controlsDrawer.SafeArea.margins.bottom
             anchors.rightMargin: Theme.spacing + controlsDrawer.SafeArea.margins.right
-            showPinButton: true
-            onPinRequested: {
-                controlsDrawer.close()
-                Engine.controlsVisible = true
+            spacing: Theme.spacing
+            ControlsPanel {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                showPinButton: true
+                onPinRequested: {
+                    controlsDrawer.close()
+                    Engine.controlsVisible = true
+                }
+            }
+            PttButton {
+                Layout.fillWidth: true
+                Layout.preferredHeight: page.pttHeight
+                fontPx: 32
             }
         }
     }

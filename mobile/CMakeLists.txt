@@ -67,6 +67,7 @@ qt_add_qml_module(aether-mobile
         qml/ChooserPopup.qml
         qml/AgcChooser.qml
         qml/RepeatButton.qml
+        qml/PttButton.qml
         qml/Caret.qml
         qml/MeterBadge.qml
         qml/InfoPanel.qml
