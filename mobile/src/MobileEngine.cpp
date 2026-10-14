@@ -126,6 +126,15 @@ MobileEngine::MobileEngine(QObject* parent)
         emit slicesChanged();
     });
     connect(&rm, &RadioModel::panadapterReclaimed, this, [this](PanadapterModel*) { selectActiveSlice(); });
+    // The radio's reason when its interlock refuses transmit (no TX slice,
+    // TX antenna, band inhibit...), not just "did not accept".
+    connect(&rm, &RadioModel::interlockNotificationRequested, this,
+            [this](const QString& message, const QString& key, const QString&) {
+        qCWarning(lcMobile).noquote() << "transmit refused:" << message << "(" + key + ")";
+        setLastError(message);
+    });
+    // Which slice transmits changes what PTT/TUNE can do.
+    connect(this, &MobileEngine::slicesChanged, this, &MobileEngine::transmitStateChanged);
     connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
         // With no slice at all the app cannot tune: say why and what helps.
         if (m_session.radioModel().slices().isEmpty()) {
@@ -786,6 +795,13 @@ QString MobileEngine::transmitUnavailableReason() const
     }
     if (!m_caps.canTransmit) {
         return tr("This radio is receive-only.");
+    }
+    // No slice transmits (e.g. the TX slice was closed): the radio's
+    // interlock refuses PTT and TUNE.
+    const QList<SliceModel*> slices = m_session.radioModel().slices();
+    if (!slices.isEmpty()
+        && std::none_of(slices.cbegin(), slices.cend(), [](SliceModel* s) { return s->isTxSlice(); })) {
+        return tr("No slice transmits: press and hold a slice and choose Make TX slice.");
     }
     const QString mic = m_session.radioModel().transmitModel().micSelection();
     if (mic != kDeviceMicSelection) {
@@ -1457,6 +1473,18 @@ void MobileEngine::removeSlice(int sliceId)
     }
     if (SliceModel* s = rm.slice(sliceId); s && s->isTxSlice()) {
         stopTransmit(QStringLiteral("TX slice closed"));
+        // Hand transmit to the slice that stays (the active one if it is not
+        // the one going): otherwise no slice transmits and PTT/TUNE stop.
+        SliceModel* heir = (m_slice && m_slice != s) ? m_slice : nullptr;
+        for (SliceModel* o : rm.slices()) {
+            if (!heir && o != s) {
+                heir = o;
+            }
+        }
+        if (heir) {
+            qCInfo(lcMobile) << "TX slice" << s->letter() << "closed: transmit moves to" << heir->letter();
+            heir->setTxSlice(true);
+        }
     }
     rm.removeSlice(sliceId);
 }
