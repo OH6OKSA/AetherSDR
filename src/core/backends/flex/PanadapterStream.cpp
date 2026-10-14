@@ -875,9 +875,17 @@ void PanadapterStream::processDatagram(const QByteArray& data)
         if (lossHeldBackErrors > 0) {
             qCWarning(lcVita49).noquote() << formatVitaSequenceLossSuppressed(lossHeldBackErrors);
         }
-        qCWarning(lcVita49).noquote()
-            << formatVitaSequenceLoss(streamCategoryName(cat), streamId, lossErrors,
-                                      lossWindowMs, lossStreamErrors, lossStreamPackets);
+        // Under 1 % of the stream lost is ordinary Wi-Fi loss nothing shows
+        // (a missing waterfall row is replaced by the next): an info line.
+        // More is a warning. Same text either way (the Log Analyzer's match).
+        const QString line =
+            formatVitaSequenceLoss(streamCategoryName(cat), streamId, lossErrors,
+                                   lossWindowMs, lossStreamErrors, lossStreamPackets);
+        if (lossStreamPackets > 0 && qint64(lossStreamErrors) * 100 < lossStreamPackets) {
+            qCInfo(lcVita49).noquote() << line;
+        } else {
+            qCWarning(lcVita49).noquote() << line;
+        }
     }
     if ((cat == CatFFT || cat == CatWaterfall) && PerfTelemetry::instance().enabled()) {
         PerfTelemetry::instance().recordStreamPacket(
