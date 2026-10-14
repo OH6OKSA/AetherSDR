@@ -67,7 +67,8 @@ Item {
             // The needle's pivot at the bottom middle, as on the AetherSDR
             // meter; the arc spans 116 degrees above it.
             const half = 58 * Math.PI / 180
-            const top = header + fontPx + 4
+            // Clear of the header text: the top scale labels sit above the arc.
+            const top = header + fontPx * 1.9 + 6
             const cx = w / 2
             const cy = h - 3
             const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 2.2) / Math.sin(half)))
@@ -141,10 +142,20 @@ Item {
         }
     }
 
-    // Header: reading's S unit or kind (left, blue), title (middle), value (right).
+    // Header: the S unit or the meter's name (left, blue), title (middle,
+    // large faces), the value alone (right): the reading's text starts with
+    // the name ("PA 16 °C", "Mic -20 dB"), which repeated it.
+    readonly property string shortName: kind === "PA temp" ? qsTr("PA Temp") : kind
+    readonly property var parts: text.trim().split(/\s+/)
+    readonly property string valueText: {
+        if (!live) return "–"
+        if (kind === "S") return parts.slice(1).join(" ")
+        return /^[A-Za-z]+$/.test(parts[0]) ? parts.slice(1).join(" ") : parts.join(" ")
+    }
     Text {
+        id: nameText
         x: 2; y: 0
-        text: gauge.kind === "S" && gauge.live ? gauge.text.trim().split(/\s+/)[0] : gauge.kind
+        text: gauge.kind === "S" && gauge.live ? gauge.parts[0] : gauge.shortName
         color: "#3fb6ff"
         font.pixelSize: Math.max(10, Math.round(12 * gauge.unit))
         font.bold: true
@@ -161,7 +172,11 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: 12
         y: 0
-        text: gauge.live ? (gauge.kind === "S" ? gauge.text.trim().split(/\s+/).slice(1).join(" ") : gauge.text) : "–"
+        // Never over the name: at most the space left of it.
+        width: Math.min(implicitWidth, gauge.width - nameText.implicitWidth - 20)
+        horizontalAlignment: Text.AlignRight
+        elide: Text.ElideLeft
+        text: gauge.valueText
         color: gauge.live && gauge.value >= gauge.red ? Theme.transmit : Theme.text
         font.pixelSize: Math.max(10, Math.round(12 * gauge.unit))
         font.bold: true

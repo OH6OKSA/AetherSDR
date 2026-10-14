@@ -60,6 +60,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption analogMetersOption(QStringLiteral("analog-meters"),
         QStringLiteral("Meter faces: on (analog) or off (bars) (remembered)."), QStringLiteral("state"));
     parser.addOption(analogMetersOption);
+    const QCommandLineOption metersOption(QStringLiteral("meters"),
+        QStringLiteral("Receive meter choices <left>,<right>, e.g. S,Volts (remembered)."), QStringLiteral("kinds"));
+    parser.addOption(metersOption);
     const QCommandLineOption devLinkOption(QStringLiteral("devlink"),
         QStringLiteral("Developer link to <host>, or off (remembered)."), QStringLiteral("host"));
     parser.addOption(devLinkOption);
@@ -129,6 +132,13 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (parser.isSet(metersOption)) {
+        const QStringList kinds = parser.value(metersOption).split(QLatin1Char(','));
+        if (kinds.size() == 2) {
+            engine.setMeterLeft(kinds.at(0));
+            engine.setMeterRight(kinds.at(1));
+        }
+    }
     if (parser.isSet(analogMetersOption)) {
         engine.setAnalogMeters(parser.value(analogMetersOption) == QLatin1String("on"));
     }
