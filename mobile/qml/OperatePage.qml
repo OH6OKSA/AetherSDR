@@ -135,10 +135,8 @@ Page {
                     // Tap for direct entry.
                     TapHandler { onTapped: freqDialog.open() }
                 }
-                Label {
-                    text: Engine.mode
-                    color: Theme.accent
-                    font.pixelSize: page.compact ? 24 : 32
+                ModeButton {
+                    fontSize: page.compact ? 24 : 32
                 }
                 LockButton {
                     Layout.preferredHeight: Theme.touchTarget
@@ -176,6 +174,9 @@ Page {
             PanadapterView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                // Close under the slice row: the meters at its top corners
+                // sit right below the buttons.
+                Layout.topMargin: -Math.round(Theme.spacing / 2)
             }
 
             // Step buttons: land on round frequencies (tuneByHz).

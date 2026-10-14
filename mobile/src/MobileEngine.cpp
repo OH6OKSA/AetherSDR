@@ -1908,7 +1908,7 @@ void MobileEngine::setLocked(bool on)
 
 QStringList MobileEngine::pinnedSections() const
 {
-    return AppSettings::instance().value(QStringLiteral("MobilePinnedSections"), QStringLiteral("Mode,DSP"))
+    return AppSettings::instance().value(QStringLiteral("MobilePinnedSections"), QStringLiteral("DSP"))
         .toString().split(QLatin1Char(','), Qt::SkipEmptyParts);
 }
 

@@ -104,36 +104,69 @@ Item {
         }
     }
 
-    // Open the chooser right under this meter (popup() alone opens at the
-    // last pointer position, which on touch can be anywhere).
-    TapHandler { onTapped: chooser.popup(meter, 0, meter.height) }
+    // Open the chooser right under this meter; the popup's margins keep it
+    // inside the window (the right meter's opens leftwards).
+    TapHandler { onTapped: chooser.open() }
 
-    // Two columns of choices: what the face shows in receive and in
-    // transmit. A tick marks the current choice of each.
-    Menu {
+    // Style and what the face shows in receive and in transmit, as the
+    // app's buttons: the current choice of each is the dark (checked) one.
+    Popup {
         id: chooser
-        MenuItem {
-            text: Engine.analogMeters ? qsTr("Style: analog  (tap for bar)") : qsTr("Style: bar  (tap for analog)")
-            onTriggered: Engine.analogMeters = !Engine.analogMeters
+        objectName: "meterChooser"
+        parent: meter
+        y: meter.height + 4
+        margins: Theme.spacing
+        padding: Theme.spacing
+        modal: false
+        background: Rectangle {
+            color: Theme.surface
+            border.color: Theme.surfaceRaised
+            radius: Theme.radius
         }
-        MenuSeparator { contentItem: Label { text: qsTr("Receive"); color: Theme.textDim; font.pixelSize: 13; padding: 6 } }
-        Repeater {
-            model: Engine.meterKinds
-            delegate: MenuItem {
-                required property string modelData
-                text: (meter.rxKind === modelData ? "✓  " : "     ") + modelData
-                font.bold: meter.rxKind === modelData
-                onTriggered: Engine.setMeter(meter.side, false, modelData)
+        readonly property real cellWidth: Math.max(Theme.buttonWidth * 0.9, 64)
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing / 2
+            Label { text: qsTr("Style"); color: Theme.textDim; font.pixelSize: Math.round(Theme.buttonFont * 0.85) }
+            RowLayout {
+                spacing: 4
+                Repeater {
+                    model: [{ label: qsTr("Bar"), analog: false }, { label: qsTr("Analog"), analog: true }]
+                    delegate: AppButton {
+                        required property var modelData
+                        text: modelData.label
+                        checked: Engine.analogMeters === modelData.analog
+                        focusPolicy: Qt.NoFocus
+                        Layout.preferredWidth: chooser.cellWidth * 2 + 4
+                        Layout.preferredHeight: Theme.touchTarget
+                        onClicked: Engine.analogMeters = modelData.analog
+                    }
+                }
             }
-        }
-        MenuSeparator { contentItem: Label { text: qsTr("Transmit"); color: Theme.textDim; font.pixelSize: 13; padding: 6 } }
-        Repeater {
-            model: Engine.meterKinds
-            delegate: MenuItem {
-                required property string modelData
-                text: (meter.txKind === modelData ? "✓  " : "     ") + modelData
-                font.bold: meter.txKind === modelData
-                onTriggered: Engine.setMeter(meter.side, true, modelData)
+            Repeater {
+                model: [{ title: qsTr("Receive"), tx: false }, { title: qsTr("Transmit"), tx: true }]
+                delegate: ColumnLayout {
+                    id: section
+                    required property var modelData
+                    spacing: Theme.spacing / 2
+                    Label { text: section.modelData.title; color: Theme.textDim; font.pixelSize: Math.round(Theme.buttonFont * 0.85) }
+                    GridLayout {
+                        columns: 4
+                        columnSpacing: 4
+                        rowSpacing: 4
+                        Repeater {
+                            model: Engine.meterKinds
+                            delegate: AppButton {
+                                required property string modelData
+                                text: modelData
+                                checked: (section.modelData.tx ? meter.txKind : meter.rxKind) === modelData
+                                focusPolicy: Qt.NoFocus
+                                Layout.preferredWidth: chooser.cellWidth
+                                Layout.preferredHeight: Theme.touchTarget
+                                onClicked: Engine.setMeter(meter.side, section.modelData.tx, modelData)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

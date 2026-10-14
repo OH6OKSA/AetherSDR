@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// The operating controls in sections (Mode, DSP, Audio, TX, CW, View,
+// The operating controls in sections (DSP, Audio, TX, CW, View,
 // Profiles, Memory). In the slide-in drawer they are tabs, one at a time.
 // Pinned to the iPad's side (multiSelect) they are toggle buttons, as
 // AetherSDR's applet buttons: every chosen section shows, one under another.
@@ -19,7 +19,6 @@ ColumnLayout {
     signal pinRequested()
 
     readonly property var sections: [
-        { name: "Mode", title: qsTr("Mode"), component: modeSection },
         { name: "DSP", title: qsTr("DSP"), component: dspSection },
         { name: "Audio", title: qsTr("Audio"), component: audioSection },
         { name: "TX", title: qsTr("TX"), component: txSection },
@@ -45,7 +44,7 @@ ColumnLayout {
     }
 
     // ---- Drawer: one section at a time, chosen from a button grid ----
-    // A grid rather than a tab bar: on an iPhone all eight sections show at
+    // A grid rather than a tab bar: on an iPhone all seven sections show at
     // once (4 x 2) instead of hiding behind a scrolling strip.
     Item {
         id: tabs
@@ -162,26 +161,6 @@ ColumnLayout {
     }
 
     // ---- Sections ----
-    Component {
-        id: modeSection
-        GridLayout {
-            columns: Math.max(1, Math.min(6, Engine.modes.length))
-            columnSpacing: 4
-            Repeater {
-                model: Engine.modes
-                delegate: AppButton {
-                    required property string modelData
-                    text: modelData
-                    leftPadding: 2
-                    rightPadding: 2
-                    checked: Engine.mode === modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Theme.touchTarget
-                    onClicked: Engine.mode = modelData
-                }
-            }
-        }
-    }
     Component {
         id: dspSection
         ColumnLayout {

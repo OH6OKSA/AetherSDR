@@ -21,13 +21,13 @@ Item {
     readonly property bool roomy: width >= 260 && height >= 130
 
     // Geometry shared by the canvas and fitWidth (pivot at the bottom
-    // middle, the arc spanning 116 degrees above it).
+    // middle, the arc spanning 132 degrees above it).
     readonly property real fontPx: Math.max(7, Math.round(8.5 * unit))
     readonly property real headerFont: Math.max(10, Math.round(12 * unit))
     readonly property real header: Math.round(headerFont * 1.25)
     // The scale labels sit in a band just under the header.
     readonly property real arcTop: header + fontPx * 1.5 + 3
-    readonly property real halfAngle: 58 * Math.PI / 180
+    readonly property real halfAngle: 66 * Math.PI / 180
     // Width that holds the arc and its labels at this height, and the
     // header (name + a value like "-102 dBm"): no empty sides.
     readonly property real fitWidth: {
@@ -35,7 +35,7 @@ Item {
         const f = Math.max(7, Math.round(8.5 * u))
         const hf = Math.max(10, Math.round(12 * u))
         const r = Math.max(10, height - 3 - (Math.round(hf * 1.25) + f * 1.5 + 3))
-        const arc = 2 * ((r + 4 + f * 0.8) * Math.sin(halfAngle) + f * 1.4)
+        const arc = 2 * ((r + 4 + f * 0.8) * Math.sin(halfAngle) + f * 1.0)
         return Math.ceil(Math.max(arc, hf * 8.5))
     }
 
@@ -51,9 +51,10 @@ Item {
     // Scale marks: [value, label, red?]
     readonly property var marks: {
         if (kind === "S") {
-            // S1 = -121 dBm, 6 dB per S unit; S9 = -73; +20 = -53; +40 = -33.
+            // S1 = -121 dBm, 6 dB per S unit; S9 = -73; +20 = -53; +40 = -33;
+            // +60 = -13, the scale's end, so the labels reach both ends.
             return [[-121, "1", false], [-109, "3", false], [-97, "5", false], [-85, "7", false],
-                    [-73, "9", false], [-53, "+20", true], [-33, "+40", true]]
+                    [-73, "9", false], [-53, "+20", true], [-33, "+40", true], [-13, "+60", true]]
         }
         const out = []
         for (let i = 0; i <= 4; ++i) {
@@ -84,13 +85,13 @@ Item {
             // A wide, shallow arc whose centre sits at the bottom middle, as
             // on the AetherSDR meter: the needle hub is a dark half disc there.
             // The needle's pivot at the bottom middle, as on the AetherSDR
-            // meter; the arc spans 116 degrees above it.
+            // meter; the arc spans 132 degrees above it.
             const half = gauge.halfAngle
             // Clear of the header text: the top scale labels sit above the arc.
             const top = gauge.arcTop
             const cx = w / 2
             const cy = h - 3
-            const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 1.4) / Math.sin(half) - 4 - fontPx * 0.8))
+            const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 1.0) / Math.sin(half) - 4 - fontPx * 0.8))
             const start = -Math.PI / 2 - half
             const end = -Math.PI / 2 + half
             const span = gauge.max - gauge.min

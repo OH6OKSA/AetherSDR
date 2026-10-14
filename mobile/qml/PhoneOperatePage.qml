@@ -82,7 +82,7 @@ Page {
                     font.family: "monospace"
                     TapHandler { onTapped: freqDialog.open() }
                 }
-                Label { text: Engine.mode; color: Theme.accent; font.pixelSize: 18 }
+                ModeButton { fontSize: 18 }
                 LockButton { implicitWidth: 44 }
                 Item { Layout.fillWidth: true }
             }
