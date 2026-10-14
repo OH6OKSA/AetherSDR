@@ -75,6 +75,16 @@ Dialog {
             horizontalAlignment: Text.AlignRight
         }
 
+        // Nothing to tune without a slice (the radio refused one): say so.
+        Label {
+            Layout.fillWidth: true
+            visible: Engine.connectionState === "connected" && Engine.slices.length === 0
+            text: qsTr("No slice: the radio has not given this app one, so it cannot tune. "
+                       + "Its slices may all be in use by other programs.")
+            color: Theme.warning
+            wrapMode: Text.Wrap
+        }
+
         GridLayout {
             columns: 3
             Layout.fillWidth: true
@@ -112,7 +122,7 @@ Dialog {
                 Layout.preferredHeight: dialog.keyHeight
                 text: qsTr("Tune")
                 font.pixelSize: 24
-                enabled: dialog.entry.length > 0
+                enabled: dialog.entry.length > 0 && Engine.slices.length > 0
                 onClicked: dialog.commit()
             }
         }
