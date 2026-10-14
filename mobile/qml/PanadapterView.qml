@@ -208,35 +208,6 @@ Rectangle {
         }
     }
 
-    // The two selectable meters in the top corners of the spectrum: left
-    // under the slices, right under "+ Slice"/"+ Pan" (tap to choose).
-    component MeterBadge: Rectangle {
-        property alias side: meterView.side
-        // Scales with the panadapter: about 28 % of its width, an analog face
-        // 0.4 of that high but at most 30 % of the panadapter's height; too
-        // little height for a readable dial (iPhone landscape) gives bars.
-        // (Dial 0.55 of its width high: pivot at the bottom, arc above.)
-        readonly property real faceWidth: Math.max(110, Math.min(240, panArea.width * 0.28))
-        readonly property real dialHeight: Math.min(faceWidth * 0.55, panArea.height * 0.32)
-        z: 6
-        y: 2
-        // An analog face is as wide as its dial and labels need, no wider.
-        width: meterView.analog ? Math.min(faceWidth, meterView.analogFitWidth + 8) : faceWidth
-        height: meterView.implicitHeight + 8
-        radius: Theme.radius
-        color: Theme.surface
-        opacity: 0.88
-        MeterView {
-            id: meterView
-            compact: true
-            analogAllowed: parent.dialHeight >= 46
-            faceHeight: parent.dialHeight
-            anchors.fill: parent
-            anchors.margins: 4
-        }
-    }
-    MeterBadge { side: "left"; x: scaleStrip.visible ? scaleStrip.width + 4 : 4 }
-    MeterBadge { side: "right"; x: panArea.width - width - 4 }
 
     // Zoom out / in, bottom left of the waterfall as in AetherSDR. Together
     // the size of one step button below (eight across the same width), each
