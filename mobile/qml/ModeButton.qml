@@ -20,11 +20,10 @@ Item {
             color: Theme.accent
             font.pixelSize: modeButton.fontSize
         }
-        Label {
+        Caret {
             anchors.verticalCenter: parent.verticalCenter
-            text: "▾"
             color: Theme.accent
-            font.pixelSize: Math.max(13, Math.round(modeButton.fontSize * 0.55))
+            size: Math.max(12, Math.round(modeButton.fontSize * 0.45))
         }
     }
     TapHandler { onTapped: chooser.open() }

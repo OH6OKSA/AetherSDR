@@ -65,6 +65,7 @@ qt_add_qml_module(aether-mobile
         qml/LockButton.qml
         qml/ModeButton.qml
         qml/FilterButton.qml
+        qml/Caret.qml
         qml/EqControls.qml
         qml/ProfileControls.qml
         qml/MemoryControls.qml

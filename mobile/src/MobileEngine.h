@@ -155,7 +155,11 @@ class MobileEngine : public QObject {
     // 2D waterfall.
     Q_PROPERTY(bool spectrum3D READ spectrum3D WRITE setSpectrum3D NOTIFY displayLevelsChanged)
     // Meter faces: analog gauges (arc and needle) instead of bars.
+    // Analog or bar, each meter on its own; analogMeters sets both (true
+    // only when both are analog).
     Q_PROPERTY(bool analogMeters READ analogMeters WRITE setAnalogMeters NOTIFY displayLevelsChanged)
+    Q_PROPERTY(bool analogLeft READ analogLeft NOTIFY displayLevelsChanged)
+    Q_PROPERTY(bool analogRight READ analogRight NOTIFY displayLevelsChanged)
     // Sections shown, one under another, in the pinned iPad control panel
     // (as AetherSDR's applet buttons), remembered.
     Q_PROPERTY(QStringList pinnedSections READ pinnedSections WRITE setPinnedSections NOTIFY displayLevelsChanged)
@@ -359,8 +363,15 @@ public:
     void setTraceRangeDb(int v) { setDisplayInt("MobileTraceRange", std::clamp(v, 20, 150)); }
     bool spectrum3D() const { return displayInt("MobileSpectrum3D", 0) != 0; }
     void setSpectrum3D(bool on) { setDisplayInt("MobileSpectrum3D", on ? 1 : 0); }
-    bool analogMeters() const { return displayInt("MobileMeterAnalog", 0) != 0; }
-    void setAnalogMeters(bool on) { setDisplayInt("MobileMeterAnalog", on ? 1 : 0); }
+    bool analogMeters() const { return analogLeft() && analogRight(); }
+    void setAnalogMeters(bool on) { setMeterAnalog(QStringLiteral("left"), on); setMeterAnalog(QStringLiteral("right"), on); }
+    // Each side falls back to the old shared setting.
+    bool analogLeft() const { return displayInt("MobileMeterAnalogLeft", displayInt("MobileMeterAnalog", 0)) != 0; }
+    bool analogRight() const { return displayInt("MobileMeterAnalogRight", displayInt("MobileMeterAnalog", 0)) != 0; }
+    Q_INVOKABLE void setMeterAnalog(const QString& side, bool on)
+    {
+        setDisplayInt(side == QLatin1String("left") ? "MobileMeterAnalogLeft" : "MobileMeterAnalogRight", on ? 1 : 0);
+    }
     QStringList pinnedSections() const;
     void setPinnedSections(const QStringList& sections);
     void setCwDecoderEnabled(bool on);

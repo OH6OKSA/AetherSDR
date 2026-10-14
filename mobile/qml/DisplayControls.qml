@@ -10,12 +10,13 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
-    // Meter faces: bars or analog gauges.
+    // Both meter faces at once: bars or analog gauges (each meter's own
+    // chooser sets just that one).
     RowLayout {
         Layout.fillWidth: true
         AppButton {
             text: qsTr("Bar meters")
-            checked: !Engine.analogMeters
+            checked: !Engine.analogLeft && !Engine.analogRight
             Layout.fillWidth: true
             focusPolicy: Qt.NoFocus
             onClicked: Engine.analogMeters = false

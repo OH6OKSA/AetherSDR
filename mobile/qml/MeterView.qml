@@ -20,7 +20,7 @@ Item {
     implicitWidth: compact ? 120 : 180
     // Where space is short (iPhone landscape) the host can ask for bars.
     property bool analogAllowed: true
-    readonly property bool analog: Engine.analogMeters && analogAllowed
+    readonly property bool analog: (side === "left" ? Engine.analogLeft : Engine.analogRight) && analogAllowed
     // Height of an analog face; the host sizes it to the space available.
     property real faceHeight: compact ? 66 : 92
     implicitHeight: analog ? faceHeight : (compact ? 34 : 44)
@@ -134,11 +134,11 @@ Item {
                     delegate: AppButton {
                         required property var modelData
                         text: modelData.label
-                        checked: Engine.analogMeters === modelData.analog
+                        checked: (meter.side === "left" ? Engine.analogLeft : Engine.analogRight) === modelData.analog
                         focusPolicy: Qt.NoFocus
                         Layout.preferredWidth: chooser.cellWidth * 2 + 4
                         Layout.preferredHeight: Theme.touchTarget
-                        onClicked: Engine.analogMeters = modelData.analog
+                        onClicked: Engine.setMeterAnalog(meter.side, modelData.analog)
                     }
                 }
             }

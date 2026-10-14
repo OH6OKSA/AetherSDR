@@ -4,8 +4,8 @@ import QtQuick.Layouts
 import AetherMobile
 
 // Receive filter, right of the tuning lock, as on SmartSDR/AetherSDR: the
-// button (the lock's size) shows the width in use; tap it for the mode's
-// eight widths (the active one checked) and the radio's DSP toggles.
+// button shows the width in use and the DSP that is on; tap it for the
+// mode's eight widths (the active one checked) and the radio's DSP toggles.
 Item {
     id: filters
     Layout.fillWidth: true
@@ -20,16 +20,61 @@ Item {
         return String(hz)
     }
 
+    // "Filter ▼" over a small status line: the width in use and the DSP
+    // that is on (e.g. "2.7 kHz · NB NR"). Opens the chooser below.
+    readonly property var activeDsp: Engine.dspKeys.filter(k => Engine.dspOn(k))
+    readonly property string status: {
+        const parts = []
+        if (Engine.filterPresets.length > 0 && Engine.filterWidth > 0) {
+            const w = Engine.filterWidth
+            parts.push(w >= 1000 ? (w / 1000).toFixed(1).replace(/\.0$/, "") + " kHz" : w + " Hz")
+        }
+        if (activeDsp.length > 0) {
+            parts.push(activeDsp.join(" "))
+        }
+        return parts.join(" · ")
+    }
     AppButton {
         id: button
-        text: Engine.filterPresets.length > 0 ? filters.label(Engine.filterWidth) : qsTr("DSP")
-        font.pixelSize: Math.round(Theme.buttonFont * 0.9)
-        leftPadding: 1
-        rightPadding: 1
-        width: Theme.touchTarget
+        leftPadding: 8
+        rightPadding: 8
+        width: Math.max(Theme.touchTarget,
+                        Math.min(Theme.buttonWidth * 2.2, content.implicitWidth + leftPadding + rightPadding))
         height: Theme.touchTarget
         focusPolicy: Qt.NoFocus
         onClicked: chooser.open()
+        contentItem: Item {
+            Column {
+                id: content
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, button.availableWidth)
+                spacing: 0
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 4
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Filter")
+                        font.pixelSize: Math.round(Theme.buttonFont * 0.95)
+                        color: "#1a1a1a"
+                    }
+                    Caret {
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: Math.round(Theme.buttonFont * 0.7)
+                    }
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(implicitWidth, button.availableWidth)
+                    visible: text.length > 0
+                    text: filters.status
+                    font.pixelSize: Math.max(10, Math.round(Theme.buttonFont * 0.72))
+                    color: "#3a3a3a"
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                }
+            }
+        }
     }
 
     Popup {
