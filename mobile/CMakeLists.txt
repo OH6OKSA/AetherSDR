@@ -62,11 +62,12 @@ qt_add_qml_module(aether-mobile
         qml/SliceBar.qml
         qml/CwControls.qml
         qml/DisplayControls.qml
-        qml/LockButton.qml
         qml/ModeButton.qml
-        qml/FilterButton.qml
+        qml/FilterChooser.qml
+        qml/ChooserPopup.qml
         qml/Caret.qml
         qml/MeterBadge.qml
+        qml/InfoPanel.qml
         qml/EqControls.qml
         qml/ProfileControls.qml
         qml/MemoryControls.qml

@@ -164,20 +164,6 @@ ColumnLayout {
     Component {
         id: dspSection
         ColumnLayout {
-            RowLayout {
-                Layout.fillWidth: true
-                Label { text: qsTr("AGC"); color: Theme.textDim }
-                Repeater {
-                    model: Engine.agcModes
-                    delegate: AppButton {
-                        required property string modelData
-                        text: modelData
-                        checked: Engine.agcMode === modelData
-                        Layout.fillWidth: true
-                        onClicked: Engine.agcMode = modelData
-                    }
-                }
-            }
             RxControls {
                 Layout.fillWidth: true
             }
@@ -195,10 +181,6 @@ ColumnLayout {
                     to: 100
                     value: Engine.afGain
                     onMoved: Engine.afGain = value
-                }
-                AppButton {
-                    text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
-                    onClicked: Engine.muted = !Engine.muted
                 }
             }
             EqControls {

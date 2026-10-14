@@ -12,6 +12,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QQuickItem>
 #include <QTimer>
 
 int main(int argc, char* argv[])
@@ -164,9 +165,13 @@ int main(int argc, char* argv[])
         const QString name = parser.value(meterChooserOption);
         QTimer::singleShot(6000, &app, [&qml, name] {
             for (QObject* root : qml.rootObjects()) {
-                if (QObject* chooser = root->findChild<QObject*>(name)) {
-                    QMetaObject::invokeMethod(chooser, "open");
-                    break;
+                // Every match: a page can hold a hidden twin (e.g. the info
+                // panel's one-line copy); only the visible one shows.
+                for (QObject* chooser : root->findChildren<QObject*>(name)) {
+                    const auto* host = qvariant_cast<QQuickItem*>(chooser->property("parent"));
+                    if (!host || host->isVisible()) {
+                        QMetaObject::invokeMethod(chooser, "open");
+                    }
                 }
             }
         });

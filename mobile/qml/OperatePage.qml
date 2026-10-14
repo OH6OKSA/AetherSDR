@@ -53,6 +53,9 @@ Page {
     // and portrait: smaller type below 1200 pt, controls stacked under the
     // spectrum in portrait, and a scrolling control column so nothing is cut.
     readonly property bool compact: width < 1200
+    // The info panel goes under the frequency only where the frequency row
+    // has no room for it (narrow Split View).
+    readonly property bool infoUnder: width < 700
     readonly property bool portrait: height > width
     // Landscape side column: the control panel, or just a PTT strip when the
     // panel is hidden. Fixed, so content can never widen it off screen.
@@ -138,10 +141,18 @@ Page {
                 ModeButton {
                     fontSize: page.compact ? 24 : 32
                 }
-                LockButton {
-                    Layout.preferredHeight: Theme.touchTarget
+                // The slice at a glance and in reach: antennas, width,
+                // speaker, lock, DSP, AGC (each opens its choices).
+                InfoPanel {
+                    visible: !page.infoUnder
+                    Layout.leftMargin: Theme.spacing
                 }
-                FilterButton {}
+                Item { Layout.fillWidth: true }
+            }
+            InfoPanel {
+                visible: page.infoUnder
+                singleLine: true
+                Layout.fillWidth: true
             }
 
             // Band stack (Flex): one row, buttons share the width. Each band

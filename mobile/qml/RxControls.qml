@@ -4,13 +4,14 @@ import QtQuick.Layouts
 import AetherMobile
 
 // Receive extras of the active slice: AGC threshold, RIT, XIT, squelch,
-// antennas and RF gain. Shared by the tablet side panel and the drawer.
+// and RF gain (antennas and the AGC mode are on the info panel). Shared by
+// the tablet side panel and the drawer.
 ColumnLayout {
     id: rx
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
-    // AGC threshold (AGC-T), right under the AGC mode buttons.
+    // AGC threshold (AGC-T); the AGC mode is on the info panel.
     RowLayout {
         Layout.fillWidth: true
         Label { text: qsTr("AGC-T  %1").arg(Engine.agcThreshold); color: Theme.textDim; font.pixelSize: 14; Layout.preferredWidth: 80 }
@@ -93,31 +94,6 @@ ColumnLayout {
         }
     }
 
-    // Antennas: only ports the radio publishes.
-    Label {
-        visible: Engine.rxAntennas.length > 0
-        text: qsTr("RX antenna")
-        color: Theme.textDim
-        font.pixelSize: 14
-    }
-    Flow {
-        Layout.fillWidth: true
-        spacing: 4
-        visible: Engine.rxAntennas.length > 0
-        Repeater {
-            model: Engine.rxAntennas
-            delegate: AppButton {
-                required property string modelData
-                text: modelData
-                checked: Engine.rxAntenna === modelData
-                leftPadding: 6
-                rightPadding: 6
-                font.pixelSize: 13
-                focusPolicy: Qt.NoFocus
-                onClicked: Engine.rxAntenna = modelData
-            }
-        }
-    }
     // RF gain (preamp / attenuator) of the panadapter, in the radio's steps.
     RowLayout {
         Layout.fillWidth: true
@@ -136,30 +112,6 @@ ColumnLayout {
             snapMode: Slider.SnapAlways
             value: Engine.rfGain
             onMoved: Engine.rfGain = Math.round(value)
-        }
-    }
-    Label {
-        visible: Engine.txAntennas.length > 0
-        text: qsTr("TX antenna")
-        color: Theme.textDim
-        font.pixelSize: 14
-    }
-    Flow {
-        Layout.fillWidth: true
-        spacing: 4
-        visible: Engine.txAntennas.length > 0
-        Repeater {
-            model: Engine.txAntennas
-            delegate: AppButton {
-                required property string modelData
-                text: modelData
-                checked: Engine.txAntenna === modelData
-                leftPadding: 6
-                rightPadding: 6
-                font.pixelSize: 13
-                focusPolicy: Qt.NoFocus
-                onClicked: Engine.txAntenna = modelData
-            }
         }
     }
 }

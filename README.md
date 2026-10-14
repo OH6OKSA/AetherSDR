@@ -44,22 +44,23 @@ radio interface, with no computer running alongside.
   the reference level in SmartSDR and AetherSDR.
 - Waterfall black level and colour gain, and the spectrum's reference level
   and range (or Auto), in the View tab. Remembered on the device.
-- Tuning lock next to the frequency.
-- AGC threshold (AGC-T) and RF gain; the radio's memory channels (recall,
-  save, delete).
+- RF gain; the radio's memory channels (recall, save, delete).
 - The radio's global, TX and mic profiles: load, save and delete, as in
   SmartSDR and AetherSDR.
 - Filter passband drawn on the display, on the correct side for USB/LSB and
   centred for CW/AM.
 - Mode: tap the mode next to the frequency for the mode buttons.
-- Filter button next to the tuning lock, as in SmartSDR and AetherSDR: it
-  shows the width in use and the DSP that is on (e.g. "2.7 kHz · NB"); tap
-  it for the mode's eight filter widths and the radio's DSP (NR, NB, ANF,
-  APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where the radio has them).
+- Info panel next to the frequency, after the slice flag of SmartSDR-style
+  clients: slice letter and TX tag, RX and TX antenna, filter width,
+  speaker, tuning lock, the DSP flags (lit when on) and AGC. Each is a
+  touch target with its choices behind it: the antennas open their
+  chooser; the width and the flags the mode's eight filter widths and the
+  radio's DSP (NR, NB, ANF, APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where
+  the radio has them); AGC its modes; the speaker mutes, the lock locks.
 - **Beat cancel (BC)**, as on Kenwood rigs: the app finds steady carriers
   in the receive audio (someone tuning up on the frequency) and notches
   them out within ~0.15 s, leaving voice alone. Voice modes only.
-- AGC (off/slow/med/fast), AF gain and mute.
+- AGC threshold and AF gain in the controls.
 - Two meters on the slice row, SmartSDR style. Tap either one to choose S,
   Power, SWR, ALC, Mic, Compression, PA temperature or supply voltage,
   separately for receive and transmit (e.g. S and Power, then SWR and Power
@@ -69,7 +70,7 @@ radio interface, with no computer running alongside.
   last frequency and mode.
 - Step buttons from ±1 Hz to ±1 kHz land on round frequencies: +10 Hz from
   14.100002 goes to 14.100010, not 14.100012.
-- RIT and XIT, squelch (FM/AM), RX and TX antenna selection.
+- RIT and XIT, squelch (FM/AM).
 - Several slices and panadapters: add, select, close, choose the TX slice
   (marked with a red TX tag); other slices are marked on the display and tap
   to select.

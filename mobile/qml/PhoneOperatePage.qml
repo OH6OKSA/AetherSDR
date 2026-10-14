@@ -83,8 +83,19 @@ Page {
                     TapHandler { onTapped: freqDialog.open() }
                 }
                 ModeButton { fontSize: 18 }
-                LockButton { implicitWidth: 44 }
-                FilterButton {}
+                // The slice at a glance and in reach (one row); under the
+                // frequency in portrait.
+                InfoPanel {
+                    visible: page.landscape
+                    singleLine: true
+                    Layout.leftMargin: Theme.spacing / 2
+                }
+                Item { Layout.fillWidth: true }
+            }
+            InfoPanel {
+                visible: !page.landscape
+                singleLine: true
+                Layout.fillWidth: true
             }
 
             // Horizontally scrolling band strip.
