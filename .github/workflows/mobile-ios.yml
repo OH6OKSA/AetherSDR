@@ -6,6 +6,12 @@ on:
   workflow_dispatch:
   push:
     branches: ['mobile/**']
+    # Documentation alone (README, screenshots) needs no iOS build; a push
+    # still cancels a running build of the same branch, so this matters.
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '**/*.md'
 
 permissions:
   contents: read

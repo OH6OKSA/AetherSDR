@@ -36,7 +36,9 @@ radio interface, with no computer running alongside.
   desktop's 3DSS, drawn on the GPU through Metal). Tap to tune (snapped to the tuning step). Drag inside the
   filter passband to tune, anywhere else to move the view, as on the
   desktop; while tuning, holding the finger at either edge keeps scrolling,
-  faster nearer the edge. Pinch or use −/+ to zoom around the slice.
+  faster nearer the edge. Pinch or use −/+ (bottom left of the waterfall)
+  to zoom around the slice. A frequency scale runs along the top of the
+  waterfall, as on the desktop.
 - Your own transmission shows in the waterfall.
 - dBm scale on the spectrum: drag it up or down to move the trace, as
   the reference level in SmartSDR and AetherSDR.
@@ -49,20 +51,28 @@ radio interface, with no computer running alongside.
   SmartSDR and AetherSDR.
 - Filter passband drawn on the display, on the correct side for USB/LSB and
   centred for CW/AM.
-- Mode, filter width presets, NR/NB/ANF, AGC (off/slow/med/fast), AF gain and
-  mute.
-- Two meters side by side, SmartSDR style. Tap either one to choose S, Power,
-  SWR, ALC, Mic, Compression, PA temperature or supply voltage, separately
-  for receive and transmit (e.g. S and Power, then SWR and Power on the
-  air). Bars or analog gauges (arc, needle, S1–S9 and +20/+40 in red).
-  The choices are remembered.
+- Mode: tap the mode next to the frequency for the mode buttons.
+- Filter button next to the tuning lock, as in SmartSDR and AetherSDR: it
+  shows the width in use and the DSP that is on (e.g. "2.7 kHz · NB"); tap
+  it for the mode's eight filter widths and the radio's DSP (NR, NB, ANF,
+  APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where the radio has them).
+- **Beat cancel (BC)**, as on Kenwood rigs: the app finds steady carriers
+  in the receive audio (someone tuning up on the frequency) and notches
+  them out within ~0.15 s, leaving voice alone. Voice modes only.
+- AGC (off/slow/med/fast), AF gain and mute.
+- Two meters on the slice row, SmartSDR style. Tap either one to choose S,
+  Power, SWR, ALC, Mic, Compression, PA temperature or supply voltage,
+  separately for receive and transmit (e.g. S and Power, then SWR and Power
+  on the air). Each one a bar or an analog gauge (arc, needle, S1–S9 and
+  +20…+60 in red). The choices are remembered.
 - Band buttons use the radio's own band stack, so each band comes back to its
   last frequency and mode.
 - Step buttons from ±1 Hz to ±1 kHz land on round frequencies: +10 Hz from
   14.100002 goes to 14.100010, not 14.100012.
 - RIT and XIT, squelch (FM/AM), RX and TX antenna selection.
-- Several slices and panadapters: add, select, close, choose the TX slice;
-  other slices are marked on the display and tap to select.
+- Several slices and panadapters: add, select, close, choose the TX slice
+  (marked with a red TX tag); other slices are marked on the display and tap
+  to select.
 - Direct frequency entry from a keypad or a hardware keyboard.
 - RX audio on the device, also in the background (home screen, other
   apps). The screen stays awake while connected.
@@ -92,8 +102,8 @@ radio interface, with no computer running alongside.
 **Made for the device**
 - A tablet layout and a phone layout. They switch live on rotation, Split
   View, Stage Manager and folding (iPhone Duo).
-- The waterfall gets the screen. On iPhone, the controls (Mode, DSP, Audio,
-  TX, CW, View) live in a drawer that slides in over it when needed. On iPad the side
+- The waterfall gets the screen. On iPhone, the controls (DSP, Audio, TX,
+  CW, View, Profiles, Memory) live in a drawer that slides in over it when needed. On iPad the side
   panel can be hidden into the same drawer. PTT always stays on screen.
 - Apple Pencil drags tune 10× finer, for zero-beating.
 - Magic Keyboard and trackpad: arrows tune, Space is PTT, +/− zoom, F opens
