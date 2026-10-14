@@ -3,6 +3,14 @@ AetherSDR Mobile – testattavaa
 Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti sekä laitteen malli osoitteeseen oh6oksa@gmail.com.
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
+UUTTA TÄSSÄ BUILDISSA
+• BC (beat cancel): Filter-napin valikossa, puhemodeissa. Poistaa virityskantoaallon (joku tunaa taajuudella) noin 0,15 s:ssa; puheeseen ei saa vaikuttaa. Kerro, toimiiko oikeassa tilanteessa.
+• Filter-nappi lukon vieressä: näyttää leveyden ja päällä olevat DSP:t (esim. 2.7 kHz · NB). Valikossa moden 8 filtteriä ja radion DSP:t (NR, NB, ANF, NRL…).
+• Mode: napauta modea taajuuden vieressä.
+• Mittarit slice-rivillä slicen ja +Slice/+Pan-nappien välissä; kummallekin oma tyyli (palkki/analoginen) mittarin omasta valikosta.
+• TX-slice punaisella TX-merkillä; useat slicet allekkain.
+• Taajuusasteikko vesiputouksen yläreunassa.
+
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
 • SmartLink: kirjaudu Connect-sivulla ja yhdistä radioon.
@@ -17,7 +25,7 @@ VESIPUTOUS JA VIRITYS
 • Raahaus suodattimen kaistan sisältä virittää; raahaus muualta siirtää näkymää, taajuus pysyy.
 • Virittäessä sormi näytön reunalla jatkaa vieritystä ja kiihtyy reunaa kohti.
 • Step-painikkeet ±1 Hz … ±1 kHz pyöristävät tasalukuihin (.002 +10 → .010).
-• Pinch ja −/+ zoomaavat.
+• Pinch ja −/+ (vesiputouksen vasen alakulma) zoomaavat.
 • Lock taajuuden vieressä estää virityksen ja välähtää, jos viritystä yritetään.
 • Taajuuden syöttö (napauta taajuutta): numerot ja taajuus näkyvät kokonaan myös iPhonen vaakatilassa.
 
@@ -32,10 +40,8 @@ PROFIILIT (Controls → Profiles, iPadissa sivupaneelissa)
 
 SÄÄTIMET
 • Taajuuskorjain RX ja TX, 8 kaistaa (Controls → Audio).
-• Aktiivinen filtteri korostuu kaikissa modeissa.
 • Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
 • Mittareille oma valinta vastaanottoon ja lähetykseen (esim. S/Power ja lähetyksessä SWR/Power).
-• Mittarit spektrin yläkulmissa; tyyli palkki tai analoginen (mittarin valikko tai Controls → View).
 • RIT/XIT, SQL ja antennivalinnat; RF gain antennien alla; AGC-T AGC-painikkeiden alla.
 • Muistit (Controls → Memory): napautus virittää, Save tallentaa, pitkä painallus poistaa.
 • Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
