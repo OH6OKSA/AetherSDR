@@ -8,7 +8,7 @@ import AetherMobile
 // antenna (red), filter width, the speaker and the tuning lock; then the
 // DSP flags (lit when on) and AGC, which can run long. Each is a
 // finger-sized target with its choices behind it: antennas open their
-// chooser, the width and the flags the filter/DSP chooser, AGC its modes;
+// chooser, the width and the flags the filter/DSP chooser, AGC its modes, AGC-T and RF gain;
 // the speaker mutes, the lock locks.
 // Two rows next to the frequency on a tablet; one row elsewhere.
 Item {
@@ -305,13 +305,8 @@ Item {
         y: info.height + 4
         onPicked: (name) => Engine.txAntenna = name
     }
-    ChooserPopup {
+    AgcChooser {
         id: agcChooser
-        objectName: "agcChooser"
-        title: qsTr("AGC")
-        options: Engine.agcModes
-        current: Engine.agcMode
         y: info.height + 4
-        onPicked: (name) => Engine.agcMode = name
     }
 }

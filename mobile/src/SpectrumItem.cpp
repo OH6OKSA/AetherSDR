@@ -108,8 +108,12 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
     if (!m_spectrum.isEmpty()) {
         QVector<float> sorted = m_spectrum;
         std::sort(sorted.begin(), sorted.end());
-        const float noise = sorted.at(sorted.size() / 2);
-        const float peak = sorted.last();
+        // Auto follows the band without the RF gain, so a preamp or
+        // attenuator step shows on the trace (as on a fixed SmartSDR scale)
+        // instead of being levelled away.
+        const float gain = m_engine ? static_cast<float>(m_engine->rfGain()) : 0.0f;
+        const float noise = sorted.at(sorted.size() / 2) - gain;
+        const float peak = sorted.last() - gain;
         const float bottom = noise - kTraceBelowNoiseDb;
         const float top = std::max(bottom + kTraceMinSpanDb, peak + kTraceAboveTopDb);
         if (m_engine && !m_engine->traceAutoRange()) {
@@ -188,10 +192,13 @@ void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, dou
     // Black at the median (the band's noise), full scale near the 99.5th
     // percentile; smoothed across rows so the picture does not pump with
     // every strong signal.
+    // Tracked without the RF gain, so a gain step brightens or darkens the
+    // picture as on the desktop instead of being levelled away.
     QVector<float> sorted = bins;
     std::sort(sorted.begin(), sorted.end());
-    const float floor = sorted.at(sorted.size() / 2);
-    const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 995 / 1000));
+    const float gain = m_engine ? static_cast<float>(m_engine->rfGain()) : 0.0f;
+    const float floor = sorted.at(sorted.size() / 2) - gain;
+    const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 995 / 1000)) - gain;
     const float span = std::max(kMinimumSpan, (top - floor) * 1.2f);
     const bool autoLevel = !m_engine || m_engine->wfAutoLevel();
     if (!m_rangeSeeded) {
