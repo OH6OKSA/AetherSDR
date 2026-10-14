@@ -236,6 +236,47 @@ Rectangle {
         }
     }
 
+    // "+ Slice" / "+ Pan", bottom right of the waterfall, the size of the
+    // zoom buttons (wider only where the label needs it, iPhone).
+    Row {
+        id: addRow
+        z: 5
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 6
+        spacing: 2
+        readonly property real cellWidth: Math.max(32, zoomRow.stepWidth / 2 - 1)
+        // The app shows one panadapter; any others still stream to the device
+        // (bandwidth, packet loss) and hold the radio's panadapter slots.
+        AppButton {
+            visible: Engine.panCount > 1
+            text: qsTr("Close %1 other pans").arg(Engine.panCount - 1)
+            font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+            leftPadding: 6
+            rightPadding: 6
+            height: Theme.touchTarget
+            opacity: 0.85
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.closeOtherPanadapters()
+        }
+        Repeater {
+            model: [{ label: qsTr("+ Slice"), pan: false }, { label: qsTr("+ Pan"), pan: true }]
+            delegate: AppButton {
+                required property var modelData
+                visible: modelData.pan ? Engine.canAddPanadapter : Engine.canAddSlice
+                text: modelData.label
+                font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+                leftPadding: 2
+                rightPadding: 2
+                width: Math.max(addRow.cellWidth, implicitContentWidth + 6)
+                height: Theme.touchTarget
+                opacity: 0.85
+                focusPolicy: Qt.NoFocus
+                onClicked: modelData.pan ? Engine.addPanadapter() : Engine.addSlice()
+            }
+        }
+    }
+
     function mhzAt(x) {
         return Engine.panCenterMhz + (x / panArea.width - 0.5) * Engine.panBandwidthMhz
     }
