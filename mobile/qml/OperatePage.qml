@@ -141,7 +141,7 @@ Page {
                 LockButton {
                     Layout.preferredHeight: Theme.touchTarget
                 }
-                Item { Layout.fillWidth: true }
+                FilterButton {}
             }
 
             // Band stack (Flex): one row, buttons share the width. Each band

@@ -61,6 +61,7 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QList<int> filterPresets READ filterPresets NOTIFY modeChanged)
     // The preset nearest the current passband width, or 0 if none is close.
     Q_PROPERTY(int activeFilterPreset READ activeFilterPreset NOTIFY filterChanged)
+    Q_PROPERTY(int filterWidth READ filterWidth NOTIFY filterChanged)
     Q_PROPERTY(QStringList bands READ bands CONSTANT)
     Q_PROPERTY(bool bandsAvailable READ bandsAvailable NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastAddress READ lastAddress NOTIFY lastAddressChanged)
@@ -77,6 +78,9 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool nr READ nr WRITE setNr NOTIFY dspChanged)
     Q_PROPERTY(bool nb READ nb WRITE setNb NOTIFY dspChanged)
     Q_PROPERTY(bool anf READ anf WRITE setAnf NOTIFY dspChanged)
+    // The radio-side DSP toggles this radio and mode offer (as the desktop
+    // VFO's DSP grid): NR NB ANF, APF in CW, the LMS/FFT and 8000-series sets.
+    Q_PROPERTY(QStringList dspKeys READ dspKeys NOTIFY dspChanged)
     Q_PROPERTY(QString agcMode READ agcMode WRITE setAgcMode NOTIFY dspChanged)
     // AGC threshold (AGC-T, 0…100) of the active slice.
     Q_PROPERTY(int agcThreshold READ agcThreshold WRITE setAgcThreshold NOTIFY dspChanged)
@@ -225,6 +229,7 @@ public:
     // Passband widths (Hz) offered for the current mode.
     QList<int> filterPresets() const;
     int activeFilterPreset() const;
+    int filterWidth() const;
     QStringList bands() const;
     bool bandsAvailable() const;
     QString lastAddress() const;
@@ -254,6 +259,9 @@ public:
     void setNb(bool on);
     bool anf() const;
     void setAnf(bool on);
+    QStringList dspKeys() const;
+    Q_INVOKABLE bool dspOn(const QString& key) const;
+    Q_INVOKABLE void setDsp(const QString& key, bool on);
     QString agcMode() const;
     void setAgcMode(const QString& mode);
     QStringList agcModes() const;

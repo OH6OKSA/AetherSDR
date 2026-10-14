@@ -1,5 +1,8 @@
 #include "MobileEngine.h"
 
+#include "gui/ModeFilterPresets.h"
+#include "gui/VoiceModeGate.h"
+
 #include "AudioSession.h"
 
 #include "ScreenAwake.h"
@@ -2080,34 +2083,88 @@ int MobileEngine::filterHigh() const
     return m_slice ? m_slice->filterHigh() : 0;
 }
 
-QList<int> MobileEngine::filterPresets() const
+QStringList MobileEngine::dspKeys() const
 {
-    const QString m = mode();
-    if (m == QLatin1String("CW") || m == QLatin1String("CWL")) {
-        return {100, 250, 500, 1000};
-    }
-    if (m == QLatin1String("AM") || m == QLatin1String("SAM") || m == QLatin1String("DSB")) {
-        return {6000, 8000, 10000};
-    }
-    if (m == QLatin1String("FM") || m == QLatin1String("NFM") || m == QLatin1String("DFM")) {
+    if (!m_slice) {
         return {};
     }
-    if (m == QLatin1String("DIGU") || m == QLatin1String("DIGL") || m == QLatin1String("RTTY")) {
-        return {500, 1500, 3000};
+    // Visibility rules of VfoWidget's DSP grid.
+    const QString m = m_slice->mode();
+    const bool fm = ModeFilters::isFmMode(m) || m == QLatin1String("DFM");
+    const bool cw = isCwMode(m);
+    const RadioModel& rm = m_session.radioModel();
+    QStringList keys{QStringLiteral("NR"), QStringLiteral("NB"), QStringLiteral("ANF")};
+    if (cw) {
+        keys << QStringLiteral("APF");
     }
-    return {1800, 2400, 2700, 3000};
+    if (rm.hasLmsNoiseFilters()) {
+        keys << QStringLiteral("NRL") << QStringLiteral("ANFL") << QStringLiteral("ANFT");
+    }
+    if (rm.hasExtendedDspFilters() && !fm) {
+        keys << QStringLiteral("NRS");
+        if (!cw) {
+            keys << QStringLiteral("RNN");
+        }
+        keys << QStringLiteral("NRF");
+    }
+    return keys;
+}
+
+bool MobileEngine::dspOn(const QString& key) const
+{
+    if (!m_slice) {
+        return false;
+    }
+    if (key == QLatin1String("NR")) return m_slice->nrOn();
+    if (key == QLatin1String("NB")) return m_slice->nbOn();
+    if (key == QLatin1String("ANF")) return m_slice->anfOn();
+    if (key == QLatin1String("APF")) return m_slice->apfOn();
+    if (key == QLatin1String("NRL")) return m_slice->nrlOn();
+    if (key == QLatin1String("ANFL")) return m_slice->anflOn();
+    if (key == QLatin1String("ANFT")) return m_slice->anftOn();
+    if (key == QLatin1String("NRS")) return m_slice->nrsOn();
+    if (key == QLatin1String("RNN")) return m_slice->rnnOn();
+    if (key == QLatin1String("NRF")) return m_slice->nrfOn();
+    return false;
+}
+
+void MobileEngine::setDsp(const QString& key, bool on)
+{
+    if (!m_slice) {
+        return;
+    }
+    if (key == QLatin1String("NR")) m_slice->setNr(on);
+    else if (key == QLatin1String("NB")) m_slice->setNb(on);
+    else if (key == QLatin1String("ANF")) m_slice->setAnf(on);
+    else if (key == QLatin1String("APF")) m_slice->setApf(on);
+    else if (key == QLatin1String("NRL")) m_slice->setNrl(on);
+    else if (key == QLatin1String("ANFL")) m_slice->setAnfl(on);
+    else if (key == QLatin1String("ANFT")) m_slice->setAnft(on);
+    else if (key == QLatin1String("NRS")) m_slice->setNrs(on);
+    else if (key == QLatin1String("RNN")) m_slice->setRnn(on);
+    else if (key == QLatin1String("NRF")) m_slice->setNrf(on);
+}
+
+QList<int> MobileEngine::filterPresets() const
+{
+    // The desktop's per-mode ladders (VFO filter grid): 8 widths a mode.
+    const QVector<int>& widths = ModeFilters::widthsForMode(mode());
+    return QList<int>(widths.cbegin(), widths.cend());
 }
 
 int MobileEngine::activeFilterPreset() const
 {
-    // Edges sit ~95 Hz off the carrier in SSB/digital, and the radio's own
-    // defaults differ slightly from the presets, so match the nearest one.
-    const int width = filterHigh() - filterLow();
+    // The passband's labelled width, then the nearest ladder entry: the
+    // radio's own defaults differ slightly from the presets.
+    if (!m_slice) {
+        return 0;
+    }
+    const int width = ModeFilters::widthForEdges(mode(), filterLow(), filterHigh());
     int best = 0;
     int bestDiff = 0;
     for (const int preset : filterPresets()) {
         const int diff = std::abs(width - preset);
-        if (diff <= std::max(120, preset / 10) && (best == 0 || diff < bestDiff)) {
+        if (diff <= std::max(60, preset / 20) && (best == 0 || diff < bestDiff)) {
             best = preset;
             bestDiff = diff;
         }
@@ -2115,24 +2172,23 @@ int MobileEngine::activeFilterPreset() const
     return best;
 }
 
+int MobileEngine::filterWidth() const
+{
+    return m_slice ? ModeFilters::widthForEdges(mode(), filterLow(), filterHigh()) : 0;
+}
+
 void MobileEngine::setFilterWidth(int widthHz)
 {
     if (!m_slice || widthHz <= 0) {
         return;
     }
-    // Edge placement per mode, as VfoWidget/rigctld place a passband width.
-    const QString m = m_slice->mode();
-    int lo = 95;
-    int hi = widthHz;
-    if (m == QLatin1String("CW") || m == QLatin1String("CWL") || m == QLatin1String("AM")
-        || m == QLatin1String("SAM") || m == QLatin1String("DSB")) {
-        lo = -widthHz / 2;
-        hi = widthHz / 2;
-    } else if (m == QLatin1String("LSB") || m == QLatin1String("DIGL")) {
-        lo = -widthHz;
-        hi = -95;
-    }
-    m_slice->setFilterWidth(lo, hi);
+    // Edge placement per mode, as the desktop VFO places a ladder width.
+    ModeFilters::SliceContext ctx;
+    ctx.diguOffset = m_slice->diguOffset();
+    ctx.diglOffset = m_slice->diglOffset();
+    ctx.rttyShift = m_slice->rttyShift();
+    const ModeFilters::Edges e = ModeFilters::edgesForWidth(m_slice->mode(), widthHz, ctx);
+    m_slice->setFilterWidth(e.lo, e.hi);
 }
 
 void MobileEngine::onConnectionStateChanged(bool connected)
@@ -2294,6 +2350,13 @@ void MobileEngine::bindSlice(SliceModel* slice)
         m_sliceConnections.append(connect(slice, &SliceModel::nrChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::nbChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::anfChanged, this, &MobileEngine::dspChanged));
+        for (auto sig : {&SliceModel::nrlChanged, &SliceModel::nrsChanged, &SliceModel::rnnChanged,
+                         &SliceModel::nrfChanged, &SliceModel::anflChanged, &SliceModel::anftChanged,
+                         &SliceModel::apfChanged}) {
+            m_sliceConnections.append(connect(slice, sig, this, &MobileEngine::dspChanged));
+        }
+        // The DSP set changes with the mode (APF in CW, none of the 8000s in FM).
+        m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::agcModeChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::agcThresholdChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::stepChanged, this, &MobileEngine::stepChanged));

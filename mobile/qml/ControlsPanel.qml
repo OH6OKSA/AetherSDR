@@ -164,38 +164,6 @@ ColumnLayout {
     Component {
         id: dspSection
         ColumnLayout {
-            Label {
-                text: qsTr("Filter  %1 Hz").arg(Engine.filterHigh - Engine.filterLow)
-                color: Theme.textDim
-                visible: Engine.filterPresets.length > 0
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: Engine.filterPresets.length > 0
-                Repeater {
-                    model: Engine.filterPresets
-                    delegate: AppButton {
-                        required property int modelData
-                        text: modelData >= 1000 ? (modelData / 1000).toFixed(1) + "k" : modelData
-                        checked: Engine.activeFilterPreset === modelData
-                        Layout.fillWidth: true
-                        onClicked: Engine.setFilterWidth(modelData)
-                    }
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                Repeater {
-                    model: [{ key: "nr", label: "NR" }, { key: "nb", label: "NB" }, { key: "anf", label: "ANF" }]
-                    delegate: AppButton {
-                        required property var modelData
-                        text: modelData.label
-                        checked: Engine[modelData.key]
-                        Layout.fillWidth: true
-                        onClicked: Engine[modelData.key] = !Engine[modelData.key]
-                    }
-                }
-            }
             RowLayout {
                 Layout.fillWidth: true
                 Label { text: qsTr("AGC"); color: Theme.textDim }

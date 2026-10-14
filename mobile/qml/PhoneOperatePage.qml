@@ -84,7 +84,7 @@ Page {
                 }
                 ModeButton { fontSize: 18 }
                 LockButton { implicitWidth: 44 }
-                Item { Layout.fillWidth: true }
+                FilterButton {}
             }
 
             // Horizontally scrolling band strip.
