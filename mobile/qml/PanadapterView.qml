@@ -208,6 +208,27 @@ Rectangle {
         }
     }
 
+    // The two selectable meters in the top corners of the spectrum: left
+    // under the slices, right under "+ Slice"/"+ Pan" (tap to choose).
+    component MeterBadge: Rectangle {
+        property alias side: meterView.side
+        z: 6
+        y: 4
+        width: Math.min(220, panArea.width * 0.34)
+        height: meterView.implicitHeight + 8
+        radius: Theme.radius
+        color: Theme.surface
+        opacity: 0.88
+        MeterView {
+            id: meterView
+            compact: true
+            anchors.fill: parent
+            anchors.margins: 4
+        }
+    }
+    MeterBadge { side: "left"; x: scaleStrip.visible ? scaleStrip.width + 4 : 4 }
+    MeterBadge { side: "right"; x: panArea.width - width - 4 }
+
     // Zoom out / in, bottom left of the waterfall as in AetherSDR.
     Row {
         z: 5

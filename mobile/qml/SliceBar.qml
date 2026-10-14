@@ -4,8 +4,7 @@ import QtQuick.Layouts
 import AetherMobile
 
 // One chip per slice ("A 14.100 USB", TX marked). Tap selects; press and
-// hold opens make-TX / close. The two meters sit in the middle of the row;
-// "+ Slice" and "+ Pan" add more.
+// hold opens make-TX / close. "+ Slice" and "+ Pan" add more.
 RowLayout {
     id: bar
     spacing: 4
@@ -13,9 +12,7 @@ RowLayout {
 
     ListView {
         id: chips
-        // As wide as the chips (up to 45 % of the row); the meters take the rest.
-        Layout.preferredWidth: Math.min(contentWidth, bar.width * 0.45)
-        Layout.minimumWidth: Math.min(contentWidth, 80)
+        Layout.fillWidth: true
         Layout.preferredHeight: Theme.touchTarget
         orientation: ListView.Horizontal
         spacing: 4
@@ -49,24 +46,6 @@ RowLayout {
                 }
             }
         }
-    }
-    // Two selectable meters (tap to choose), between the slices and the
-    // add buttons, so no separate meter row is needed.
-    MeterView {
-        side: "left"
-        compact: true
-        Layout.fillWidth: true
-        Layout.preferredWidth: 1
-        Layout.maximumWidth: 260
-        Layout.leftMargin: 4
-    }
-    MeterView {
-        side: "right"
-        compact: true
-        Layout.fillWidth: true
-        Layout.preferredWidth: 1
-        Layout.maximumWidth: 260
-        Layout.rightMargin: 4
     }
     AppButton {
         text: qsTr("+ Slice")
