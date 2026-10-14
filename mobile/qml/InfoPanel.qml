@@ -5,10 +5,11 @@ import AetherMobile
 
 // The active slice at a glance and in reach, after the slice flag of
 // SmartSDR-style clients: slice letter, TX tag, RX antenna (blue), TX
-// antenna (red), filter width; then the speaker, the tuning lock, the DSP
-// flags (lit when on) and AGC. Each is a finger-sized target with its
-// choices behind it: antennas open their chooser, the width and the flags
-// the filter/DSP chooser, AGC its modes; the speaker mutes, the lock locks.
+// antenna (red), filter width, the speaker and the tuning lock; then the
+// DSP flags (lit when on) and AGC, which can run long. Each is a
+// finger-sized target with its choices behind it: antennas open their
+// chooser, the width and the flags the filter/DSP chooser, AGC its modes;
+// the speaker mutes, the lock locks.
 // Two rows next to the frequency on a tablet; one row elsewhere.
 Item {
     id: info
@@ -95,7 +96,7 @@ Item {
         rowSpacing: 0
         verticalItemAlignment: Grid.AlignVCenter
 
-        // Slice letter, TX, antennas, filter width.
+        // Slice letter, TX, antennas, filter width, speaker, lock.
         Row {
             spacing: 0
             Row {
@@ -156,11 +157,6 @@ Item {
                 rowH: info.rowH
                 onTapped: filterChooser.open()
             }
-        }
-
-        // Speaker, lock, DSP flags, AGC.
-        Row {
-            spacing: 0
             // Speaker: tap to mute.
             Item {
                 implicitWidth: Math.max(info.rowH * 0.9, speaker.width + 12)
@@ -244,6 +240,11 @@ Item {
                     function onTuneBlocked() { lockFlashAnim.restart() }
                 }
             }
+        }
+
+        // DSP flags, AGC.
+        Row {
+            spacing: 0
             // DSP flags: tap for the filter/DSP chooser.
             Item {
                 implicitWidth: flagRow.implicitWidth + 12
