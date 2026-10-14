@@ -22,6 +22,9 @@ a complete station control surface.
   <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="AetherSDR Mobile on iPhone in portrait"/>
 </p>
 
+**[User manual](docs/mobile/MANUAL.md)** — every function, with screenshots
+(also the app's *Manual* button).
+
 ## Why
 
 The desktop AetherSDR already runs on a Raspberry Pi. An iPad or iPhone has
