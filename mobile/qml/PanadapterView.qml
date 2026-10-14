@@ -301,6 +301,59 @@ Rectangle {
         }
     }
 
+    // Notices and refusals (Engine.lastError) pop up in the middle of the
+    // display, where they cannot be missed; a tap or 6 s dismisses them.
+    // A popup, so it also shows over an open controls drawer.
+    Popup {
+        id: noticePopup
+        objectName: "noticePopup"
+        property string text: ""
+        parent: panArea
+        x: Math.round((panArea.width - width) / 2)
+        y: Math.round((panArea.height - height) / 2)
+        width: Math.min(panArea.width - 24, Math.max(240, noticeText.implicitWidth + 2 * Theme.spacing + 2))
+        padding: Theme.spacing
+        modal: false
+        focus: false
+        // Never closes on a press elsewhere: that press may be PTT or a
+        // tune, and must reach it. A tap on the notice or 6 s closes it.
+        closePolicy: Popup.NoAutoClose
+        background: Rectangle {
+            radius: Theme.radius
+            color: Theme.surface
+            border.color: Theme.warning
+            border.width: 2
+            opacity: 0.97
+        }
+        contentItem: Text {
+            id: noticeText
+            text: noticePopup.text
+            color: Theme.text
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: Math.round(Theme.buttonFont * 1.05)
+            MouseArea { anchors.fill: parent; onClicked: noticePopup.close() }
+        }
+        Timer {
+            id: noticeTimer
+            interval: 6000
+            onTriggered: noticePopup.close()
+        }
+        Connections {
+            target: Engine
+            function onLastErrorChanged() {
+                // The no-slice notice already says it, with a retry.
+                if (Engine.lastError.length > 0 && !noSliceNotice.visible) {
+                    noticePopup.text = Engine.lastError
+                    noticePopup.open()
+                    noticeTimer.restart()
+                } else if (Engine.lastError.length === 0) {
+                    noticePopup.close()
+                }
+            }
+        }
+    }
+
     // Connected but without a slice (the radio refused one, e.g. all its
     // slices held by other programs): nothing can tune, so say so over the
     // display, with a retry. A moment's grace while the first slice arrives.

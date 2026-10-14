@@ -147,6 +147,7 @@ MobileEngine::MobileEngine(QObject* parent)
     });
     // Which slice transmits changes what PTT/TUNE can do.
     connect(this, &MobileEngine::slicesChanged, this, &MobileEngine::transmitStateChanged);
+    connect(&rm, &RadioModel::callsignChanged, this, &MobileEngine::callsignChanged);
     connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
         // With no slice at all the app cannot tune: say why and what helps.
         if (m_session.radioModel().slices().isEmpty()) {
@@ -1743,7 +1744,7 @@ void MobileEngine::sendCwMemory(int index)
     QString text = list.at(index);
     const QString call = m_session.radioModel().callsign().trimmed().toUpper();
     if (text.contains(QLatin1String("{CALL}")) && call.isEmpty()) {
-        setLastError(tr("The radio has no callsign set for {CALL}."));
+        setLastError(tr("The radio has no callsign for {CALL}. Set it in Controls → CW → Callsign."));
         return;
     }
     text.replace(QLatin1String("{CALL}"), call);
@@ -2709,10 +2710,32 @@ void MobileEngine::setConnectionState(const QString& state)
 
 void MobileEngine::setLastError(const QString& error)
 {
-    if (error != m_lastError) {
-        m_lastError = error;
-        emit lastErrorChanged();
+    // Every notice is announced, even a repeat of the last one: the display
+    // shows each as a popup (lastErrorChanged), so a second refusal must
+    // show again.
+    m_lastError = error;
+    emit lastErrorChanged();
+}
+
+QString MobileEngine::callsign() const
+{
+    return m_session.radioModel().callsign().trimmed().toUpper();
+}
+
+void MobileEngine::setCallsign(const QString& callsign)
+{
+    const QString call = callsign.trimmed().toUpper();
+    RadioModel& rm = m_session.radioModel();
+    // Empty is "no change", never "erase" (as the desktop's station field).
+    if (call.isEmpty() || call == rm.callsign() || !m_connected) {
+        return;
     }
+    if (rm.usesFlexCommandPlane()) {
+        rm.sendCommand(QStringLiteral("radio callsign ") + call);
+    }
+    rm.setStationCallsign(call);
+    qCInfo(lcMobile) << "callsign set to" << call;
+    emit callsignChanged();
 }
 
 } // namespace AetherSDR::mobile

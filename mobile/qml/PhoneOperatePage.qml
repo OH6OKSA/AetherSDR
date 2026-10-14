@@ -180,10 +180,10 @@ Page {
 
             Label {
                 Layout.fillWidth: true
-                visible: (Engine.lastError.length > 0 || !Engine.transmitAvailable)
+                visible: !Engine.transmitAvailable
                          && !page.landscape
-                text: Engine.lastError.length > 0 ? Engine.lastError : Engine.transmitUnavailableReason
-                color: Engine.lastError.length > 0 ? Theme.warning : Theme.textDim
+                text: Engine.transmitUnavailableReason
+                color: Theme.textDim
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
                 maximumLineCount: 2

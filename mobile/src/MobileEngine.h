@@ -46,6 +46,8 @@ class MobileEngine : public QObject {
     Q_PROPERTY(AetherSDR::mobile::RadioListModel* radios READ radios CONSTANT)
     Q_PROPERTY(QString connectionState READ connectionState NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    // The operator's callsign (the radio's; {CALL} in CW memories).
+    Q_PROPERTY(QString callsign READ callsign NOTIFY callsignChanged)
     Q_PROPERTY(QString radioName READ radioName NOTIFY connectionStateChanged)
     Q_PROPERTY(double frequencyMhz READ frequencyMhz WRITE setFrequencyMhz NOTIFY frequencyChanged)
     Q_PROPERTY(QString mode READ mode WRITE setMode NOTIFY modeChanged)
@@ -216,6 +218,10 @@ public:
     RadioListModel* radios() { return &m_radios; }
     QString connectionState() const { return m_connectionState; }
     QString lastError() const { return m_lastError; }
+    QString callsign() const;
+    // Writes the callsign to the radio (`radio callsign`, as SmartSDR's Radio
+    // Setup) and keeps the client-side copy in step.
+    Q_INVOKABLE void setCallsign(const QString& callsign);
     QString radioName() const { return m_radioName; }
 
     double frequencyMhz() const;
@@ -518,6 +524,7 @@ public:
 signals:
     void connectionStateChanged();
     void lastErrorChanged();
+    void callsignChanged();
     void frequencyChanged();
     void modeChanged();
     void modesChanged();

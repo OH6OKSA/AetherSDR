@@ -10,6 +10,35 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
+    // The callsign {CALL} stands for: the radio's own (SmartSDR Radio Setup),
+    // set here when it is missing or wrong.
+    RowLayout {
+        Layout.fillWidth: true
+        visible: Engine.connectionState === "connected"
+        Label {
+            text: qsTr("Callsign")
+            color: Theme.textDim
+            font.pixelSize: 15
+        }
+        Label {
+            Layout.fillWidth: true
+            text: Engine.callsign.length > 0 ? Engine.callsign : qsTr("not set")
+            color: Engine.callsign.length > 0 ? Theme.text : Theme.warning
+            font.pixelSize: 17
+            font.bold: true
+        }
+        AppButton {
+            text: Engine.callsign.length > 0 ? qsTr("Change") : qsTr("Set")
+            leftPadding: 12
+            rightPadding: 12
+            focusPolicy: Qt.NoFocus
+            onClicked: {
+                callEditor.text = Engine.callsign
+                callEditor.open()
+            }
+        }
+    }
+
     // Memories: tap sends (CWX), press and hold edits. {CALL} = the radio's
     // callsign. The straight key is the KEY button in PTT's place.
     GridLayout {
@@ -135,6 +164,52 @@ ColumnLayout {
                 elide: Text.ElideLeft
                 verticalAlignment: Text.AlignBottom
                 clip: true
+            }
+        }
+    }
+
+    // Sets the radio's callsign.
+    Dialog {
+        id: callEditor
+        objectName: "callsignEditor"
+        property alias text: callField.text
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(420, parent ? parent.width - 24 : 400)
+        modal: true
+        padding: Theme.spacing
+        background: Rectangle { color: Theme.surface; radius: Theme.radius; border.color: Theme.surfaceRaised }
+        onOpened: callField.forceActiveFocus()
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Your callsign, stored in the radio (as SmartSDR's Radio Setup). {CALL} in the CW memories sends it.")
+                color: Theme.textDim
+                font.pixelSize: 14
+                wrapMode: Text.Wrap
+            }
+            TextField {
+                id: callField
+                Layout.fillWidth: true
+                font.pixelSize: 20
+                placeholderText: qsTr("e.g. OH6OKSA")
+                inputMethodHints: Qt.ImhUppercaseOnly | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+                onAccepted: callSave.clicked()
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                AppButton { text: qsTr("Cancel"); Layout.fillWidth: true; onClicked: callEditor.close() }
+                AppButton {
+                    id: callSave
+                    text: qsTr("Save")
+                    Layout.fillWidth: true
+                    enabled: callField.text.trim().length > 0
+                    onClicked: {
+                        Engine.setCallsign(callField.text)
+                        callEditor.close()
+                    }
+                }
             }
         }
     }
