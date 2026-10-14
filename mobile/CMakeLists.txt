@@ -70,6 +70,8 @@ qt_add_qml_module(aether-mobile
         qml/PttButton.qml
         qml/NetworkBadge.qml
         qml/NetworkDialog.qml
+        qml/RadioSetupPage.qml
+        qml/SetupSuggestion.qml
         qml/Caret.qml
         qml/MeterBadge.qml
         qml/InfoPanel.qml

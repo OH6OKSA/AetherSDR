@@ -2795,6 +2795,106 @@ QVariantMap MobileEngine::networkDetails()
     return d;
 }
 
+QVariantMap MobileEngine::radioSetup() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    const TransmitModel& tx = rm.transmitModel();
+    QVariantMap d;
+    d[QStringLiteral("callsign")] = callsign();
+    d[QStringLiteral("nickname")] = rm.nickname();
+    d[QStringLiteral("model")] = rm.model();
+    d[QStringLiteral("serial")] = rm.serial().isEmpty() ? rm.chassisSerial() : rm.serial();
+    d[QStringLiteral("version")] = rm.version();
+    d[QStringLiteral("region")] = rm.region();
+    d[QStringLiteral("ip")] = rm.targetRadioIp();
+    d[QStringLiteral("remoteOn")] = rm.remoteOnEnabled();
+    d[QStringLiteral("muteLocalWhenRemote")] = rm.muteLocalWhenRemote();
+    d[QStringLiteral("maxPower")] = tx.maxPowerLevel();
+    d[QStringLiteral("txDelay")] = tx.txDelay();
+    d[QStringLiteral("interlockTimeoutS")] = tx.interlockTimeout() / 1000;
+    d[QStringLiteral("tuneMode")] = tx.tuneMode();
+    d[QStringLiteral("cwDelay")] = tx.cwDelay();
+    d[QStringLiteral("iambic")] = tx.cwIambic();
+    d[QStringLiteral("iambicMode")] = tx.cwIambicMode();
+    d[QStringLiteral("swapPaddles")] = tx.cwSwapPaddles();
+    d[QStringLiteral("micBias")] = tx.micBias();
+    d[QStringLiteral("micBoost")] = tx.micBoost();
+    d[QStringLiteral("lineoutGain")] = rm.lineoutGain();
+    d[QStringLiteral("lineoutMute")] = rm.lineoutMute();
+    d[QStringLiteral("headphoneGain")] = rm.headphoneGain();
+    d[QStringLiteral("headphoneMute")] = rm.headphoneMute();
+    return d;
+}
+
+void MobileEngine::setRadioSetup(const QString& key, const QVariant& value)
+{
+    if (!m_connected) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    TransmitModel& tx = rm.transmitModel();
+    const bool flex = rm.usesFlexCommandPlane();
+    qCInfo(lcMobile) << "radio setup:" << key << "=" << value;
+    if (key == QLatin1String("callsign")) {
+        setCallsign(value.toString());
+    } else if (key == QLatin1String("nickname") && flex) {
+        const QString name = value.toString().trimmed();
+        if (!name.isEmpty()) {
+            rm.sendCommand(QStringLiteral("radio name ") + name);
+        }
+    } else if (key == QLatin1String("remoteOn")) {
+        rm.setRemoteOnEnabled(value.toBool());
+    } else if (key == QLatin1String("muteLocalWhenRemote") && flex) {
+        rm.sendCommand(QStringLiteral("radio set mute_local_audio_when_remote=%1").arg(value.toBool() ? 1 : 0));
+    } else if (key == QLatin1String("maxPower") && flex) {
+        rm.sendCommand(QStringLiteral("transmit set max_power_level=%1").arg(std::clamp(value.toInt(), 0, 100)));
+    } else if (key == QLatin1String("txDelay") && flex) {
+        rm.sendCommand(QStringLiteral("interlock set tx_delay=%1").arg(std::max(0, value.toInt())));
+    } else if (key == QLatin1String("interlockTimeoutS") && flex) {
+        // The radio takes the timeout in milliseconds (FlexLib Radio.cs).
+        rm.sendCommand(QStringLiteral("interlock set timeout=%1").arg(std::max(0, value.toInt()) * 1000));
+    } else if (key == QLatin1String("tuneMode")) {
+        tx.setTuneMode(value.toString());
+    } else if (key == QLatin1String("cwDelay")) {
+        tx.setCwDelay(std::clamp(value.toInt(), 0, 2000));
+    } else if (key == QLatin1String("iambic")) {
+        tx.setCwIambic(value.toBool());
+    } else if (key == QLatin1String("iambicMode")) {
+        tx.setCwIambicMode(value.toInt() ? 1 : 0);
+    } else if (key == QLatin1String("swapPaddles")) {
+        tx.setCwSwapPaddles(value.toBool());
+    } else if (key == QLatin1String("micBias")) {
+        tx.setMicBias(value.toBool());
+    } else if (key == QLatin1String("micBoost")) {
+        tx.setMicBoost(value.toBool());
+    } else if (key == QLatin1String("lineoutGain")) {
+        rm.setLineoutGain(std::clamp(value.toInt(), 0, 100));
+    } else if (key == QLatin1String("lineoutMute")) {
+        rm.setLineoutMute(value.toBool());
+    } else if (key == QLatin1String("headphoneGain")) {
+        rm.setHeadphoneGain(std::clamp(value.toInt(), 0, 100));
+    } else if (key == QLatin1String("headphoneMute")) {
+        rm.setHeadphoneMute(value.toBool());
+    }
+}
+
+bool MobileEngine::setupSuggested() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    if (!m_connected || !rm.usesFlexCommandPlane() || !callsign().isEmpty()) {
+        return false;
+    }
+    const QString key = QStringLiteral("MobileSetupOffered_%1").arg(rm.serial());
+    return AppSettings::instance().value(key, QStringLiteral("0")).toString() != QLatin1String("1");
+}
+
+void MobileEngine::dismissSetupSuggestion()
+{
+    const QString key = QStringLiteral("MobileSetupOffered_%1").arg(m_session.radioModel().serial());
+    AppSettings::instance().setValue(key, QStringLiteral("1"));
+    AppSettings::instance().save();
+}
+
 QString MobileEngine::callsign() const
 {
     return m_session.radioModel().callsign().trimmed().toUpper();

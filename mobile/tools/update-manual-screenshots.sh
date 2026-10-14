@@ -56,6 +56,7 @@ shot meter 1366x1024 "${src[@]}" --controls visible --popup meterChooser
 shot frequency 1366x1024 "${src[@]}" --controls visible --frequency-dialog
 shot noslice 1366x1024 "${src[@]}" --controls visible --preview-no-slice
 shot network 1366x1024 "${src[@]}" --controls visible --popup networkDialog
+shot setup 1366x1024 "${src[@]}" --controls visible --popup radioSetup
 tabs=(dsp audio tx cw view profiles memory)
 for i in "${!tabs[@]}"; do
     shot "tab-${tabs[$i]}" 440x956 "${src[@]}" --controls drawer --controls-tab "$i"
@@ -79,6 +80,7 @@ jpg meter 380x600+0+200
 jpg frequency 700x720+333+150 500x
 jpg noslice 985x600+0+340 800x
 jpg network 470x450+448+288
+jpg setup 640x600+363+50
 for t in "${tabs[@]}"; do
     jpg "tab-$t" 440x520+0+436
 done

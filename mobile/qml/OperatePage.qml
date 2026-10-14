@@ -111,6 +111,11 @@ Page {
                 }
             }
             ToolButton {
+                text: qsTr("Setup")
+                focusPolicy: Qt.NoFocus
+                onClicked: radioSetup.open()
+            }
+            ToolButton {
                 text: qsTr("Manual")
                 focusPolicy: Qt.NoFocus
                 onClicked: Qt.openUrlExternally(Engine.manualUrl)
@@ -311,6 +316,8 @@ Page {
 
     LogPage { id: logPage }
     NetworkDialog { id: networkDialog }
+    RadioSetupPage { id: radioSetup }
+    SetupSuggestion { onSetupRequested: radioSetup.open() }
 
     FrequencyDialog {
         id: freqDialog

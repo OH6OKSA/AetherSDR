@@ -16,9 +16,10 @@ button (top row) opens this page.
 - [6. Split](#6-split)
 - [7. Transmitting: PTT, KEY and TUNE](#7-transmitting-ptt-key-and-tune)
 - [8. Controls](#8-controls)
-- [9. Notices and problems](#9-notices-and-problems)
-- [10. Keyboard and Apple Pencil](#10-keyboard-and-apple-pencil)
-- [11. Reporting a problem](#11-reporting-a-problem)
+- [9. Radio Setup](#9-radio-setup)
+- [10. Notices and problems](#10-notices-and-problems)
+- [11. Keyboard and Apple Pencil](#11-keyboard-and-apple-pencil)
+- [12. Reporting a problem](#12-reporting-a-problem)
 
 ---
 
@@ -39,7 +40,7 @@ The first page lists the ways to reach a radio:
   The device must reach the radio on the same network or over a VPN.
 
 The top row shows the app version, **Manual** and **Log** (see
-[Reporting a problem](#11-reporting-a-problem)).
+[Reporting a problem](#12-reporting-a-problem)).
 
 When you connect, the radio's microphone input is switched to *PC* so the
 device's microphone can be used for transmit.
@@ -52,7 +53,7 @@ From top to bottom:
 
 | Area | What it is |
 |---|---|
-| Top row | Radio name, [network quality](#network-quality), app version, **Controls** (open or hide the controls), **Manual**, **Log**, **Disconnect** |
+| Top row | Radio name, [network quality](#network-quality), app version, **Controls** (open or hide the controls), **Setup** ([Radio Setup](#9-radio-setup)), **Manual**, **Log**, **Disconnect** (on an iPhone Setup, Manual, Log and Disconnect are behind **⋯**) |
 | Frequency row | Frequency, mode, and the [info panel](#3-frequency-mode-and-the-info-panel) |
 | Band buttons | 160 m … 6 m |
 | Slice row | The two [meters](#4-meters-and-slices) at the ends, the slices in between |
@@ -266,7 +267,30 @@ at once.
 - **Memory** — the radio's memory channels: tap to tune, *Save* stores the
   current frequency, press and hold to delete.
 
-## 9. Notices and problems
+## 9. Radio Setup
+
+**Setup** in the top row (on an iPhone: **⋯** → *Radio Setup*) holds the
+radio's own settings — the ones a radio needs on first use, as in SmartSDR's
+and the desktop AetherSDR's Radio Setup. Every change is written to the
+radio.
+
+![Radio Setup](manual/setup.jpg)
+
+- **Radio** — callsign (what `{CALL}` sends), the radio's name in radio
+  lists, *Remote on* (SmartLink may power the radio on), muting the radio's
+  own audio while remote, and the model, serial, firmware, region and address.
+- **Transmit** — maximum power, TX delay, transmit timeout (0 = off) and the
+  TUNE signal (single or two tone).
+- **Phone/CW** — microphone bias and boost; the CW keyer's break-in delay,
+  iambic mode (off, A, B) and swapped paddles.
+- **Audio** — the radio's line out and headphone levels and muting.
+
+**A new radio.** When the app connects to a radio that has no callsign yet —
+a new or reset radio — it offers *Set up* once, a few seconds after
+connecting. *Later* skips it; Setup stays in the top row either way. A radio
+that has a callsign never shows the offer.
+
+## 10. Notices and problems
 
 Notices and refusals pop up in the middle of the display; tap one, or wait
 6 s, to close it. A tap elsewhere (PTT, tuning) never closes it by accident.
@@ -281,7 +305,7 @@ Notices and refusals pop up in the middle of the display; tap one, or wait
 | A band button opens another band | The radio's band stack (in its global profile) holds that frequency | Tune the band where you want it and save the profile |
 | *The radio has no callsign for {CALL}* | No callsign in the radio | Controls → CW → Callsign → *Set* |
 
-## 10. Keyboard and Apple Pencil
+## 11. Keyboard and Apple Pencil
 
 With a Magic Keyboard or trackpad:
 
@@ -295,7 +319,7 @@ With a Magic Keyboard or trackpad:
 
 **Apple Pencil** drags tune ten times finer, for zero-beating.
 
-## 11. Reporting a problem
+## 12. Reporting a problem
 
 Open **Log** right after the problem, tap **Copy** (or **Share**) and send
 the text together with your device model. The log header shows the app

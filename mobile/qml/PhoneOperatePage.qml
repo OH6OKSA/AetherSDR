@@ -60,9 +60,21 @@ Page {
                 focusPolicy: Qt.NoFocus
                 onClicked: controlsDrawer.open()
             }
-            ToolButton { text: qsTr("Manual"); focusPolicy: Qt.NoFocus; onClicked: Qt.openUrlExternally(Engine.manualUrl) }
-            ToolButton { text: qsTr("Log"); focusPolicy: Qt.NoFocus; onClicked: logPage.open() }
-            ToolButton { text: qsTr("Disconnect"); onClicked: Engine.disconnectRadio() }
+            // The rest behind one button: a phone's top row has no room.
+            ToolButton {
+                id: moreButton
+                text: "⋯"
+                font.pixelSize: 22
+                focusPolicy: Qt.NoFocus
+                onClicked: moreMenu.popup(moreButton, 0, moreButton.height)
+                Menu {
+                    id: moreMenu
+                    MenuItem { text: qsTr("Radio Setup"); onTriggered: radioSetup.open() }
+                    MenuItem { text: qsTr("Manual"); onTriggered: Qt.openUrlExternally(Engine.manualUrl) }
+                    MenuItem { text: qsTr("Log"); onTriggered: logPage.open() }
+                    MenuItem { text: qsTr("Disconnect"); onTriggered: Engine.disconnectRadio() }
+                }
+            }
         }
     }
 
@@ -264,5 +276,7 @@ Page {
 
     LogPage { id: logPage }
     NetworkDialog { id: networkDialog }
+    RadioSetupPage { id: radioSetup }
+    SetupSuggestion { onSetupRequested: radioSetup.open() }
     FrequencyDialog { id: freqDialog }
 }

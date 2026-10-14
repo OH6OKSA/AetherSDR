@@ -127,6 +127,9 @@ radio interface, with no computer running alongside.
 - Safe-area aware: notch, Dynamic Island and the home indicator.
 - Network quality in the top row (as the desktop's indicator), with
   link timing, packet loss per stream and traffic on tap.
+- **Radio Setup** (top row): callsign, radio name, remote, transmit limits
+  and timing, microphone, CW keyer and the radio's audio outputs; offered
+  once when a radio has no callsign yet (a new radio).
 - App version and build in the top row; **Manual** opens the
   [user manual](docs/mobile/MANUAL.md).
 - Built-in demo radio, so you can try it without a radio.

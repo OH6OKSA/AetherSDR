@@ -232,6 +232,14 @@ public:
     // The details behind it (link timing, packet integrity per stream,
     // traffic), as the desktop's network diagnostics; the dialog polls it.
     Q_INVOKABLE QVariantMap networkDetails();
+    // Radio Setup (as SmartSDR's and the desktop's): the radio's own settings
+    // a radio needs on first use. radioSetup() reads them (the page polls);
+    // setRadioSetup() writes one by key. They change the radio, not the app.
+    Q_INVOKABLE QVariantMap radioSetup() const;
+    Q_INVOKABLE void setRadioSetup(const QString& key, const QVariant& value);
+    // A radio with no callsign looks new: offer setup once per radio.
+    Q_INVOKABLE bool setupSuggested() const;
+    Q_INVOKABLE void dismissSetupSuggestion();
     QString appVersion() const;
     QString manualUrl() const;
     // Writes the callsign to the radio (`radio callsign`, as SmartSDR's Radio
