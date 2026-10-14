@@ -52,7 +52,7 @@ From top to bottom:
 
 | Area | What it is |
 |---|---|
-| Top row | Radio name, app version, **Controls** (open or hide the controls), **Manual**, **Log**, **Disconnect** |
+| Top row | Radio name, [network quality](#network-quality), app version, **Controls** (open or hide the controls), **Manual**, **Log**, **Disconnect** |
 | Frequency row | Frequency, mode, and the [info panel](#3-frequency-mode-and-the-info-panel) |
 | Band buttons | 160 m … 6 m |
 | Slice row | The two [meters](#4-meters-and-slices) at the ends, the slices in between |
@@ -69,6 +69,22 @@ drawer. On an iPhone they open as a drawer from **Controls**.
 
 The layout follows the device: rotation, Split View, Stage Manager and
 folding switch it live.
+
+### Network quality
+
+The dot in the top row rates the connection as the desktop AetherSDR does —
+**Excellent / Very Good** (green), **Good** (blue), **Fair** (amber),
+**Poor** (red) — with the round-trip time. On an iPhone only the dot and
+the time show. Tap it for the details:
+
+![Network details](manual/network.jpg)
+
+- **Link timing** — round trip to the radio, audio jitter, and the gap
+  between audio packets (current and longest).
+- **Packet integrity** — packets lost in the last 10 s and in the session,
+  per stream (audio, spectrum, waterfall, meters). Packets that merely
+  arrive out of order are not counted as lost.
+- **Traffic** — receive and send rates and totals.
 
 ## 3. Frequency, mode and the info panel
 

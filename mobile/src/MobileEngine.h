@@ -46,6 +46,10 @@ class MobileEngine : public QObject {
     Q_PROPERTY(AetherSDR::mobile::RadioListModel* radios READ radios CONSTANT)
     Q_PROPERTY(QString connectionState READ connectionState NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    // Network quality as the desktop rates it (Excellent ... Poor, "Off"
+    // when not connected) and the round trip in ms, for the header.
+    Q_PROPERTY(QString networkQuality READ networkQuality NOTIFY networkChanged)
+    Q_PROPERTY(int networkRttMs READ networkRttMs NOTIFY networkChanged)
     // "26.10.1 (54)": app version and TestFlight build, for the header.
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     // The online manual (docs/mobile/MANUAL.md on the fork's GitHub).
@@ -223,6 +227,11 @@ public:
     QString connectionState() const { return m_connectionState; }
     QString lastError() const { return m_lastError; }
     QString callsign() const;
+    QString networkQuality() const;
+    int networkRttMs() const;
+    // The details behind it (link timing, packet integrity per stream,
+    // traffic), as the desktop's network diagnostics; the dialog polls it.
+    Q_INVOKABLE QVariantMap networkDetails();
     QString appVersion() const;
     QString manualUrl() const;
     // Writes the callsign to the radio (`radio callsign`, as SmartSDR's Radio
@@ -531,6 +540,7 @@ signals:
     void connectionStateChanged();
     void lastErrorChanged();
     void callsignChanged();
+    void networkChanged();
     void frequencyChanged();
     void modeChanged();
     void modesChanged();
@@ -615,6 +625,10 @@ private:
     AudioEngine* m_audio{nullptr};
     // Split: the listening and transmitting slices (-1: none); pending while
     // the TX slice is being created.
+    // Traffic rate: bytes and time at the last networkDetails() call.
+    qint64 m_netRxBytes{0};
+    qint64 m_netTxBytes{0};
+    qint64 m_netSampleMs{0};
     int m_splitRxId{-1};
     int m_splitTxId{-1};
     bool m_splitPending{false};

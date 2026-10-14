@@ -85,6 +85,12 @@ Page {
                 font.pixelSize: 18
                 Layout.fillWidth: true
             }
+            // Network quality; tap for the details.
+            NetworkBadge {
+                objectName: "networkBadge"
+                Layout.rightMargin: Theme.spacing
+                TapHandler { onTapped: networkDialog.open() }
+            }
             // App version and build, so a screenshot or report says which.
             Label {
                 text: "v" + Engine.appVersion
@@ -304,6 +310,7 @@ Page {
     }
 
     LogPage { id: logPage }
+    NetworkDialog { id: networkDialog }
 
     FrequencyDialog {
         id: freqDialog

@@ -44,6 +44,11 @@ Page {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
+            // Network quality (dot and ms); tap for the details.
+            NetworkBadge {
+                compact: true
+                TapHandler { onTapped: networkDialog.open() }
+            }
             // App version and build, so a screenshot or report says which.
             Label {
                 text: Engine.appVersion
@@ -258,5 +263,6 @@ Page {
     }
 
     LogPage { id: logPage }
+    NetworkDialog { id: networkDialog }
     FrequencyDialog { id: freqDialog }
 }

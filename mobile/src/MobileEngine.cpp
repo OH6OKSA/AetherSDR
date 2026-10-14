@@ -150,6 +150,7 @@ MobileEngine::MobileEngine(QObject* parent)
     // Which slice transmits changes what PTT/TUNE can do.
     connect(this, &MobileEngine::slicesChanged, this, &MobileEngine::transmitStateChanged);
     connect(&rm, &RadioModel::callsignChanged, this, &MobileEngine::callsignChanged);
+    connect(&rm, &RadioModel::networkQualityChanged, this, &MobileEngine::networkChanged);
     connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
         // With no slice at all the app cannot tune: say why and what helps.
         if (m_session.radioModel().slices().isEmpty()) {
@@ -2351,6 +2352,8 @@ void MobileEngine::onConnectionStateChanged(bool connected)
 {
     m_connected = connected;
     m_micDefaulted = false;
+    m_netSampleMs = 0;
+    emit networkChanged();
     if (connected) {
         defaultMicToDevice();
         // Display diagnostics for the Log page (e.g. SmartLink without a
@@ -2728,6 +2731,68 @@ QString MobileEngine::appVersion() const
 QString MobileEngine::manualUrl() const
 {
     return QStringLiteral("https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/MANUAL.md");
+}
+
+QString MobileEngine::networkQuality() const
+{
+    return m_connected ? m_session.radioModel().networkQuality() : QStringLiteral("Off");
+}
+
+int MobileEngine::networkRttMs() const
+{
+    return m_connected ? m_session.radioModel().lastPingRtt() : 0;
+}
+
+QVariantMap MobileEngine::networkDetails()
+{
+    const RadioModel& rm = m_session.radioModel();
+    QVariantMap d;
+    d[QStringLiteral("quality")] = networkQuality();
+    d[QStringLiteral("rttMs")] = networkRttMs();
+    d[QStringLiteral("path")] = remoteSession() ? QStringLiteral("SmartLink (internet)") : QStringLiteral("Local network");
+    d[QStringLiteral("radio")] = rm.targetRadioIp();
+    d[QStringLiteral("lossPercent")] = rm.packetLossPercent();
+    d[QStringLiteral("lossWindowS")] = rm.packetLossWindowSeconds();
+    d[QStringLiteral("lossDrops")] = rm.packetLossWindowDrops();
+    d[QStringLiteral("lossPackets")] = rm.packetLossWindowPackets();
+    d[QStringLiteral("audioGapMs")] = rm.audioPacketGapMs();
+    d[QStringLiteral("audioGapMaxMs")] = rm.audioPacketGapMaxMs();
+    d[QStringLiteral("jitterMs")] = rm.audioPacketJitterMs();
+    d[QStringLiteral("sessionDrops")] = rm.packetDropCount();
+    d[QStringLiteral("sessionPackets")] = rm.packetTotalCount();
+    QVariantList streams;
+    if (rm.hasStreamCategoryStats()) {
+        const std::pair<const char*, PanadapterStream::StreamCategory> cats[] = {
+            {"Audio", PanadapterStream::CatAudio}, {"FFT", PanadapterStream::CatFFT},
+            {"Waterfall", PanadapterStream::CatWaterfall}, {"Meters", PanadapterStream::CatMeter},
+        };
+        for (const auto& [name, cat] : cats) {
+            const PanadapterStream::CategoryStats st = rm.categoryStats(cat);
+            streams << QVariantMap{{QStringLiteral("name"), QString::fromLatin1(name)},
+                                   {QStringLiteral("packets"), st.packets},
+                                   {QStringLiteral("errors"), st.errors}};
+        }
+    }
+    d[QStringLiteral("streams")] = streams;
+    // Rates since the previous call (the dialog polls once a second).
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const qint64 rx = rm.rxBytes();
+    const qint64 tx = rm.txBytes();
+    double rxKbps = 0.0;
+    double txKbps = 0.0;
+    if (m_netSampleMs > 0 && now > m_netSampleMs && rx >= m_netRxBytes && tx >= m_netTxBytes) {
+        const double s = (now - m_netSampleMs) / 1000.0;
+        rxKbps = (rx - m_netRxBytes) * 8.0 / 1000.0 / s;
+        txKbps = (tx - m_netTxBytes) * 8.0 / 1000.0 / s;
+    }
+    m_netRxBytes = rx;
+    m_netTxBytes = tx;
+    m_netSampleMs = now;
+    d[QStringLiteral("rxKbps")] = rxKbps;
+    d[QStringLiteral("txKbps")] = txKbps;
+    d[QStringLiteral("rxMB")] = rx / 1e6;
+    d[QStringLiteral("txMB")] = tx / 1e6;
+    return d;
 }
 
 QString MobileEngine::callsign() const
