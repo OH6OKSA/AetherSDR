@@ -18,7 +18,9 @@ Item {
     readonly property string txKind: side === "left" ? Engine.meterLeftTx : Engine.meterRightTx
 
     implicitWidth: compact ? 120 : 180
-    readonly property bool analog: Engine.analogMeters
+    // Where space is short (iPhone landscape) the host can ask for bars.
+    property bool analogAllowed: true
+    readonly property bool analog: Engine.analogMeters && analogAllowed
     implicitHeight: analog ? (compact ? 66 : 92) : (compact ? 34 : 44)
 
     // value, min, max, text, alarm level and whether the reading is live

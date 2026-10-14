@@ -1906,6 +1906,22 @@ void MobileEngine::setLocked(bool on)
     }
 }
 
+QStringList MobileEngine::pinnedSections() const
+{
+    return AppSettings::instance().value(QStringLiteral("MobilePinnedSections"), QStringLiteral("Mode,DSP"))
+        .toString().split(QLatin1Char(','), Qt::SkipEmptyParts);
+}
+
+void MobileEngine::setPinnedSections(const QStringList& sections)
+{
+    if (sections == pinnedSections()) {
+        return;
+    }
+    AppSettings::instance().setValue(QStringLiteral("MobilePinnedSections"), sections.join(QLatin1Char(',')));
+    AppSettings::instance().save();
+    emit displayLevelsChanged();
+}
+
 int MobileEngine::displayInt(const char* key, int fallback) const
 {
     bool ok = false;

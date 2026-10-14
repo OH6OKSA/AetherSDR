@@ -215,7 +215,7 @@ Rectangle {
         z: 6
         y: 4
         // 25 % smaller than at first; analog faces are a little wider.
-        width: Math.min(Engine.analogMeters ? 175 : 165, panArea.width * (Engine.analogMeters ? 0.30 : 0.26))
+        width: Math.min(meterView.analog ? 175 : 165, panArea.width * (meterView.analog ? 0.30 : 0.26))
         height: meterView.implicitHeight + 8
         radius: Theme.radius
         color: Theme.surface
@@ -223,6 +223,9 @@ Rectangle {
         MeterView {
             id: meterView
             compact: true
+            // A low panadapter (iPhone landscape) keeps bars: an analog face
+            // would cover most of the spectrum.
+            analogAllowed: panArea.height >= 300
             anchors.fill: parent
             anchors.margins: 4
         }
