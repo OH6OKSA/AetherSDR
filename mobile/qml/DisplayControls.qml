@@ -3,32 +3,15 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// Display levels: waterfall black level and colour gain (on top of the
-// auto-tracked noise floor; Auto off holds it), and the spectrum trace's
-// range (Auto, or reference level and range). Remembered on this device.
+// Display: 2D waterfall or 3D, waterfall black level and colour gain (on
+// top of the auto-tracked noise floor; Auto off holds it), and the spectrum
+// trace's range (Auto, or reference level and range). Remembered on this
+// device.
+// Meter styles are chosen on each meter (tap it).
 ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
-    // Both meter faces at once: bars or analog gauges (each meter's own
-    // chooser sets just that one).
-    RowLayout {
-        Layout.fillWidth: true
-        AppButton {
-            text: qsTr("Bar meters")
-            checked: !Engine.analogLeft && !Engine.analogRight
-            Layout.fillWidth: true
-            focusPolicy: Qt.NoFocus
-            onClicked: Engine.analogMeters = false
-        }
-        AppButton {
-            text: qsTr("Analog meters")
-            checked: Engine.analogMeters
-            Layout.fillWidth: true
-            focusPolicy: Qt.NoFocus
-            onClicked: Engine.analogMeters = true
-        }
-    }
     // 2D waterfall or the 3D stacked trace.
     RowLayout {
         Layout.fillWidth: true

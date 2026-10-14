@@ -5,7 +5,7 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 
 UUTTA TÄSSÄ BUILDISSA
 • Infopalkki taajuuden vieressä: slice, TX, RX- ja TX-antenni, filtterin leveys, kaiutin, lukko, DSP-tilat ja AGC. Napauta: antenni → antennivalinta, leveys tai DSP → filtterit ja DSP (NR, NB, ANF… ja BC), AGC → AGC-tila, kaiutin → mute, lukko → lukitus. Filter- ja lukkonappi poistuivat, samoin AGC, antennit ja Mute Controlsista.
-• Mittarit slice-rivin laidoilla, slicet keskellä 2×2 (kokeile 3–4 slicella myös iPhonella). Mittarit pysyvät oikean muotoisina pienillä näytöillä.
+• Mittarit slice-rivin laidoilla, slicet keskellä 2×2 (kokeile 3–4 slicella myös iPhonella). Mittarin tyyli (palkki/analoginen) valitaan mittaria napauttamalla.
 • +Slice ja +Pan vesiputouksen oikeassa alakulmassa.
 • BC (beat cancel; infopalkki → DSP, puhemodeissa) poistaa virityskantoaallon ja kirjaa sen lokiin; kokeile, kun joku virittää taajuudella.
 • Lokissa näkyy buildin numero; turhat "sequence errors" -rivit poistuivat.
