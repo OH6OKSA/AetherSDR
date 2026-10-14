@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// The tabbed operating controls (Mode, DSP, Audio, TX, CW, View, Profiles) shown in the
+// The tabbed operating controls (Mode, DSP, Audio, TX, CW, View, Profiles, Memory) shown in the
 // slide-in controls drawer.
 ColumnLayout {
     id: panel
@@ -25,13 +25,14 @@ ColumnLayout {
         id: tabs
         objectName: "controlsTabs"
         Layout.fillWidth: true
-        TabButton { text: qsTr("Mode") }
-        TabButton { text: qsTr("DSP") }
-        TabButton { text: qsTr("Audio") }
-        TabButton { text: qsTr("TX") }
-        TabButton { text: qsTr("CW") }
-        TabButton { text: qsTr("View") }
-        TabButton { text: qsTr("Profiles") }
+        TabButton { text: qsTr("Mode"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("DSP"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("Audio"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("TX"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("CW"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("View"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("Profiles"); width: Math.max(implicitWidth + 8, 58) }
+        TabButton { text: qsTr("Memory"); width: Math.max(implicitWidth + 8, 58) }
     }
 
     StackLayout {
@@ -189,6 +190,16 @@ ColumnLayout {
             contentWidth: availableWidth
             ProfileControls {
                 width: profileScroll.availableWidth
+            }
+        }
+
+        // Memory channels.
+        ScrollView {
+            id: memoryScroll
+            clip: true
+            contentWidth: availableWidth
+            MemoryControls {
+                width: memoryScroll.availableWidth
             }
         }
     }

@@ -43,6 +43,8 @@ radio interface, with no computer running alongside.
 - Waterfall black level and colour gain, and the spectrum's reference level
   and range (or Auto), in the View tab. Remembered on the device.
 - Tuning lock next to the frequency.
+- AGC threshold (AGC-T) and RF gain; the radio's memory channels (recall,
+  save, delete).
 - The radio's global, TX and mic profiles: load, save and delete, as in
   SmartSDR and AetherSDR.
 - Filter passband drawn on the display, on the correct side for USB/LSB and

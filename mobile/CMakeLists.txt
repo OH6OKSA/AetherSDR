@@ -19,6 +19,7 @@ qt_add_executable(aether-mobile
     src/SpectrumItem.cpp
     src/SpectrumItem.h
     src/Spectrum3DItem.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/MemoryCommands.cpp
     src/Spectrum3DItem.h
     src/ScreenAwake.h
     src/LogBuffer.cpp
@@ -63,6 +64,7 @@ qt_add_qml_module(aether-mobile
         qml/LockButton.qml
         qml/EqControls.qml
         qml/ProfileControls.qml
+        qml/MemoryControls.qml
         qml/PhoneOperatePage.qml
 )
 

@@ -41,6 +41,13 @@ Item {
     }
     readonly property real redFrom: kind === "S" ? -73 : red
 
+    readonly property string title: kind === "S" ? qsTr("S-Meter") : kind
+    // Inner scale under the arc (the desktop meter's second scale): dBm on
+    // the S-meter, none on the others.
+    readonly property var innerMarks: kind === "S"
+        ? [[-120, "-120", false], [-100, "-100", false], [-80, "-80", false], [-60, "-60", true], [-40, "-40", true]]
+        : []
+
     Canvas {
         id: face
         anchors.fill: parent
@@ -49,73 +56,109 @@ Item {
             const ctx = getContext("2d")
             const w = width, h = height
             ctx.reset()
-            const fontPx = gauge.compact ? 10 : 13
-            const top = fontPx + 10
-            // Arc of 110° centred on straight up, sized to the face.
-            const half = 55 * Math.PI / 180
-            // Room at the sides for the end labels (e.g. "0", "120", "+40").
-            const radius = Math.max(10, Math.min((w - 2 * (fontPx * 2.4 + 2)) / (2 * Math.sin(half)),
-                                                 (h - top - 6) / (1 - Math.cos(half) + 0.25)))
+            const fontPx = gauge.compact ? 8 : 12
+            const header = gauge.compact ? 15 : 20
+            // A wide, shallow arc whose centre sits at the bottom middle, as
+            // on the AetherSDR meter: the needle hub is a dark half disc there.
+            const half = 50 * Math.PI / 180
+            // Radius from the width; the centre sits below the face so the
+            // arc is wide and shallow, with the hub's top showing at the bottom.
+            const top = header + fontPx + 4
+            const radius = Math.max(10, (w / 2 - fontPx * 2.2) / Math.sin(half))
             const cx = w / 2
-            const cy = top + radius + 4
+            const cy = top + radius
             const start = -Math.PI / 2 - half
             const end = -Math.PI / 2 + half
             const span = gauge.max - gauge.min
             const angleOf = v => start + (end - start) * Math.max(0, Math.min(1, (v - gauge.min) / (span || 1)))
             const redAngle = angleOf(gauge.redFrom)
 
-            // Scale band: white/blue below the red zone, red above.
-            ctx.lineWidth = gauge.compact ? 3 : 4
-            ctx.strokeStyle = "#3fb6ff"
+            // Outer scale: thin white line, red past the alarm point.
+            ctx.lineWidth = 2
+            ctx.strokeStyle = "#e6edf3"
             ctx.beginPath(); ctx.arc(cx, cy, radius, start, Math.min(redAngle, end), false); ctx.stroke()
             if (redAngle < end) {
                 ctx.strokeStyle = "#e5484d"
                 ctx.beginPath(); ctx.arc(cx, cy, radius, redAngle, end, false); ctx.stroke()
             }
-
-            // Ticks and labels outside the arc.
-            ctx.font = fontPx + "px sans-serif"
-            ctx.textAlign = "center"
-            ctx.textBaseline = "middle"
-            for (const m of gauge.marks) {
-                const a = angleOf(m[0])
-                const c = Math.cos(a), s = Math.sin(a)
-                ctx.strokeStyle = m[2] ? "#e5484d" : "#e6edf3"
-                ctx.lineWidth = 1.5
-                ctx.beginPath()
-                ctx.moveTo(cx + c * (radius - 4), cy + s * (radius - 4))
-                ctx.lineTo(cx + c * (radius + 4), cy + s * (radius + 4))
-                ctx.stroke()
-                ctx.fillStyle = m[2] ? "#e5484d" : "#e6edf3"
-                ctx.fillText(m[1], cx + c * (radius + fontPx), cy + s * (radius + fontPx))
+            // Inner band: thick blue, red past the alarm point.
+            const inner = radius - (gauge.compact ? 5 : 7)
+            ctx.lineWidth = gauge.compact ? 3 : 4
+            ctx.strokeStyle = "#2f7fd6"
+            ctx.beginPath(); ctx.arc(cx, cy, inner, start, Math.min(redAngle, end), false); ctx.stroke()
+            if (redAngle < end) {
+                ctx.strokeStyle = "#c93a3f"
+                ctx.beginPath(); ctx.arc(cx, cy, inner, redAngle, end, false); ctx.stroke()
             }
 
-            // Needle from below the face up to the scale.
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            // Outer ticks and labels above the arc.
+            ctx.font = "bold " + fontPx + "px sans-serif"
+            for (const m of gauge.marks) {
+                const a = angleOf(m[0]), c = Math.cos(a), s = Math.sin(a)
+                const col = m[2] ? "#ff5a5f" : "#e6edf3"
+                ctx.strokeStyle = col
+                ctx.lineWidth = 1.5
+                ctx.beginPath()
+                ctx.moveTo(cx + c * radius, cy + s * radius)
+                ctx.lineTo(cx + c * (radius + 4), cy + s * (radius + 4))
+                ctx.stroke()
+                ctx.fillStyle = col
+                ctx.fillText(m[1], cx + c * (radius + 4 + fontPx * 0.8), cy + s * (radius + 4 + fontPx * 0.8))
+            }
+            // Inner labels below the band.
+            ctx.font = fontPx + "px sans-serif"
+            for (const m of (gauge.compact ? [] : gauge.innerMarks)) {
+                const a = angleOf(m[0]), c = Math.cos(a), s = Math.sin(a)
+                ctx.fillStyle = m[2] ? "#ff5a5f" : "#c8d3de"
+                ctx.fillText(m[1], cx + c * (inner - fontPx * 1.3), cy + s * (inner - fontPx * 1.3))
+            }
+
+            // Needle.
             const na = angleOf(gauge.shown)
             ctx.strokeStyle = gauge.live ? "#ffffff" : "#8b98a5"
             ctx.lineWidth = gauge.compact ? 1.5 : 2
             ctx.beginPath()
-            ctx.moveTo(cx + Math.cos(na) * radius * 0.25, cy + Math.sin(na) * radius * 0.25)
-            ctx.lineTo(cx + Math.cos(na) * (radius + 2), cy + Math.sin(na) * (radius + 2))
+            ctx.moveTo(cx, cy)
+            ctx.lineTo(cx + Math.cos(na) * (radius + 3), cy + Math.sin(na) * (radius + 3))
             ctx.stroke()
+
+            // Hub: a dark half disc with a warm glow, as on the desktop.
+            const hub = Math.max(10, cy - h + (gauge.compact ? 9 : 14))
+            const glow = ctx.createRadialGradient(cx, cy, hub * 0.6, cx, cy, hub * 2.2)
+            glow.addColorStop(0, "rgba(255,170,90,0.35)")
+            glow.addColorStop(1, "rgba(255,170,90,0)")
+            ctx.fillStyle = glow
+            ctx.beginPath(); ctx.arc(cx, cy, hub * 2.2, Math.PI, 2 * Math.PI, false); ctx.fill()
+            ctx.fillStyle = "#05070a"
+            ctx.beginPath(); ctx.arc(cx, cy, hub, Math.PI, 2 * Math.PI, false); ctx.fill()
         }
     }
 
-    // Kind (top left) and reading (top right), as on the desktop meter.
+    // Header: reading's S unit or kind (left, blue), title (middle), value (right).
     Text {
         x: 2; y: 0
         text: gauge.kind === "S" && gauge.live ? gauge.text.trim().split(/\s+/)[0] : gauge.kind
-        color: Theme.accent
-        font.pixelSize: gauge.compact ? 12 : 16
+        color: "#3fb6ff"
+        font.pixelSize: gauge.compact ? 12 : 17
         font.bold: true
     }
     Text {
+        visible: !gauge.compact
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 2
+        text: gauge.title
+        color: Theme.textDim
+        font.pixelSize: gauge.compact ? 9 : 12
+    }
+    Text {
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: 12
         y: 0
         text: gauge.live ? (gauge.kind === "S" ? gauge.text.trim().split(/\s+/).slice(1).join(" ") : gauge.text) : "–"
         color: gauge.live && gauge.value >= gauge.red ? Theme.transmit : Theme.text
-        font.pixelSize: gauge.compact ? 12 : 16
+        font.pixelSize: gauge.compact ? 12 : 17
         font.bold: true
     }
 }

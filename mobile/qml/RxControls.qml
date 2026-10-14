@@ -3,12 +3,25 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// Receive extras of the active slice: RIT, XIT, squelch and antennas.
-// Shared by the tablet side panel and the controls drawer.
+// Receive extras of the active slice: AGC threshold, RIT, XIT, squelch,
+// antennas and RF gain. Shared by the tablet side panel and the drawer.
 ColumnLayout {
     id: rx
     spacing: Theme.spacing / 2
     implicitWidth: 200
+
+    // AGC threshold (AGC-T), right under the AGC mode buttons.
+    RowLayout {
+        Layout.fillWidth: true
+        Label { text: qsTr("AGC-T  %1").arg(Engine.agcThreshold); color: Theme.textDim; font.pixelSize: 14; Layout.preferredWidth: 80 }
+        Slider {
+            Layout.fillWidth: true
+            enabled: Engine.connectionState === "connected" && Engine.agcMode !== "off"
+            from: 0; to: 100; stepSize: 1
+            value: Engine.agcThreshold
+            onMoved: Engine.agcThreshold = Math.round(value)
+        }
+    }
 
     // RIT / XIT rows: on/off, -/+ 10 Hz, value (tap resets to 0).
     component OffsetRow: RowLayout {
@@ -103,6 +116,26 @@ ColumnLayout {
                 focusPolicy: Qt.NoFocus
                 onClicked: Engine.rxAntenna = modelData
             }
+        }
+    }
+    // RF gain (preamp / attenuator) of the panadapter, in the radio's steps.
+    RowLayout {
+        Layout.fillWidth: true
+        visible: Engine.connectionState === "connected"
+        Label {
+            text: qsTr("RF gain  %1 dB").arg(Engine.rfGain)
+            color: Theme.textDim
+            font.pixelSize: 14
+            Layout.preferredWidth: 110
+        }
+        Slider {
+            Layout.fillWidth: true
+            from: Engine.rfGainLow
+            to: Engine.rfGainHigh
+            stepSize: Engine.rfGainStep
+            snapMode: Slider.SnapAlways
+            value: Engine.rfGain
+            onMoved: Engine.rfGain = Math.round(value)
         }
     }
     Label {

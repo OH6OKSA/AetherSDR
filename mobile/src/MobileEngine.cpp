@@ -15,6 +15,7 @@
 #include "core/CwSidetoneGenerator.h"
 #include "models/CwRxModel.h"
 #include "models/EqualizerModel.h"
+#include "gui/MemoryCommands.h"
 #include "models/CwxModel.h"
 #include "models/DecoderAudioModel.h"
 #include "models/MeterModel.h"
@@ -580,6 +581,9 @@ void MobileEngine::wireTransmit()
     connect(&rm.transmitModel(), &TransmitModel::rfPowerChanged, this, &MobileEngine::rfPowerChanged);
     connect(&rm.transmitModel(), &TransmitModel::txFilterCutoffChanged, this, &MobileEngine::txFilterChanged);
     connect(&rm, &RadioModel::globalProfilesChanged, this, &MobileEngine::profilesChanged);
+    connect(&rm, &RadioModel::memoryChanged, this, &MobileEngine::memoriesChanged);
+    connect(&rm, &RadioModel::memoryRemoved, this, &MobileEngine::memoriesChanged);
+    connect(&rm, &RadioModel::memoriesCleared, this, &MobileEngine::memoriesChanged);
     connect(&rm.transmitModel(), &TransmitModel::profileListChanged, this, &MobileEngine::profilesChanged);
     connect(&rm.transmitModel(), &TransmitModel::micProfileListChanged, this, &MobileEngine::profilesChanged);
     connect(&rm.transmitModel(), &TransmitModel::stateChanged, this, &MobileEngine::profilesChanged);
@@ -1789,6 +1793,107 @@ void MobileEngine::deleteProfile(const QString& type, const QString& name)
     m_session.radioModel().sendCommand(QStringLiteral("profile %1 delete ").arg(type) + quotedProfileName(name));
 }
 
+int MobileEngine::agcThreshold() const
+{
+    return m_slice ? m_slice->agcThreshold() : 0;
+}
+
+void MobileEngine::setAgcThreshold(int value)
+{
+    value = std::clamp(value, 0, 100);
+    if (m_slice && m_slice->agcThreshold() != value) {
+        m_slice->setAgcThreshold(value);
+    }
+}
+
+int MobileEngine::rfGain() const
+{
+    return m_pan ? m_pan->rfGain() : 0;
+}
+
+int MobileEngine::rfGainLow() const
+{
+    return m_pan && m_pan->hasRfGainRange() ? m_pan->rfGainLow() : -8;
+}
+
+int MobileEngine::rfGainHigh() const
+{
+    return m_pan && m_pan->hasRfGainRange() ? m_pan->rfGainHigh() : 32;
+}
+
+int MobileEngine::rfGainStep() const
+{
+    return m_pan && m_pan->hasRfGainRange() && m_pan->rfGainStep() > 0 ? m_pan->rfGainStep() : 8;
+}
+
+void MobileEngine::setRfGain(int gain)
+{
+    if (!m_pan || !m_connected) {
+        return;
+    }
+    gain = std::clamp(gain, rfGainLow(), rfGainHigh());
+    if (gain != m_pan->rfGain()) {
+        m_session.radioModel().setPanRfGainFor(m_pan->panId(), gain);
+    }
+}
+
+QVariantList MobileEngine::memories() const
+{
+    QList<MemoryEntry> list = m_session.radioModel().memories().values();
+    std::sort(list.begin(), list.end(), [](const MemoryEntry& a, const MemoryEntry& b) {
+        return a.freq < b.freq;
+    });
+    QVariantList out;
+    for (const MemoryEntry& m : std::as_const(list)) {
+        out << QVariantMap{{QStringLiteral("index"), m.index}, {QStringLiteral("name"), m.name},
+                           {QStringLiteral("freq"), m.freq}, {QStringLiteral("mode"), m.mode},
+                           {QStringLiteral("group"), m.group}};
+    }
+    return out;
+}
+
+void MobileEngine::recallMemory(int index)
+{
+    if (!m_connected) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    qCInfo(lcMobile) << "recall memory" << index;
+    if (rm.usesLocalMemoryBank()) {
+        rm.recallCachedMemory(index);
+    } else {
+        rm.sendCommand(QStringLiteral("memory apply %1").arg(index));
+    }
+}
+
+void MobileEngine::saveMemory(const QString& name)
+{
+    if (!m_connected || !m_slice) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    if (!rm.memoriesWritable()) {
+        setLastError(tr("This radio's memories cannot be written."));
+        return;
+    }
+    createMemoryFromSlice(&rm, m_slice, name.trimmed(), this, [this](int code, const QString& body, int index) {
+        if (code != 0) {
+            setLastError(tr("The radio did not save the memory: %1").arg(body));
+        } else {
+            qCInfo(lcMobile) << "memory saved as" << index;
+        }
+        emit memoriesChanged();
+    });
+}
+
+void MobileEngine::removeMemory(int index)
+{
+    if (m_connected) {
+        qCInfo(lcMobile) << "remove memory" << index;
+        m_session.radioModel().sendCommand(QStringLiteral("memory remove %1").arg(index));
+    }
+}
+
 bool MobileEngine::locked() const
 {
     return m_slice && m_slice->isLocked();
@@ -2174,6 +2279,7 @@ void MobileEngine::bindSlice(SliceModel* slice)
         m_sliceConnections.append(connect(slice, &SliceModel::nbChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::anfChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::agcModeChanged, this, &MobileEngine::dspChanged));
+        m_sliceConnections.append(connect(slice, &SliceModel::agcThresholdChanged, this, &MobileEngine::dspChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::stepChanged, this, &MobileEngine::stepChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::ritChanged, this, &MobileEngine::ritXitChanged));
         m_sliceConnections.append(connect(slice, &SliceModel::xitChanged, this, &MobileEngine::ritXitChanged));
@@ -2207,9 +2313,12 @@ void MobileEngine::bindPan(PanadapterModel* pan)
     m_pan = pan;
     if (pan) {
         m_panConnections.append(connect(pan, &PanadapterModel::infoChanged, this, &MobileEngine::panGeometryChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::rfGainChanged, this, &MobileEngine::rfGainChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::rfGainInfoChanged, this, &MobileEngine::rfGainChanged));
         sendPanDimensions(pan->panId());
     }
     emit panGeometryChanged();
+    emit rfGainChanged();
 }
 
 void MobileEngine::setPanPixels(int width, int height)

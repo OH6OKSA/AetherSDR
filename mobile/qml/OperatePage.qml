@@ -341,6 +341,12 @@ Page {
                 Layout.topMargin: Theme.spacing
             }
 
+            // Memory channels.
+            Label { text: qsTr("Memory"); color: Theme.textDim; font.pixelSize: 16; Layout.topMargin: Theme.spacing }
+            MemoryControls {
+                Layout.fillWidth: true
+            }
+
             // Global, TX and mic profiles.
             ProfileControls {
                 Layout.fillWidth: true

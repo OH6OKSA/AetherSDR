@@ -78,6 +78,15 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool nb READ nb WRITE setNb NOTIFY dspChanged)
     Q_PROPERTY(bool anf READ anf WRITE setAnf NOTIFY dspChanged)
     Q_PROPERTY(QString agcMode READ agcMode WRITE setAgcMode NOTIFY dspChanged)
+    // AGC threshold (AGC-T, 0…100) of the active slice.
+    Q_PROPERTY(int agcThreshold READ agcThreshold WRITE setAgcThreshold NOTIFY dspChanged)
+    // RF gain (preamp/attenuator) of the shown panadapter, in its own steps.
+    Q_PROPERTY(int rfGain READ rfGain WRITE setRfGain NOTIFY rfGainChanged)
+    Q_PROPERTY(int rfGainLow READ rfGainLow NOTIFY rfGainChanged)
+    Q_PROPERTY(int rfGainHigh READ rfGainHigh NOTIFY rfGainChanged)
+    Q_PROPERTY(int rfGainStep READ rfGainStep NOTIFY rfGainChanged)
+    // The radio's memory channels: {index, name, freq, mode, group}, by frequency.
+    Q_PROPERTY(QVariantList memories READ memories NOTIFY memoriesChanged)
     Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
     Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
     Q_PROPERTY(bool ritOn READ ritOn WRITE setRitOn NOTIFY ritXitChanged)
@@ -287,6 +296,17 @@ public:
     void setCwBreakIn(bool on);
     bool cwDecoderEnabled() const;
     bool locked() const;
+    int agcThreshold() const;
+    void setAgcThreshold(int value);
+    int rfGain() const;
+    void setRfGain(int gain);
+    int rfGainLow() const;
+    int rfGainHigh() const;
+    int rfGainStep() const;
+    QVariantList memories() const;
+    Q_INVOKABLE void recallMemory(int index);
+    Q_INVOKABLE void saveMemory(const QString& name);
+    Q_INVOKABLE void removeMemory(int index);
     QStringList globalProfiles() const;
     QString activeGlobalProfile() const;
     QStringList txProfiles() const;
@@ -493,6 +513,8 @@ signals:
     void cwDecoderChanged();
     void displayLevelsChanged();
     void lockedChanged();
+    void rfGainChanged();
+    void memoriesChanged();
     void profilesChanged();
     void txFilterChanged();
     void eqChanged();

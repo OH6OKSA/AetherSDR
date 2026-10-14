@@ -36,7 +36,8 @@ SÄÄTIMET
 • Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
 • Mittareille oma valinta vastaanottoon ja lähetykseen (esim. S/Power ja lähetyksessä SWR/Power).
 • Mittarit spektrin yläkulmissa; tyyli palkki tai analoginen (mittarin valikko tai Controls → View).
-• RIT/XIT, SQL ja antennivalinnat.
+• RIT/XIT, SQL ja antennivalinnat; RF gain antennien alla; AGC-T AGC-painikkeiden alla.
+• Muistit (Controls → Memory): napautus virittää, Save tallentaa, pitkä painallus poistaa.
 • Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen.
 • "Close N other pans": sovellus näyttää yhden panadapterin; ylimääräiset kuluttavat kaistaa ja varaavat radion paikat.
 

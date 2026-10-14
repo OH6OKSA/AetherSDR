@@ -19,7 +19,7 @@ Item {
 
     implicitWidth: compact ? 120 : 180
     readonly property bool analog: Engine.analogMeters
-    implicitHeight: analog ? (compact ? 86 : 120) : (compact ? 34 : 44)
+    implicitHeight: analog ? (compact ? 66 : 92) : (compact ? 34 : 44)
 
     // value, min, max, text, alarm level and whether the reading is live
     readonly property var reading: {
