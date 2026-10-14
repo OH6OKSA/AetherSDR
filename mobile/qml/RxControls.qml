@@ -11,7 +11,7 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
-    // RIT / XIT rows: on/off, -/+ 10 Hz, value (tap resets to 0).
+    // RIT / XIT rows: on/off, -/+ (hold to run faster), value (tap resets to 0).
     component OffsetRow: RowLayout {
         id: row
         property string label
@@ -20,6 +20,12 @@ ColumnLayout {
         signal toggled(bool on)
         signal changed(int hz)
         Layout.fillWidth: true
+        property int acc: 0
+        function step(n, dir) {
+            if (n === 0) acc = hz
+            acc += dir * (n < 10 ? 10 : n < 25 ? 50 : 100)
+            changed(acc)
+        }
         AppButton {
             text: row.label
             checked: row.on
@@ -29,7 +35,13 @@ ColumnLayout {
             focusPolicy: Qt.NoFocus
             onClicked: row.toggled(!row.on)
         }
-        AppButton { text: "−"; Layout.preferredWidth: 44; focusPolicy: Qt.NoFocus; onClicked: row.changed(row.hz - 10) }
+        // Hold to run: 10 Hz steps, then 50 Hz, then 100 Hz the longer it is
+        // held. Counted from the value at the press, not the radio's echo.
+        RepeatButton {
+            text: "−"
+            Layout.preferredWidth: 44
+            onStepped: (n) => row.step(n, -1)
+        }
         Label {
             text: (row.hz > 0 ? "+" : "") + row.hz + " Hz"
             color: row.on ? Theme.text : Theme.textDim
@@ -38,7 +50,11 @@ ColumnLayout {
             Layout.fillWidth: true
             TapHandler { onTapped: row.changed(0) }
         }
-        AppButton { text: "+"; Layout.preferredWidth: 44; focusPolicy: Qt.NoFocus; onClicked: row.changed(row.hz + 10) }
+        RepeatButton {
+            text: "+"
+            Layout.preferredWidth: 44
+            onStepped: (n) => row.step(n, 1)
+        }
     }
 
     OffsetRow {
