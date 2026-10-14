@@ -1486,6 +1486,10 @@ private:
     BeatCanceller m_beatCanceller;
     QByteArray m_beatCancelScratch;
     bool m_beatCancelWasOn{false};
+    // For the log lines: each notch slot's frequency and start (in frames).
+    std::array<double, BeatCanceller::kMaxNotches> m_beatCancelLogHz{};
+    std::array<qint64, BeatCanceller::kMaxNotches> m_beatCancelLogStart{};
+    qint64 m_beatCancelFrames{0};
     // Post-EQ analyzer tap. One ring per path, mono (L+R averaged).
     // Audio thread writes via tapClientEqRxStereo() / tapClientEqTxFloat32();
     // UI thread snapshots via the public

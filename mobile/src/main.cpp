@@ -27,6 +27,8 @@ int main(int argc, char* argv[])
     QGuiApplication::setApplicationName(QStringLiteral("AetherSDR-Mobile"));
     QGuiApplication::setOrganizationName(QStringLiteral("AetherSDR"));
     QGuiApplication::setApplicationVersion(QStringLiteral(AETHERSDR_VERSION));
+    qInfo().noquote() << QStringLiteral("AetherSDR Mobile %1 (build %2)")
+                             .arg(QStringLiteral(AETHERSDR_VERSION), QStringLiteral(AETHER_MOBILE_BUILD_NUMBER));
 
     QCommandLineParser parser;
     parser.addHelpOption();

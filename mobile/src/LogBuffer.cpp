@@ -108,8 +108,9 @@ void LogBuffer::append(const QString& line)
 
 QString LogBuffer::report() const
 {
-    return QStringLiteral("AetherSDR Mobile %1 — %2\n\n%3")
-        .arg(QGuiApplication::applicationVersion(), QSysInfo::prettyProductName(), text());
+    return QStringLiteral("AetherSDR Mobile %1 (build %2) — %3\n\n%4")
+        .arg(QGuiApplication::applicationVersion(), QStringLiteral(AETHER_MOBILE_BUILD_NUMBER),
+             QSysInfo::prettyProductName(), text());
 }
 
 void LogBuffer::copyToClipboard() const

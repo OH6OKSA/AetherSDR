@@ -390,6 +390,11 @@ void MobileEngine::wireSmartLink()
     });
 
     const QString token = loadSecret(kSmartLinkTokenKey);
+    // SmartLinkClient's own QtKeychain store is not built in here (it logs
+    // "persistence: disabled"); the app keeps the sign-in itself.
+    qCInfo(lcMobile).noquote() << QStringLiteral("SmartLink sign-in kept by the app in the %1: %2")
+        .arg(secureStoreAvailable() ? QStringLiteral("iOS Keychain") : QStringLiteral("(no secure store)"),
+             token.isEmpty() ? QStringLiteral("none saved") : QStringLiteral("saved"));
     if (!token.isEmpty()) {
         setSmartLinkState(QStringLiteral("signingIn"));
         m_smartLink.loginWithRefreshToken(token);

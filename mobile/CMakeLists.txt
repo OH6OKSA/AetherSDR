@@ -107,6 +107,8 @@ endif()
 set(AETHER_MOBILE_BUNDLE_ID "com.aethersdr.mobile" CACHE STRING "iOS bundle identifier of aether-mobile")
 set(AETHER_MOBILE_BUILD_NUMBER "1" CACHE STRING "iOS CFBundleVersion of aether-mobile")
 set(AETHER_MOBILE_TEAM_ID "" CACHE STRING "Apple Developer Team ID that signs aether-mobile (empty: unsigned)")
+# The build number in the app too (Log, developer link), to tell builds apart.
+target_compile_definitions(aether-mobile PRIVATE AETHER_MOBILE_BUILD_NUMBER="${AETHER_MOBILE_BUILD_NUMBER}")
 
 if(IOS)
     # Audio goes through the Darwin multimedia backend; the FFmpeg plugin

@@ -58,6 +58,7 @@ DevLink::DevLink(QObject* parent)
         setStatus(QStringLiteral("connected"));
         send({{QStringLiteral("t"), QStringLiteral("hello")},
               {QStringLiteral("version"), QGuiApplication::applicationVersion()},
+              {QStringLiteral("build"), QStringLiteral(AETHER_MOBILE_BUILD_NUMBER)},
               {QStringLiteral("os"), QSysInfo::prettyProductName()},
               {QStringLiteral("device"), QSysInfo::machineHostName()}});
         // The log so far, then live lines.

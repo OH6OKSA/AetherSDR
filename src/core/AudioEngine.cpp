@@ -5704,9 +5704,34 @@ void AudioEngine::processMixedRxAudioData(const QByteArray& pcm,
                 m_beatCanceller.setSampleRate(rate);
             }
             m_beatCancelScratch = data;
-            m_beatCanceller.processStereo(reinterpret_cast<float*>(m_beatCancelScratch.data()),
-                static_cast<int>(m_beatCancelScratch.size() / (2 * qsizetype(sizeof(float)))));
+            const int frames =
+                static_cast<int>(m_beatCancelScratch.size() / (2 * qsizetype(sizeof(float))));
+            m_beatCanceller.processStereo(reinterpret_cast<float*>(m_beatCancelScratch.data()), frames);
             chainInput = &m_beatCancelScratch;
+            // One line per carrier caught and released (rare; for the Log).
+            m_beatCancelFrames += frames;
+            for (int i = 0; i < BeatCanceller::kMaxNotches; ++i) {
+                const double hz = m_beatCanceller.notchHz(i);
+                if (hz > 0.0 && m_beatCancelLogHz[i] == 0.0) {
+                    m_beatCancelLogStart[i] = m_beatCancelFrames;
+                    qCInfo(lcAudio).noquote()
+                        << QStringLiteral("beat cancel: carrier at %1 Hz notched").arg(hz, 0, 'f', 0);
+                } else if (hz == 0.0 && m_beatCancelLogHz[i] > 0.0) {
+                    qCInfo(lcAudio).noquote()
+                        << QStringLiteral("beat cancel: carrier at %1 Hz gone after %2 s")
+                               .arg(m_beatCancelLogHz[i], 0, 'f', 0)
+                               .arg(double(m_beatCancelFrames - m_beatCancelLogStart[i]) / std::max(1, rate), 0, 'f', 1);
+                }
+                if (hz == 0.0 || m_beatCancelLogHz[i] == 0.0) {
+                    m_beatCancelLogHz[i] = hz;
+                }
+            }
+        }
+        if (beatCancel != m_beatCancelWasOn) {
+            qCInfo(lcAudio) << "beat cancel" << (beatCancel ? "on" : "off");
+            if (!beatCancel) {
+                m_beatCancelLogHz.fill(0.0);
+            }
         }
         m_beatCancelWasOn = beatCancel;
 

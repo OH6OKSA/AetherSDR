@@ -1,6 +1,7 @@
 #include "AudioSession.h"
 
 #import <AVFAudio/AVFAudio.h>
+#import <UIKit/UIKit.h>
 
 #include <QLoggingCategory>
 
@@ -9,6 +10,11 @@ Q_LOGGING_CATEGORY(lcAudioSession, "aether.mobile.audiosession")
 namespace AetherSDR::mobile {
 
 namespace {
+
+// Whether the last activation took. A launch iOS makes in the background
+// (TestFlight update, prewarm) cannot activate a session; it is retried
+// when the app comes to the front.
+bool g_active = false;
 
 void activate()
 {
@@ -26,9 +32,17 @@ void activate()
     }
     error = nil;
     if (![session setActive:YES error:&error]) {
-        qCWarning(lcAudioSession) << "setActive failed:"
-                                  << QString::fromNSString(error.localizedDescription);
+        g_active = false;
+        const bool background = UIApplication.sharedApplication.applicationState != UIApplicationStateActive;
+        if (background) {
+            qCInfo(lcAudioSession) << "setActive deferred (app not in front yet):"
+                                   << QString::fromNSString(error.localizedDescription);
+        } else {
+            qCWarning(lcAudioSession) << "setActive failed:"
+                                      << QString::fromNSString(error.localizedDescription);
+        }
     } else {
+        g_active = true;
         qCInfo(lcAudioSession) << "play-and-record session active, route"
                                << QString::fromNSString(session.currentRoute.outputs.firstObject.portType);
     }
@@ -56,6 +70,18 @@ void configureAudioSession()
                     qCInfo(lcAudioSession) << "interruption"
                                            << (type == AVAudioSessionInterruptionTypeBegan ? "began" : "ended");
                     if (type == AVAudioSessionInterruptionTypeEnded) {
+                        activate();
+                    }
+                }];
+    // A session that could not start at launch: take it once the app is
+    // in front.
+    [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIApplicationDidBecomeActiveNotification
+                    object:nil
+                     queue:[NSOperationQueue mainQueue]
+                usingBlock:^(NSNotification*) {
+                    if (!g_active) {
+                        qCInfo(lcAudioSession) << "app in front: activating the session";
                         activate();
                     }
                 }];
