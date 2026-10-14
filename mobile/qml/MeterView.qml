@@ -21,7 +21,9 @@ Item {
     // Where space is short (iPhone landscape) the host can ask for bars.
     property bool analogAllowed: true
     readonly property bool analog: Engine.analogMeters && analogAllowed
-    implicitHeight: analog ? (compact ? 66 : 92) : (compact ? 34 : 44)
+    // Height of an analog face; the host sizes it to the space available.
+    property real faceHeight: compact ? 66 : 92
+    implicitHeight: analog ? faceHeight : (compact ? 34 : 44)
 
     // value, min, max, text, alarm level and whether the reading is live
     readonly property var reading: {

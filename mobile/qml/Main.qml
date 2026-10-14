@@ -12,7 +12,10 @@ ApplicationWindow {
 
     // Phone-sized windows (iPhone, folded iPhone Duo, narrow Split View)
     // get the phone layout; it switches live on rotation or fold/unfold.
-    readonly property bool phoneSized: width < 700 || height < 500
+    // Adaptive metrics follow the window (Theme.qml).
+    Binding { target: Theme; property: "windowWidth"; value: window.width }
+    Binding { target: Theme; property: "windowHeight"; value: window.height }
+    readonly property bool phoneSized: Theme.phoneLayout
 
     // The page follows the connection: radio list until connected.
     Loader {

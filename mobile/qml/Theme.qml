@@ -1,9 +1,9 @@
 pragma Singleton
 import QtQuick
 
-// Placeholder palette for the prototype; the visual canon is the
-// maintainer's call (AGENTS.md) and replaces these once the touch UI is
-// reviewed.
+// Colours, plus the app's adaptive metrics: everything sized through Theme
+// follows the window (rotation, Split View, Stage Manager, folding devices)
+// without per-device rules. Main.qml feeds in the window size.
 QtObject {
     readonly property color background: "#0f1419"
     readonly property color surface: "#1a222b"
@@ -16,10 +16,30 @@ QtObject {
     readonly property color warning: "#f5a524"
     readonly property color passband: "#ffd75e"
 
-    readonly property int touchTarget: 48
+    // ---- Window (set by Main.qml) ----
+    property real windowWidth: 1366
+    property real windowHeight: 1024
+
+    // ---- Classes, as Apple's size classes ----
+    readonly property real shortSide: Math.min(windowWidth, windowHeight)
+    readonly property bool landscape: windowWidth > windowHeight
+    // Compact width: an iPhone, a folded phone, a narrow Split View pane.
+    readonly property bool compactWidth: windowWidth < 700
+    // Compact height: an iPhone (or small pane) in landscape.
+    readonly property bool compactHeight: windowHeight < 500
+    // The phone layout (drawer controls, strip PTT) for either.
+    readonly property bool phoneLayout: compactWidth || compactHeight
+
+    // ---- Continuous metrics from the short side ----
+    // 1.0 on an 11" iPad (834 pt); about 0.9 on an iPhone, 1.1 on a 13" iPad.
+    readonly property real scale: Math.max(0.85, Math.min(1.15, 0.7 + shortSide / 2800))
+    // Never under Apple's 44 pt minimum touch target.
+    readonly property int touchTarget: Math.max(44, Math.round(48 * scale))
     // Standard button (the band buttons' size); PTT and KEY are larger.
-    readonly property int buttonWidth: 56
-    readonly property int buttonFont: 14
-    readonly property int spacing: 12
+    readonly property int buttonWidth: Math.round(56 * scale)
+    readonly property int buttonFont: Math.max(12, Math.round(14 * scale))
+    readonly property int labelFont: Math.max(12, Math.round(15 * scale))
+    readonly property int smallFont: Math.max(10, Math.round(12 * scale))
+    readonly property int spacing: Math.round(12 * scale)
     readonly property int radius: 8
 }

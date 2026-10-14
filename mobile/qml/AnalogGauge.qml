@@ -14,6 +14,10 @@ Item {
     property bool live: false
     property string text: ""
     property bool compact: false
+    // Size unit: 1.0 at a 66 px face; text and strokes follow it.
+    readonly property real unit: height / 66
+    // Room for the inner dBm scale and the title only on larger faces.
+    readonly property bool roomy: unit >= 1.3
 
     // Eased needle, so meter jitter reads like a real movement.
     property real shown: live ? Math.max(min, Math.min(max, value)) : min
@@ -56,8 +60,8 @@ Item {
             const ctx = getContext("2d")
             const w = width, h = height
             ctx.reset()
-            const fontPx = gauge.compact ? 8 : 12
-            const header = gauge.compact ? 15 : 20
+            const fontPx = Math.max(7, Math.round(8.5 * gauge.unit))
+            const header = Math.round(15 * gauge.unit)
             // A wide, shallow arc whose centre sits at the bottom middle, as
             // on the AetherSDR meter: the needle hub is a dark half disc there.
             const half = 50 * Math.PI / 180
@@ -82,8 +86,8 @@ Item {
                 ctx.beginPath(); ctx.arc(cx, cy, radius, redAngle, end, false); ctx.stroke()
             }
             // Inner band: thick blue, red past the alarm point.
-            const inner = radius - (gauge.compact ? 5 : 7)
-            ctx.lineWidth = gauge.compact ? 3 : 4
+            const inner = radius - 5 * gauge.unit
+            ctx.lineWidth = Math.max(2, 3 * gauge.unit)
             ctx.strokeStyle = "#2f7fd6"
             ctx.beginPath(); ctx.arc(cx, cy, inner, start, Math.min(redAngle, end), false); ctx.stroke()
             if (redAngle < end) {
@@ -109,7 +113,7 @@ Item {
             }
             // Inner labels below the band.
             ctx.font = fontPx + "px sans-serif"
-            for (const m of (gauge.compact ? [] : gauge.innerMarks)) {
+            for (const m of (gauge.roomy ? gauge.innerMarks : [])) {
                 const a = angleOf(m[0]), c = Math.cos(a), s = Math.sin(a)
                 ctx.fillStyle = m[2] ? "#ff5a5f" : "#c8d3de"
                 ctx.fillText(m[1], cx + c * (inner - fontPx * 1.3), cy + s * (inner - fontPx * 1.3))
@@ -118,14 +122,14 @@ Item {
             // Needle.
             const na = angleOf(gauge.shown)
             ctx.strokeStyle = gauge.live ? "#ffffff" : "#8b98a5"
-            ctx.lineWidth = gauge.compact ? 1.5 : 2
+            ctx.lineWidth = Math.max(1.5, 1.6 * gauge.unit)
             ctx.beginPath()
             ctx.moveTo(cx, cy)
             ctx.lineTo(cx + Math.cos(na) * (radius + 3), cy + Math.sin(na) * (radius + 3))
             ctx.stroke()
 
             // Hub: a dark half disc with a warm glow, as on the desktop.
-            const hub = Math.max(10, cy - h + (gauge.compact ? 9 : 14))
+            const hub = Math.max(10, cy - h + 9 * gauge.unit)
             const glow = ctx.createRadialGradient(cx, cy, hub * 0.6, cx, cy, hub * 2.2)
             glow.addColorStop(0, "rgba(255,170,90,0.35)")
             glow.addColorStop(1, "rgba(255,170,90,0)")
@@ -141,16 +145,16 @@ Item {
         x: 2; y: 0
         text: gauge.kind === "S" && gauge.live ? gauge.text.trim().split(/\s+/)[0] : gauge.kind
         color: "#3fb6ff"
-        font.pixelSize: gauge.compact ? 12 : 17
+        font.pixelSize: Math.max(10, Math.round(12 * gauge.unit))
         font.bold: true
     }
     Text {
-        visible: !gauge.compact
+        visible: gauge.roomy
         anchors.horizontalCenter: parent.horizontalCenter
         y: 2
         text: gauge.title
         color: Theme.textDim
-        font.pixelSize: gauge.compact ? 9 : 12
+        font.pixelSize: Math.max(8, Math.round(9 * gauge.unit))
     }
     Text {
         anchors.right: parent.right
@@ -158,7 +162,7 @@ Item {
         y: 0
         text: gauge.live ? (gauge.kind === "S" ? gauge.text.trim().split(/\s+/).slice(1).join(" ") : gauge.text) : "–"
         color: gauge.live && gauge.value >= gauge.red ? Theme.transmit : Theme.text
-        font.pixelSize: gauge.compact ? 12 : 17
+        font.pixelSize: Math.max(10, Math.round(12 * gauge.unit))
         font.bold: true
     }
 }
