@@ -127,7 +127,14 @@ MobileEngine::MobileEngine(QObject* parent)
     });
     connect(&rm, &RadioModel::panadapterReclaimed, this, [this](PanadapterModel*) { selectActiveSlice(); });
     connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
-        setLastError(tr("The radio allows %1 slices.").arg(limit));
+        // With no slice at all the app cannot tune: say why and what helps.
+        if (m_session.radioModel().slices().isEmpty()) {
+            setLastError(tr("The radio did not give this app a slice. Its %1 slices may all be "
+                            "in use by other programs (SmartSDR, another station): close one "
+                            "there, then try again.").arg(limit));
+        } else {
+            setLastError(tr("The radio allows %1 slices.").arg(limit));
+        }
     });
     connect(&rm, &RadioModel::panadapterLimitReached, this, [this](int limit, const QString&) {
         setLastError(tr("The radio allows %1 panadapters.").arg(limit));
@@ -1424,10 +1431,21 @@ void MobileEngine::selectSlice(int sliceId)
 
 void MobileEngine::addSlice()
 {
-    if (!canAddSlice() || !m_pan) {
+    if (!canAddSlice()) {
         return;
     }
-    m_session.radioModel().addSliceOnPan(m_pan->panId());
+    // With no slice there is no active pan yet: use the one the radio gave
+    // this client (its restored layout), as the retry after a refused slice.
+    RadioModel& rm = m_session.radioModel();
+    PanadapterModel* pan = m_pan;
+    if (!pan && !rm.panadapters().isEmpty()) {
+        pan = rm.panadapters().first();
+    }
+    if (!pan) {
+        return;
+    }
+    setLastError(QString());
+    rm.addSliceOnPan(pan->panId());
 }
 
 void MobileEngine::removeSlice(int sliceId)

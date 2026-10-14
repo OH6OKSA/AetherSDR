@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import AetherMobile
 
 // Panadapter and waterfall of the active pan with the slice marker, filter
@@ -273,6 +274,60 @@ Rectangle {
                 opacity: 0.85
                 focusPolicy: Qt.NoFocus
                 onClicked: modelData.pan ? Engine.addPanadapter() : Engine.addSlice()
+            }
+        }
+    }
+
+    // Connected but without a slice (the radio refused one, e.g. all its
+    // slices held by other programs): nothing can tune, so say so over the
+    // display, with a retry. A moment's grace while the first slice arrives.
+    readonly property bool sliceless: Engine.connectionState === "connected" && Engine.slices.length === 0
+    Timer {
+        id: slicelessGrace
+        interval: 4000
+        running: panArea.sliceless
+        onRunningChanged: if (!running) noSliceNotice.shown = false
+        onTriggered: noSliceNotice.shown = true
+    }
+    Rectangle {
+        id: noSliceNotice
+        objectName: "noSliceNotice"
+        property bool shown: false
+        property bool preview: false   // screenshots (--preview-no-slice)
+        visible: (shown && panArea.sliceless) || preview
+        z: 8
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 24, 460)
+        height: noSliceColumn.implicitHeight + 2 * Theme.spacing
+        radius: Theme.radius
+        color: Theme.surface
+        border.color: Theme.warning
+        ColumnLayout {
+            id: noSliceColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacing
+            spacing: Theme.spacing / 2
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("No slice")
+                color: Theme.warning
+                font.pixelSize: Math.round(Theme.buttonFont * 1.2)
+                font.bold: true
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: Theme.text
+                text: Engine.lastError.length > 0 ? Engine.lastError
+                      : qsTr("The radio has not given this app a slice yet, so it cannot tune.")
+            }
+            AppButton {
+                text: qsTr("Try again")
+                leftPadding: 16
+                rightPadding: 16
+                Layout.preferredHeight: Theme.touchTarget
+                focusPolicy: Qt.NoFocus
+                onClicked: Engine.addSlice()
             }
         }
     }

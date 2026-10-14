@@ -61,6 +61,9 @@ int main(int argc, char* argv[])
         QStringLiteral("Open a chooser popup by object name, e.g. meterChooser or modeChooser (screenshots)."),
         QStringLiteral("name"));
     parser.addOption(meterChooserOption);
+    const QCommandLineOption previewNoSliceOption(QStringLiteral("preview-no-slice"),
+        QStringLiteral("Show the no-slice notice over the display (screenshots)."));
+    parser.addOption(previewNoSliceOption);
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
@@ -157,6 +160,15 @@ int main(int argc, char* argv[])
             for (QObject* root : qml.rootObjects()) {
                 if (QObject* dialog = root->findChild<QObject*>(QStringLiteral("frequencyDialog"))) {
                     QMetaObject::invokeMethod(dialog, "open");
+                }
+            }
+        });
+    }
+    if (parser.isSet(previewNoSliceOption)) {
+        QTimer::singleShot(6000, &app, [&qml] {
+            for (QObject* root : qml.rootObjects()) {
+                for (QObject* notice : root->findChildren<QObject*>(QStringLiteral("noSliceNotice"))) {
+                    notice->setProperty("preview", true);
                 }
             }
         });
