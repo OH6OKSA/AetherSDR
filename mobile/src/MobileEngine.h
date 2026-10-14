@@ -141,6 +141,8 @@ class MobileEngine : public QObject {
     // 3D stacked trace (the desktop's 3DSS, CPU-drawn) in place of the
     // 2D waterfall.
     Q_PROPERTY(bool spectrum3D READ spectrum3D WRITE setSpectrum3D NOTIFY displayLevelsChanged)
+    // Meter faces: analog gauges (arc and needle) instead of bars.
+    Q_PROPERTY(bool analogMeters READ analogMeters WRITE setAnalogMeters NOTIFY displayLevelsChanged)
     Q_PROPERTY(QString cwDecodedText READ cwDecodedText NOTIFY cwDecoderChanged)
     Q_PROPERTY(QString cwDecoderStats READ cwDecoderStats NOTIFY cwDecoderChanged)
     Q_PROPERTY(int rfPower READ rfPower WRITE setRfPower NOTIFY rfPowerChanged)
@@ -326,6 +328,8 @@ public:
     void setTraceRangeDb(int v) { setDisplayInt("MobileTraceRange", std::clamp(v, 20, 150)); }
     bool spectrum3D() const { return displayInt("MobileSpectrum3D", 0) != 0; }
     void setSpectrum3D(bool on) { setDisplayInt("MobileSpectrum3D", on ? 1 : 0); }
+    bool analogMeters() const { return displayInt("MobileMeterAnalog", 0) != 0; }
+    void setAnalogMeters(bool on) { setDisplayInt("MobileMeterAnalog", on ? 1 : 0); }
     void setCwDecoderEnabled(bool on);
     QString cwDecodedText() const { return m_cwDecodedText; }
     QString cwDecoderStats() const { return m_cwDecoderStats; }

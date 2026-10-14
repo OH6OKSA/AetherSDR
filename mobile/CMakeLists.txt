@@ -54,6 +54,7 @@ qt_add_qml_module(aether-mobile
         qml/AppButton.qml
         qml/ControlsPanel.qml
         qml/MeterView.qml
+        qml/AnalogGauge.qml
         qml/TxControls.qml
         qml/RxControls.qml
         qml/SliceBar.qml

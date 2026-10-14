@@ -18,7 +18,8 @@ Item {
     readonly property string txKind: side === "left" ? Engine.meterLeftTx : Engine.meterRightTx
 
     implicitWidth: compact ? 120 : 180
-    implicitHeight: compact ? 34 : 44
+    readonly property bool analog: Engine.analogMeters
+    implicitHeight: analog ? (compact ? 86 : 120) : (compact ? 34 : 44)
 
     // value, min, max, text, alarm level and whether the reading is live
     readonly property var reading: {
@@ -51,8 +52,22 @@ Item {
         return { v: 0, min: 0, max: 1, live: false, text: kind, red: 1e9 }
     }
 
+    AnalogGauge {
+        anchors.fill: parent
+        visible: meter.analog
+        compact: meter.compact
+        kind: meter.kind
+        value: meter.reading.v
+        min: meter.reading.min
+        max: meter.reading.max
+        red: meter.reading.red
+        live: meter.reading.live
+        text: meter.reading.text
+    }
+
     ColumnLayout {
         anchors.fill: parent
+        visible: !meter.analog
         spacing: 2
         RowLayout {
             Layout.fillWidth: true
@@ -90,6 +105,10 @@ Item {
     // transmit. A tick marks the current choice of each.
     Menu {
         id: chooser
+        MenuItem {
+            text: Engine.analogMeters ? qsTr("Style: analog  (tap for bar)") : qsTr("Style: bar  (tap for analog)")
+            onTriggered: Engine.analogMeters = !Engine.analogMeters
+        }
         MenuSeparator { contentItem: Label { text: qsTr("Receive"); color: Theme.textDim; font.pixelSize: 13; padding: 6 } }
         Repeater {
             model: Engine.meterKinds

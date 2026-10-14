@@ -10,6 +10,24 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
+    // Meter faces: bars or analog gauges.
+    RowLayout {
+        Layout.fillWidth: true
+        AppButton {
+            text: qsTr("Bar meters")
+            checked: !Engine.analogMeters
+            Layout.fillWidth: true
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.analogMeters = false
+        }
+        AppButton {
+            text: qsTr("Analog meters")
+            checked: Engine.analogMeters
+            Layout.fillWidth: true
+            focusPolicy: Qt.NoFocus
+            onClicked: Engine.analogMeters = true
+        }
+    }
     // 2D waterfall or the 3D stacked trace.
     RowLayout {
         Layout.fillWidth: true

@@ -57,6 +57,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
+    const QCommandLineOption analogMetersOption(QStringLiteral("analog-meters"),
+        QStringLiteral("Meter faces: on (analog) or off (bars) (remembered)."), QStringLiteral("state"));
+    parser.addOption(analogMetersOption);
     const QCommandLineOption devLinkOption(QStringLiteral("devlink"),
         QStringLiteral("Developer link to <host>, or off (remembered)."), QStringLiteral("host"));
     parser.addOption(devLinkOption);
@@ -126,6 +129,9 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (parser.isSet(analogMetersOption)) {
+        engine.setAnalogMeters(parser.value(analogMetersOption) == QLatin1String("on"));
+    }
     if (parser.isSet(spectrum3dOption)) {
         engine.setSpectrum3D(parser.value(spectrum3dOption) == QLatin1String("on"));
     }

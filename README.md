@@ -52,7 +52,8 @@ radio interface, with no computer running alongside.
 - Two meters side by side, SmartSDR style. Tap either one to choose S, Power,
   SWR, ALC, Mic, Compression, PA temperature or supply voltage, separately
   for receive and transmit (e.g. S and Power, then SWR and Power on the
-  air). The choices are remembered.
+  air). Bars or analog gauges (arc, needle, S1–S9 and +20/+40 in red).
+  The choices are remembered.
 - Band buttons use the radio's own band stack, so each band comes back to its
   last frequency and mode.
 - Step buttons from ±1 Hz to ±1 kHz land on round frequencies: +10 Hz from
