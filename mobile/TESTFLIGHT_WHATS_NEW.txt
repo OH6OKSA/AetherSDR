@@ -4,14 +4,10 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• SPLIT infopalkissa: luo TX-slicen (CW +1 kHz, muut +5 kHz), uusi napautus lopettaa. [TX]
-• Ilmoitukset ponnahtavat keskelle vesiputousta (sulkeutuu napautuksella tai 6 s).
-• Kun TX-slice suljetaan, lähetys siirtyy jäljelle jäävälle slicelle. Ei slicea → "No slice" + Try again.
-• PTT/KEY näkyy aina, myös Controls-valikon ollessa auki.
-• AGC-T ja RF gain AGC:n takana infopalkissa; RF gain näkyy spektrin oikeassa yläkulmassa ja muuttaa kuvaa.
-• RIT/XIT −/+ juoksevat pitkään painettaessa.
-• CW: 9 muistia, lähetetty teksti näkyy dekooderissa, kutsun asetus (CW → Callsign).
-• Kaiutin ja lukko infopalkin ylärivillä; mittarin tyyli vain mittarista.
+• Verkon laatu yläpalkissa (väri ja ms); napauta → viive, pakettihäviö ja liikenne.
+• Versio ja Manual-nappi yläpalkissa: avaa ohjekirjan kuvineen.
+• Infopalkki näyttää kaikki radion DSP:t (päällä kirkkaana).
+• Edelliseltä buildilta edelleen testattavaa: SPLIT, ilmoitukset keskellä, TX-slicen siirto, PTT aina näkyvissä, RF gain, RIT/XIT pitkä painallus, CW-muistit ja kutsu.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.

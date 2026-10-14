@@ -59,8 +59,9 @@ radio interface, with no computer running alongside.
   touch target with its choices behind it: the antennas open their
   chooser; the width and the flags the mode's eight filter widths and the
   radio's DSP (NR, NB, ANF, APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where
-  the radio has them); AGC its modes, AGC threshold and RF gain; the
-  speaker mutes, the lock locks.
+  the radio has them; every one the radio offers is listed, lit when on);
+  AGC its modes, AGC threshold and RF gain; the speaker mutes, the lock
+  locks.
 - **Split**, as SmartSDR and AetherSDR: SPLIT on the info panel adds a TX
   slice 1 kHz (CW) or 5 kHz up, muted, with transmit and focus to tune the
   offset; tap again to end it.
@@ -124,6 +125,10 @@ radio interface, with no computer running alongside.
 - Magic Keyboard and trackpad: arrows tune, Space is PTT, +/− zoom, F opens
   frequency entry, scroll tunes and ⌘-scroll zooms.
 - Safe-area aware: notch, Dynamic Island and the home indicator.
+- Network quality in the top row (as the desktop's indicator), with
+  link timing, packet loss per stream and traffic on tap.
+- App version and build in the top row; **Manual** opens the
+  [user manual](docs/mobile/MANUAL.md).
 - Built-in demo radio, so you can try it without a radio.
 - In-app **Log** with Copy, so testers can report exactly what happened.
 
