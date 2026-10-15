@@ -4,12 +4,10 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• PTT alimmaisena kaikissa asennoissa (iPad-vaaka: paneeli saa koko korkeuden; iPhone-vaaka: PTT step-rivin lopussa).
-• Band plan spektrin alareunassa (View → Band plan, oletus IARU Region 1).
-• Radio Setup → Network: MTU (oletus 1450).
-• RF GAIN spektrin oikeassa yläkulmassa: napauta → AGC, AGC-T, RF gain.
-• BC pois automaattisesti CW- ja datamodeissa (myös jos toinen kuuluva slice on niissä).
-• Edelliseltä: kerro, loppuiko äänen pätkiminen.
+• iPad-vaaka: yksi PTT; paneeli piilossa → koko leveys; kiinnitettynä paneeli koko korkeudelta ja PTT spektrin alla.
+• Band plan näkyy myös 3D-näkymässä.
+• Edelliseltä: PTT alimmaisena, band plan, Network MTU, RF GAIN napautettava, BC pois CW/datamodeissa.
+• Kerro, loppuiko äänen pätkiminen.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
