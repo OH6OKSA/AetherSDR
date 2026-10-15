@@ -4,8 +4,9 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Audio buffer (Controls → Audio): Normal (200 ms) on oletus. Low latency pätkii tavallisella Wi-Fillä; jos Normal pätkii, kokeile Smooth.
-• Lokiin kerran minuutissa "performance" (CPU, ruudunpäivitys); "audio underrun" näyttää pisimmän pakettivälin 10 s ajalta.
+• Spektri ja 3D pystyasennossa: pohja ei enää litisty tasaiseksi käännön jälkeen. Testaa kääntämällä iPadia muutaman kerran 2D- ja 3D-näkymässä.
+• Lokiin spektrin tasot 30 s välein ("spectrum levels").
+• Edelliseltä: Audio buffer Normal (200 ms) oletus; Low latency pätkii tavallisella Wi-Fillä.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
