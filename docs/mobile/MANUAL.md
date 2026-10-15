@@ -196,9 +196,11 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
 - **Pinch**, or **− / +** (bottom left), to zoom around the slice.
 - The **frequency scale** runs along the top of the waterfall.
 - The **dBm scale** at the left: drag it up or down to move the trace (the
-  reference level). In 3D it shows the top and the floor (the zero of the
-  3D view); dragging down lowers the floor and shows more of the noise.
-  Auto in View gives the automatic levels back.
+  reference level). In 3D, as on the desktop, the 3D levels stay automatic:
+  the floor (the 3D zero) follows the noise and the scale runs from it to
+  the top. Dragging sets **3D floor**, how far under the noise the zero
+  sits (0–24 dB, default 6): drag up and the noise rises, down and it
+  sinks. The same setting is a slider in View.
 - **RF GAIN +8 dB** (top right) shows the RF gain; tap it for AGC, AGC-T and
   RF gain. A gain step shows on the
   waterfall and trace, as on the desktop.

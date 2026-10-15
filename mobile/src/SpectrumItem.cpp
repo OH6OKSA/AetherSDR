@@ -153,6 +153,14 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
                        .arg(m_traceBottom, 0, 'f', 0)
                        .arg(m_traceTop, 0, 'f', 0);
         }
+        if (!m_autoSeeded) {
+            m_autoNoise = noise;
+            m_autoTop = top;
+            m_autoSeeded = true;
+        } else {
+            m_autoNoise += (noise - m_autoNoise) * kTraceSmoothing;
+            m_autoTop += (top - m_autoTop) * kTraceSmoothing;
+        }
         if (m_engine && !m_engine->traceAutoRange()) {
             // Manual: reference level at the top, range below it.
             m_traceTop = static_cast<float>(m_engine->traceRefDbm());
@@ -168,9 +176,13 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
         }
         // Tell the scale strip when the scale moved by at least 1 dB.
         if (std::abs(m_traceTop - m_reportedTop) >= 1.0f
-            || std::abs(m_traceBottom - m_reportedBottom) >= 1.0f) {
+            || std::abs(m_traceBottom - m_reportedBottom) >= 1.0f
+            || std::abs(m_autoNoise - m_reportedNoise) >= 0.5f
+            || std::abs(m_autoTop - m_reportedAutoTop) >= 1.0f) {
             m_reportedTop = m_traceTop;
             m_reportedBottom = m_traceBottom;
+            m_reportedNoise = m_autoNoise;
+            m_reportedAutoTop = m_autoTop;
             emit traceScaleChanged();
         }
         // Own transmission in the waterfall: the radio pauses waterfall rows

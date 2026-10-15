@@ -48,6 +48,21 @@ ColumnLayout {
             onClicked: Engine.spectrum3D = true
         }
     }
+    // The desktop's 3D Floor: how far under the noise the 3D zero sits (also
+    // set by dragging the dBm scale on the display).
+    Label {
+        visible: Engine.spectrum3D
+        text: qsTr("3D floor  %1 dB under the noise").arg(Engine.spectrum3DFloorDepth)
+        color: Theme.textDim
+        font.pixelSize: 15
+    }
+    Slider {
+        visible: Engine.spectrum3D
+        Layout.fillWidth: true
+        from: 0; to: 24; stepSize: 1
+        value: Engine.spectrum3DFloorDepth
+        onMoved: Engine.spectrum3DFloorDepth = Math.round(value)
+    }
     RowLayout {
         Layout.fillWidth: true
         Label { text: qsTr("Waterfall"); color: Theme.textDim; font.pixelSize: 16; Layout.fillWidth: true }

@@ -23,6 +23,10 @@ class SpectrumItem : public QQuickPaintedItem {
     // area), for the dBm scale strip and its drag.
     Q_PROPERTY(double traceTopDbm READ traceTopDbm NOTIFY traceScaleChanged)
     Q_PROPERTY(double traceBottomDbm READ traceBottomDbm NOTIFY traceScaleChanged)
+    // Automatic levels whatever the trace's mode: the noise and the top the
+    // auto scale would use (both without the RF gain). The 3D view takes these.
+    Q_PROPERTY(double noiseFloorDbm READ noiseFloorDbm NOTIFY traceScaleChanged)
+    Q_PROPERTY(double autoTopDbm READ autoTopDbm NOTIFY traceScaleChanged)
     // Height of the band plan strip at the bottom of the spectrum (0 when no
     // plan is shown): the 3D view ends above it.
     Q_PROPERTY(double bandPlanHeight READ bandPlanHeight NOTIFY bandPlanHeightChanged)
@@ -35,6 +39,8 @@ public:
     double spectrumFraction() const { return m_spectrumFraction; }
     double traceTopDbm() const { return m_traceTop; }
     double traceBottomDbm() const { return m_traceBottom; }
+    double noiseFloorDbm() const { return m_autoNoise; }
+    double autoTopDbm() const { return m_autoTop; }
     double bandPlanHeight() const;
     void setSpectrumFraction(double fraction);
 
@@ -73,6 +79,11 @@ private:
     double m_viewHighMhz{0.0};
     float m_traceBottom{-130.0f};
     float m_traceTop{-40.0f};
+    float m_autoNoise{-120.0f};
+    float m_autoTop{-40.0f};
+    bool m_autoSeeded{false};
+    float m_reportedNoise{0.0f};
+    float m_reportedAutoTop{0.0f};
     bool m_traceSeeded{false};
     float m_reportedTop{0.0f};
     float m_reportedBottom{0.0f};

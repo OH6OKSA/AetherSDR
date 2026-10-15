@@ -30,9 +30,14 @@ Rectangle {
     }
 
     // 3D stacked trace on the GPU in place of the trace (the waterfall stays
-    // below), as the desktop's 3DSS. The floor sits a little under the noise
-    // so the noise reads dark blue, as there.
+    // below), as the desktop's 3DSS. As there, its levels are automatic
+    // whatever the 2D trace's mode: the floor (its zero) follows the noise,
+    // 3D Floor dB under it, so the noise reads dark blue; the top follows the
+    // strongest signals.
     Spectrum3DItem {
+        id: surface3D
+        readonly property real floor: spectrum.noiseFloorDbm - Engine.spectrum3DFloorDepth
+        readonly property real span: Math.max(20, Math.min(100, spectrum.autoTopDbm - floor))
         visible: Engine.spectrum3D
         engine: Engine
         x: 0
@@ -40,8 +45,8 @@ Rectangle {
         width: parent.width
         // Ends above the band plan strip, which stays visible under it.
         height: Math.round(parent.height * spectrum.spectrumFraction - spectrum.bandPlanHeight)
-        floorDbm: spectrum.traceBottomDbm
-        rangeDb: Math.max(20, Math.min(100, spectrum.traceTopDbm - spectrum.traceBottomDbm))
+        floorDbm: floor
+        rangeDb: span
         colorGain: Engine.wfColorGain
     }
 
@@ -156,17 +161,18 @@ Rectangle {
 
     // dBm scale on the left of the spectrum (the reference level control of
     // SmartSDR/AetherSDR): drag it up or down to move the trace. A drag
-    // switches the trace to manual; Auto in the View tab gives it back. The
-    // 3D view takes the same levels; its heights are not linear, so there it
-    // shows only the top and the floor (its zero), down to the band plan.
+    // switches the trace to manual; Auto in the View tab gives it back. In 3D
+    // it is the desktop's 3D dBm scale: floor to top, and a drag sets 3D Floor
+    // (how far under the noise the zero sits, 0-24 dB) instead.
     Item {
         id: scaleStrip
         z: 4
         width: 40
         height: parent.height * spectrum.spectrumFraction
                 - (Engine.spectrum3D ? spectrum.bandPlanHeight : 0)
-        readonly property real topDbm: spectrum.traceTopDbm
-        readonly property real bottomDbm: spectrum.traceBottomDbm
+        readonly property real topDbm: Engine.spectrum3D ? surface3D.floor + surface3D.span
+                                                         : spectrum.traceTopDbm
+        readonly property real bottomDbm: Engine.spectrum3D ? surface3D.floor : spectrum.traceBottomDbm
         readonly property real range: Math.max(1, topDbm - bottomDbm)
         // The smallest round step that keeps labels at least 18 px apart.
         readonly property int step: {
@@ -180,7 +186,6 @@ Rectangle {
             // Bounded: a non-finite scale (no data yet) must never spin here.
             model: {
                 const ticks = []
-                if (Engine.spectrum3D) return ticks
                 const top = scaleStrip.topDbm
                 const bottom = scaleStrip.bottomDbm
                 if (!isFinite(top) || !isFinite(bottom) || top <= bottom) return ticks
@@ -198,19 +203,6 @@ Rectangle {
                 font.pixelSize: 11
             }
         }
-        Repeater {
-            model: Engine.spectrum3D ? [scaleStrip.topDbm, scaleStrip.bottomDbm] : []
-            delegate: Label {
-                required property real modelData
-                required property int index
-                x: 3
-                y: index === 0 ? 3 : scaleStrip.height - height - 3
-                visible: isFinite(modelData)
-                text: Math.round(modelData)
-                color: Theme.textDim
-                font.pixelSize: 11
-            }
-        }
         MouseArea {
             id: scaleDrag
             anchors.fill: parent
@@ -218,10 +210,15 @@ Rectangle {
             property real startTop: 0
             property real startY: 0
             property real span: 90
+            property int startDepth: 0
             onPressed: (mouse) => {
+                startY = mouse.y
+                if (Engine.spectrum3D) {
+                    startDepth = Engine.spectrum3DFloorDepth
+                    return
+                }
                 startTop = scaleStrip.topDbm
                 span = scaleStrip.range
-                startY = mouse.y
                 if (Engine.traceAutoRange) {
                     Engine.traceRangeDb = Math.round(span)
                     Engine.traceRefDbm = Math.round(startTop)
@@ -229,7 +226,13 @@ Rectangle {
                 }
             }
             // The trace follows the finger: dragging down raises the top level.
+            // In 3D the surface follows it: up lowers the floor (24 dB over the
+            // strip's height, as the desktop) and the noise rises.
             onPositionChanged: (mouse) => {
+                if (Engine.spectrum3D) {
+                    Engine.spectrum3DFloorDepth = Math.round(startDepth + (startY - mouse.y) / height * 24)
+                    return
+                }
                 Engine.traceRefDbm = Math.round(startTop + (mouse.y - startY) / height * span)
             }
         }
