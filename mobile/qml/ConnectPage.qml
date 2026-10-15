@@ -211,21 +211,25 @@ Page {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spacing
-                TextField {
+                // Opens the app's keypad: text fields did not take every
+                // keyboard (a tester's iPad with a hardware keyboard).
+                AppButton {
                     id: addressField
+                    objectName: "addressField"
+                    readonly property string address: Engine.lastAddress
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.touchTarget
-                    text: Engine.lastAddress
-                    placeholderText: qsTr("FlexRadio IP address, e.g. 192.168.1.50")
-                    inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhNoPredictiveText
+                    text: address.length > 0 ? address : qsTr("Enter the radio's IP address")
                     font.pixelSize: 18
-                    onAccepted: Engine.connectToAddress(text)
+                    focusPolicy: Qt.NoFocus
+                    onClicked: addressDialog.open()
                 }
                 AppButton {
                     text: qsTr("Connect")
                     Layout.preferredHeight: Theme.touchTarget
-                    enabled: Engine.connectionState === "idle" && addressField.text.length > 0
-                    onClicked: Engine.connectToAddress(addressField.text)
+                    enabled: Engine.connectionState === "idle"
+                    onClicked: addressField.address.length > 0 ? Engine.connectToAddress(addressField.address)
+                                                               : addressDialog.open()
                 }
             }
             Label {
@@ -239,4 +243,8 @@ Page {
     }
 
     LogPage { id: logPage }
+    AddressDialog {
+        id: addressDialog
+        onConnectRequested: (address) => Engine.connectToAddress(address)
+    }
 }
