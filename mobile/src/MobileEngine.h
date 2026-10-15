@@ -46,6 +46,11 @@ class MobileEngine : public QObject {
     Q_PROPERTY(AetherSDR::mobile::RadioListModel* radios READ radios CONSTANT)
     Q_PROPERTY(QString connectionState READ connectionState NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    // Receive audio coding: "Auto" (Opus when remote: SmartLink, a tailnet,
+    // or the radio reached through a VPN), "Opus" or "None"; applies from
+    // the next connection. audioCodingInUse says what this one uses and why.
+    Q_PROPERTY(QString audioCompression READ audioCompression WRITE setAudioCompression NOTIFY audioCompressionChanged)
+    Q_PROPERTY(QString audioCodingInUse READ audioCodingInUse NOTIFY audioCompressionChanged)
     // Network quality as the desktop rates it (Excellent ... Poor, "Off"
     // when not connected) and the round trip in ms, for the header.
     Q_PROPERTY(QString networkQuality READ networkQuality NOTIFY networkChanged)
@@ -227,6 +232,9 @@ public:
     QString connectionState() const { return m_connectionState; }
     QString lastError() const { return m_lastError; }
     QString callsign() const;
+    QString audioCompression() const;
+    void setAudioCompression(const QString& mode);
+    QString audioCodingInUse() const { return m_audioCodingInUse; }
     QString networkQuality() const;
     int networkRttMs() const;
     // The details behind it (link timing, packet integrity per stream,
@@ -548,6 +556,7 @@ signals:
     void connectionStateChanged();
     void lastErrorChanged();
     void callsignChanged();
+    void audioCompressionChanged();
     void networkChanged();
     void frequencyChanged();
     void modeChanged();
@@ -641,6 +650,9 @@ private:
     // retry per connection on a fresh panadapter (pending until it arrives).
     bool m_sliceRecoveryTried{false};
     bool m_sliceRecoveryPending{false};
+    QString m_audioCodingInUse;
+    // Sets the core's AudioCompression for the coming connection.
+    void applyAudioCompression(const QHostAddress& radio, bool wan);
     int m_splitRxId{-1};
     int m_splitTxId{-1};
     bool m_splitPending{false};

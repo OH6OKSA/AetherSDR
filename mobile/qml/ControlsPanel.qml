@@ -172,8 +172,34 @@ ColumnLayout {
     Component {
         id: audioSection
         ColumnLayout {
+            // Receive audio coding: Opus when remote (Auto), or fixed.
+            Label { text: qsTr("Receive audio"); color: Theme.textDim }
+            RowLayout {
+                Layout.fillWidth: true
+                Repeater {
+                    model: [{ key: "Auto", label: qsTr("Auto") }, { key: "Opus", label: qsTr("Opus") },
+                            { key: "None", label: qsTr("Uncompressed") }]
+                    delegate: AppButton {
+                        required property var modelData
+                        text: modelData.label
+                        checked: Engine.audioCompression === modelData.key
+                        focusPolicy: Qt.NoFocus
+                        Layout.fillWidth: true
+                        onClicked: Engine.audioCompression = modelData.key
+                    }
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Auto uses Opus over SmartLink or a VPN, uncompressed on the local network. This connection: %1. A change applies from the next connection.")
+                      .arg(Engine.audioCodingInUse.length > 0 ? Engine.audioCodingInUse : "–")
+                color: Theme.textDim
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
             // AF gain and mute are on the info panel's speaker.
             EqControls {
+                Layout.topMargin: Theme.spacing
                 Layout.fillWidth: true
             }
         }

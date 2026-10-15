@@ -245,8 +245,12 @@ at once.
 - **DSP** — RIT and XIT (on/off; − and + step 10 Hz and run while held,
   faster the longer: 10, then 50, then 100 Hz; tap the value to reset), and
   squelch.
-- **Audio** — the radio's 8-band receive and transmit equalizer (volume is
-  on the info panel's speaker).
+- **Audio** — **Receive audio**: *Auto* uses Opus (compressed, made for
+  the internet) over SmartLink or when the radio is reached through a VPN,
+  and uncompressed audio on the local network; *Opus* or *Uncompressed* fix
+  it. It shows what the current connection uses; a change applies from the
+  next connection. Below, the radio's 8-band receive and transmit equalizer
+  (volume is on the info panel's speaker).
 - **TX** — TUNE and the ATU (tune, bypass, memories), tune power, RF power,
   speech processor (PROC NOR/DX/DX+), monitor (MON), radio mic level, device
   mic gain, microphone choice and the transmit filter (low and high cut).

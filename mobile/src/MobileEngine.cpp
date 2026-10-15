@@ -36,6 +36,7 @@
 #include <QLoggingCategory>
 #include <QThread>
 #include <QDateTime>
+#include <QNetworkInterface>
 #include <QTimer>
 
 #include <algorithm>
@@ -337,6 +338,7 @@ void MobileEngine::connectToAddress(const QString& host)
 
 void MobileEngine::connectWithInfo(const RadioInfo& info, const QString& displayName)
 {
+    applyAudioCompression(info.address, false);
     m_wanActive = false;
     m_wanReconnectTimer.stop();
     m_radioName = displayName;
@@ -409,6 +411,7 @@ void MobileEngine::wireSmartLink()
             return;
         }
         qCInfo(lcMobile) << "SmartLink connect_ready for" << serial;
+        applyAudioCompression(QHostAddress(), true);
         m_wan.connectToRadio(m_pendingWan.publicIp, static_cast<quint16>(m_pendingWan.publicTlsPort), handle);
     });
     // The mismatch fires before WanConnection::connected, so it is taken from
@@ -2919,6 +2922,78 @@ void MobileEngine::dismissSetupSuggestion()
     const QString key = QStringLiteral("MobileSetupOffered_%1").arg(m_session.radioModel().serial());
     AppSettings::instance().setValue(key, QStringLiteral("1"));
     AppSettings::instance().save();
+}
+
+namespace {
+const QString kMobileAudioCompressionKey = QStringLiteral("MobileAudioCompression");
+
+// The radio is reached through a VPN: no local network holds its address,
+// and a tunnel interface (iOS utun/ipsec, wg, tun, ppp) carries IPv4. A
+// routed home network without a tunnel is not a VPN.
+bool radioThroughVpn(const QHostAddress& radio)
+{
+    if (radio.protocol() != QAbstractSocket::IPv4Protocol || radio.isLoopback()) {
+        return false;
+    }
+    bool tunnel = false;
+    for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+        if (!(iface.flags() & QNetworkInterface::IsUp)) {
+            continue;
+        }
+        const QString name = iface.name();
+        const bool tunnelName = name.startsWith(QLatin1String("utun")) || name.startsWith(QLatin1String("ipsec"))
+            || name.startsWith(QLatin1String("wg")) || name.startsWith(QLatin1String("tun"))
+            || name.startsWith(QLatin1String("ppp"));
+        for (const QNetworkAddressEntry& entry : iface.addressEntries()) {
+            if (entry.ip().protocol() != QAbstractSocket::IPv4Protocol) {
+                continue;
+            }
+            if (tunnelName) {
+                tunnel = true;
+            } else if (entry.prefixLength() > 0 && radio.isInSubnet(entry.ip(), entry.prefixLength())) {
+                return false;   // on a local network
+            }
+        }
+    }
+    return tunnel;
+}
+} // namespace
+
+QString MobileEngine::audioCompression() const
+{
+    const QString v = AppSettings::instance().value(kMobileAudioCompressionKey, QStringLiteral("Auto")).toString();
+    return (v == QLatin1String("Opus") || v == QLatin1String("None")) ? v : QStringLiteral("Auto");
+}
+
+void MobileEngine::setAudioCompression(const QString& mode)
+{
+    if (mode == audioCompression()) {
+        return;
+    }
+    AppSettings::instance().setValue(kMobileAudioCompressionKey, mode);
+    AppSettings::instance().save();
+    emit audioCompressionChanged();
+}
+
+void MobileEngine::applyAudioCompression(const QHostAddress& radio, bool wan)
+{
+    const QString choice = audioCompression();
+    QString core = choice;   // the core's AudioCompression: Auto, Opus or None
+    QString why;
+    if (choice == QLatin1String("Auto")) {
+        if (wan) {
+            why = QStringLiteral("SmartLink");
+        } else if (radioThroughVpn(radio)) {
+            core = QStringLiteral("Opus");
+            why = QStringLiteral("VPN");
+        }
+    }
+    AppSettings::instance().setValue(QStringLiteral("AudioCompression"), core);
+    const bool opus = core == QLatin1String("Opus") || (core == QLatin1String("Auto") && wan);
+    m_audioCodingInUse = opus ? (why.isEmpty() ? QStringLiteral("Opus") : QStringLiteral("Opus (%1)").arg(why))
+                              : QStringLiteral("Uncompressed");
+    qCInfo(lcMobile).noquote() << "receive audio:" << m_audioCodingInUse << "(setting" << choice + ")";
+    emit audioCompressionChanged();
 }
 
 QString MobileEngine::callsign() const
