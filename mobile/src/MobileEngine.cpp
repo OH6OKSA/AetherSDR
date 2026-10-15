@@ -60,7 +60,12 @@ const QString kLastAddressKey = QStringLiteral("MobileLastRadioAddress");
 const QString kControlsVisibleKey = QStringLiteral("MobileControlsVisible");
 const QString kDeviceMicSelection = QStringLiteral("PC");
 constexpr int kPanPixelsSettleMs = 400;
-constexpr int kMinPanYPixels = 200;
+// The radio's FFT vertical encoding, the same in every orientation and on
+// every device: the desktop's 700 rows, also the decoder's default. It used
+// to follow the view's height (226 rows in iPad landscape, 406 in portrait);
+// when the radio's y_pixels echo for a rotation was missed, the decoder kept
+// the old height and the trace and 3D view drew flat until the next resend.
+constexpr int kPanYPixels = 700;
 const QString kSmartLinkTokenKey = QStringLiteral("smartlink_refresh_token");
 // SmartLink UDP port when the radio reports none (FlexLib default).
 constexpr quint16 kDefaultWanUdpPort = 4993;
@@ -2703,12 +2708,17 @@ void MobileEngine::bindPan(PanadapterModel* pan)
 
 void MobileEngine::setPanPixels(int width, int height)
 {
-    if (width <= 0 || height <= 0 || (width == m_panWidth && height == m_panHeight)) {
+    if (width <= 0 || height <= 0) {
         return;
     }
+    // The radio takes only the width (the height encoding is fixed).
+    const bool widthChanged = width != m_panWidth;
     m_panWidth = width;
     m_panHeight = height;
-    // Each new size restarts the radio's FFT stream at the new geometry, so
+    if (!widthChanged) {
+        return;
+    }
+    // Each new width restarts the radio's FFT stream at the new geometry, so
     // only a size that has held for a moment is sent; layout settling and
     // rotation produce bursts of intermediate sizes.
     m_panPixelsTimer.start();
@@ -2723,10 +2733,8 @@ void MobileEngine::sendPanDimensions(const QString& panId)
     // Self-shaping backends take the width through the seam; the
     // xpixels/ypixels text is the Flex command-plane contract.
     // ypixels sets only the FFT's vertical resolution (the view scales the
-    // dBm values itself). Below about 100 rows, 4.2.x firmware's pixels no
-    // longer decode to the right dBm (noise read as -50 dBm at 88 rows), so
-    // never ask for fewer than kMinPanYPixels.
-    const int yPixels = std::max(m_panHeight, kMinPanYPixels);
+    // dBm values itself), so it stays fixed at kPanYPixels.
+    const int yPixels = kPanYPixels;
     if (!rm.requestLocalPanPixelWidth(panId, m_panWidth) && rm.hasCommandPlane()) {
         rm.sendCommand(QStringLiteral("display pan set %1 xpixels=%2 ypixels=%3")
                            .arg(panId).arg(m_panWidth).arg(yPixels));
