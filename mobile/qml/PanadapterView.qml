@@ -19,8 +19,14 @@ Rectangle {
         id: spectrum
         anchors.fill: parent
         engine: Engine
-        // The 3D surface needs height; the desktop gives it about half.
-        spectrumFraction: Engine.spectrum3D ? 0.5 : 0.4
+        // The 3D surface needs height; the desktop gives it about half. It
+        // stretches with its area, so it keeps iPad landscape's shape (height
+        // 0.158 of the width) in every orientation and the waterfall takes
+        // the rest; never lower than two touch targets (phones in portrait).
+        spectrumFraction: Engine.spectrum3D
+            ? Math.min(0.5, (Math.max(width * 0.158, Theme.touchTarget * 2) + bandPlanHeight)
+                            / Math.max(1, height))
+            : 0.4
     }
 
     // 3D stacked trace on the GPU in place of the trace (the waterfall stays
