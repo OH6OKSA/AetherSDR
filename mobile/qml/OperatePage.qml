@@ -60,6 +60,10 @@ Page {
     // PTT runs the full width along the bottom in every orientation.
     readonly property real pttHeight: Math.round(Theme.touchTarget * 1.5)
     readonly property bool portrait: height > width
+    // Landscape with the panel pinned: two columns, the panel the full
+    // height at the right, PTT under the display only. Otherwise one column
+    // and PTT the full width.
+    readonly property bool twoColumns: !portrait && Engine.controlsVisible
     // Landscape side column: the pinned control panel (none when hidden).
     // Fixed, so content can never widen it off screen.
     readonly property int sideWidth: Math.max(280, Math.min(360, width * 0.28))
@@ -143,7 +147,7 @@ Page {
         anchors.bottomMargin: Theme.spacing + Math.max(grid.SafeArea.margins.bottom, 12)
         columnSpacing: Theme.spacing
         rowSpacing: Theme.spacing
-        columns: page.portrait ? 1 : 2
+        columns: page.twoColumns ? 2 : 1
 
         // Left (top in portrait): frequency, S-meter and the panadapter area.
         // Cells are placed by hand: a hidden panel must not let PTT slide
@@ -245,8 +249,9 @@ Page {
         // of the side; they scroll when they do not fit.
         ColumnLayout {
             visible: Engine.controlsVisible
-            Layout.row: page.portrait ? 1 : 0
-            Layout.column: page.portrait ? 0 : 1
+            Layout.row: page.twoColumns ? 0 : 1
+            Layout.column: page.twoColumns ? 1 : 0
+            Layout.rowSpan: page.twoColumns ? 2 : 1
             Layout.preferredWidth: page.portrait ? -1 : page.sideWidth
             Layout.maximumWidth: page.portrait ? Number.POSITIVE_INFINITY : page.sideWidth
             Layout.fillWidth: page.portrait
@@ -262,12 +267,12 @@ Page {
             }
         }
 
-        // PTT along the bottom, the full width, in every orientation.
+        // PTT along the bottom: under the display (the pinned panel keeps
+        // the side's full height), the full width otherwise.
         PttButton {
             id: ptt
-            Layout.row: page.portrait ? 2 : 1
+            Layout.row: page.twoColumns ? 1 : (Engine.controlsVisible ? 2 : 1)
             Layout.column: 0
-            Layout.columnSpan: page.portrait ? 1 : 2
             Layout.fillWidth: true
             Layout.preferredHeight: page.pttHeight
             fontPx: 32
@@ -282,7 +287,12 @@ Page {
         objectName: "controlsDrawer"
         edge: page.portrait ? Qt.BottomEdge : Qt.RightEdge
         width: page.portrait ? page.width : Math.min(page.width * 0.4, 460)
-        height: page.portrait ? Math.min(page.height * 0.5, 560) : page.height
+        // Landscape: ends above the page's PTT row, which stays usable, so
+        // the drawer needs no PTT of its own. Portrait (from the bottom)
+        // covers it and carries a copy.
+        height: page.portrait ? Math.min(page.height * 0.5, 560)
+                              : page.height - page.pttHeight - 2 * Theme.spacing
+                                - Math.max(grid.SafeArea.margins.bottom, 12)
         dim: false
         dragMargin: 0
         onAboutToShow: {
@@ -313,6 +323,7 @@ Page {
                 }
             }
             PttButton {
+                visible: page.portrait
                 Layout.fillWidth: true
                 Layout.preferredHeight: page.pttHeight
                 fontPx: 32
