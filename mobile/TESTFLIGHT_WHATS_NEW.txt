@@ -4,9 +4,9 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Spektri ja 3D pystyasennossa: pohja ei enää litisty tasaiseksi käännön jälkeen. Testaa kääntämällä iPadia muutaman kerran 2D- ja 3D-näkymässä.
-• Lokiin spektrin tasot 30 s välein ("spectrum levels").
-• Edelliseltä: Audio buffer Normal (200 ms) oletus; Low latency pätkii tavallisella Wi-Fillä.
+• 3D, spektri ja vesiputous kuten desktop-AetherSDR:ssä: 3D liukuu pehmeästi, ei välky, kapeat kantoaallot eivät katoa, sivujen tyhjät kolmiot täyttyvät ja suodatinkaista näkyy 3D-pinnassa. Kerro, onko 3D sujuva ja pysyykö laite viileänä.
+• View: 3D floor ja 3D gain; Range toimii myös Autossa. 3D:n dBm-asteikkoa raahaamalla säädät 3D floorin.
+• Pystyasennossa 3D on vaaka-asennon muotoinen.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
