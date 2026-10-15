@@ -253,8 +253,8 @@ Rectangle {
         anchors.topMargin: 6
         // Under the meter, edge to edge with it.
         anchors.rightMargin: panArea.rfLabelWidth > 0 ? 0 : 6
-        // As wide as the right meter above it (the page passes its width).
-        width: panArea.rfLabelWidth > 0 ? panArea.rfLabelWidth : rfText.implicitWidth + 16
+        // Half the right meter above it (the page passes its width).
+        width: panArea.rfLabelWidth > 0 ? Math.max(rfText.implicitWidth * 0.6 + 12, panArea.rfLabelWidth * 0.5) : rfText.implicitWidth + 16
         height: Math.max(rfText.implicitHeight + 8, Math.round(Theme.touchTarget * 0.7))
         radius: 4
         color: rfArea.pressed ? Theme.surfaceRaised : Theme.surface
