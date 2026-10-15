@@ -20,6 +20,7 @@ import sys
 
 APP_PORT = 47100
 CONTROL_PORT = 47101
+LINE_LIMIT = 32 * 1024 * 1024
 
 
 class Link:
@@ -100,7 +101,9 @@ class Link:
 
 async def serve(out):
     link = Link(out)
-    app = await asyncio.start_server(link.app, "0.0.0.0", APP_PORT)
+    # A screenshot reply is one JSON line of base64 (a detailed 3D view runs
+    # well past asyncio's 64 KiB default line limit).
+    app = await asyncio.start_server(link.app, "0.0.0.0", APP_PORT, limit=LINE_LIMIT)
     ctl = await asyncio.start_server(link.control, "127.0.0.1", CONTROL_PORT)
     link.note(f"listening on {APP_PORT}")
     async with app, ctl:
