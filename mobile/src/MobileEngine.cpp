@@ -2756,7 +2756,7 @@ QString MobileEngine::appVersion() const
 
 QString MobileEngine::manualUrl() const
 {
-    return QStringLiteral("https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/MANUAL.md");
+    return QStringLiteral("https://github.com/OH6OKSA/AetherSDR/blob/HEAD/docs/mobile/MANUAL.md");
 }
 
 QString MobileEngine::networkQuality() const
