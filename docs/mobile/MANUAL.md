@@ -193,7 +193,8 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
 - The **frequency scale** runs along the top of the waterfall.
 - The **dBm scale** at the left: drag it up or down to move the trace (the
   reference level).
-- **RF +8 dB** (top right) shows the RF gain. A gain step shows on the
+- **RF GAIN +8 dB** (top right) shows the RF gain; tap it for AGC, AGC-T and
+  RF gain. A gain step shows on the
   waterfall and trace, as on the desktop.
 - The filter passband is drawn on the display, on the correct side for
   USB/LSB and centred for CW/AM. Other slices are marked; tap one to select it.

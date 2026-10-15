@@ -238,25 +238,41 @@ Rectangle {
     }
 
     // RF gain at the top right of the spectrum, under the right meter, as
-    // the desktop shows the preamp/attenuator on the display.
+    // the desktop shows the preamp/attenuator; tap for the AGC / AGC-T /
+    // RF gain chooser (the same as the info panel's AGC).
     Rectangle {
+        id: rfLabel
+        objectName: "rfGainLabel"
         z: 5
         visible: Engine.connectionState === "connected"
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 6
-        width: rfText.implicitWidth + 12
-        height: rfText.implicitHeight + 6
+        width: rfText.implicitWidth + 16
+        height: Math.max(rfText.implicitHeight + 8, Math.round(Theme.touchTarget * 0.7))
         radius: 4
-        color: Theme.surface
-        opacity: 0.85
+        color: rfArea.pressed ? Theme.surfaceRaised : Theme.surface
+        opacity: 0.9
         Text {
             id: rfText
             anchors.centerIn: parent
-            text: qsTr("RF %1%2 dB").arg(Engine.rfGain > 0 ? "+" : "").arg(Engine.rfGain)
+            text: qsTr("RF GAIN %1%2 dB").arg(Engine.rfGain > 0 ? "+" : "").arg(Engine.rfGain)
             color: Engine.rfGain > 0 ? "#3fb6ff" : Engine.rfGain < 0 ? Theme.warning : Theme.text
-            font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+            font.pixelSize: Theme.buttonFont
             font.bold: true
+        }
+        MouseArea {
+            id: rfArea
+            anchors.fill: parent
+            anchors.margins: -6
+            onClicked: rfChooser.open()
+        }
+        AgcChooser {
+            id: rfChooser
+            objectName: "rfGainChooser"
+            width: Math.min(420, panArea.width - 24)
+            x: rfLabel.width - width
+            y: rfLabel.height + 4
         }
     }
 
