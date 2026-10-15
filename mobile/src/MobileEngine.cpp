@@ -106,13 +106,17 @@ MobileEngine::MobileEngine(QObject* parent)
             const RadioModel& model = m_session.radioModel();
             qCInfo(lcMobile).noquote()
                 << QStringLiteral("audio underrun: %1 in 10 s, buffer %2 ms, queued %3 ms, "
-                                  "packet gap max %4 ms, jitter %5 ms, buffer mode %6")
+                                  "packet gap max %4 ms, jitter %5 ms, buffer mode %6, "
+                                  "CPU %7 % (%8 % of one core), %9 frames/s")
                        .arg(underruns - m_lastUnderruns)
                        .arg(m_audio->rxBufferMs(), 0, 'f', 0)
                        .arg(m_audio->rxPlaybackQueuedMs())
                        .arg(model.audioPacketGapMaxMs())
                        .arg(model.audioPacketJitterMs())
-                       .arg(audioBuffer());
+                       .arg(audioBuffer())
+                       .arg(qRound(m_cpuPercent))
+                       .arg(qRound(m_cpuPercentOfCore))
+                       .arg(m_uiFps);
         }
         m_lastUnderruns = underruns;
     });
@@ -134,6 +138,15 @@ MobileEngine::MobileEngine(QObject* parent)
         }
         m_uiFps = elapsedUs > 0 ? qRound(m_framesThisPeriod.exchange(0) * 1e6 / double(elapsedUs)) : 0;
         emit performanceChanged();
+        // Once a minute in the log while connected (30 samples of 2 s).
+        static int samples = 0;
+        if (m_connected && ++samples >= 30) {
+            samples = 0;
+            qCInfo(lcMobile).noquote()
+                << QStringLiteral("performance: CPU %1 % of %2 cores (%3 % of one core), %4 frames/s")
+                       .arg(qRound(m_cpuPercent)).arg(cpuCores())
+                       .arg(qRound(m_cpuPercentOfCore)).arg(m_uiFps);
+        }
     });
     m_perfTimer.start();
     startStreamThread(m_audioThread);
