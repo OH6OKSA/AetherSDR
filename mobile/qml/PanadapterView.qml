@@ -32,7 +32,8 @@ Rectangle {
         x: 0
         y: 0
         width: parent.width
-        height: Math.round(parent.height * spectrum.spectrumFraction)
+        // Ends above the band plan strip, which stays visible under it.
+        height: Math.round(parent.height * spectrum.spectrumFraction - spectrum.bandPlanHeight)
         floorDbm: spectrum.traceBottomDbm
         rangeDb: Math.max(20, Math.min(100, spectrum.traceTopDbm - spectrum.traceBottomDbm))
         colorGain: Engine.wfColorGain

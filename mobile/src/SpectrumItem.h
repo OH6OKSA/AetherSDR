@@ -23,6 +23,9 @@ class SpectrumItem : public QQuickPaintedItem {
     // area), for the dBm scale strip and its drag.
     Q_PROPERTY(double traceTopDbm READ traceTopDbm NOTIFY traceScaleChanged)
     Q_PROPERTY(double traceBottomDbm READ traceBottomDbm NOTIFY traceScaleChanged)
+    // Height of the band plan strip at the bottom of the spectrum (0 when no
+    // plan is shown): the 3D view ends above it.
+    Q_PROPERTY(double bandPlanHeight READ bandPlanHeight NOTIFY bandPlanHeightChanged)
 
 public:
     explicit SpectrumItem(QQuickItem* parent = nullptr);
@@ -32,6 +35,7 @@ public:
     double spectrumFraction() const { return m_spectrumFraction; }
     double traceTopDbm() const { return m_traceTop; }
     double traceBottomDbm() const { return m_traceBottom; }
+    double bandPlanHeight() const;
     void setSpectrumFraction(double fraction);
 
     void paint(QPainter* painter) override;
@@ -40,6 +44,7 @@ signals:
     void engineChanged();
     void spectrumFractionChanged();
     void traceScaleChanged();
+    void bandPlanHeightChanged();
 
 protected:
     void geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) override;

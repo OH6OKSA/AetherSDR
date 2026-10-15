@@ -52,7 +52,10 @@ void SpectrumItem::setEngine(MobileEngine* engine)
         connect(m_engine, &MobileEngine::waterfallRow, this, &SpectrumItem::onWaterfallRow);
         connect(m_engine, &MobileEngine::panGeometryChanged, this, &SpectrumItem::followView);
         connect(m_engine, &MobileEngine::displayLevelsChanged, this, [this] { update(); });
-        connect(m_engine, &MobileEngine::bandPlanChanged, this, [this] { update(); });
+        connect(m_engine, &MobileEngine::bandPlanChanged, this, [this] {
+            emit bandPlanHeightChanged();
+            update();
+        });
         reportPixels();
     }
     emit engineChanged();
@@ -74,6 +77,9 @@ void SpectrumItem::geometryChange(const QRectF& newGeometry, const QRectF& oldGe
 {
     QQuickPaintedItem::geometryChange(newGeometry, oldGeometry);
     reportPixels();
+    if (newGeometry.height() != oldGeometry.height()) {
+        emit bandPlanHeightChanged();
+    }
 }
 
 void SpectrumItem::reportPixels()
@@ -260,6 +266,14 @@ void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double hig
     update();
 }
 
+double SpectrumItem::bandPlanHeight() const
+{
+    if (!m_engine || m_engine->bandPlan().isEmpty()) {
+        return 0.0;
+    }
+    return std::clamp<qreal>(height() * 0.025, 14.0, 20.0);
+}
+
 void SpectrumItem::drawBandPlan(QPainter* painter, qreal w, qreal specH) const
 {
     // The band plan as a strip along the bottom of the spectrum, as the
@@ -275,7 +289,7 @@ void SpectrumItem::drawBandPlan(QPainter* painter, qreal w, qreal specH) const
     const double span = m_engine->panBandwidthMhz();
     const double low = m_engine->panCenterMhz() - span / 2.0;
     const double high = low + span;
-    const qreal stripH = std::clamp<qreal>(height() * 0.025, 14.0, 20.0);
+    const qreal stripH = bandPlanHeight();
     const qreal y = specH - stripH;
     QFont font = painter->font();
     font.setPixelSize(static_cast<int>(stripH * 0.62));
