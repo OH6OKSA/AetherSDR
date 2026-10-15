@@ -391,6 +391,8 @@ public:
     int agcThreshold() const;
     void setAgcThreshold(int value);
     int rfGain() const;
+    // The radio's FFT encoding for the log: "ypixels N, scale A..B dBm".
+    QString panScaleInfo() const;
     void setRfGain(int gain);
     int rfGainLow() const;
     int rfGainHigh() const;

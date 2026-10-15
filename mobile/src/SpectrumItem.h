@@ -80,6 +80,7 @@ private:
     // The radio sends no waterfall rows while transmitting; the trace's
     // frames fill in, paced like the RX waterfall (as SpectrumWidget does).
     qint64 m_nextTxRowMs{0};
+    qint64 m_nextLevelLogMs{0};
 };
 
 } // namespace AetherSDR::mobile

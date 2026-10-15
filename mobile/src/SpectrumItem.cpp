@@ -5,6 +5,7 @@
 #include "MobileEngine.h"
 
 #include <QDateTime>
+#include <QLoggingCategory>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -14,7 +15,12 @@
 
 namespace AetherSDR::mobile {
 
+Q_LOGGING_CATEGORY(lcSpectrum, "aether.mobile.spectrum")
+
 namespace {
+
+// How often the spectrum's levels go to the log.
+constexpr qint64 kLevelLogIntervalMs = 30000;
 
 // Trace scale: bottom a little below the noise, top above the strongest
 // signals, at least kTraceMinSpanDb tall, eased so the trace does not jump.
@@ -125,6 +131,28 @@ void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
         const float peak = sorted.last() - gain;
         const float bottom = noise - kTraceBelowNoiseDb;
         const float top = std::max(bottom + kTraceMinSpanDb, peak + kTraceAboveTopDb);
+        // Levels in the log now and then: bins pinned at the lowest value
+        // mean the noise sits below the radio's scale and draws flat.
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        if (m_engine && nowMs >= m_nextLevelLogMs) {
+            m_nextLevelLogMs = nowMs + kLevelLogIntervalMs;
+            const auto atLowest = std::upper_bound(sorted.cbegin(), sorted.cend(), sorted.first())
+                - sorted.cbegin();
+            qCInfo(lcSpectrum).noquote()
+                << QStringLiteral("spectrum levels: %1 bins on %2x%3, %4, lowest %5 dBm (%6 % of bins), "
+                                  "noise %7 dBm, peak %8 dBm, RF gain %9 dB, trace %10..%11 dBm")
+                       .arg(sorted.size())
+                       .arg(static_cast<int>(width()))
+                       .arg(static_cast<int>(height() * m_spectrumFraction))
+                       .arg(m_engine->panScaleInfo())
+                       .arg(sorted.first(), 0, 'f', 1)
+                       .arg(qRound(100.0 * atLowest / sorted.size()))
+                       .arg(sorted.at(sorted.size() / 2), 0, 'f', 1)
+                       .arg(sorted.last(), 0, 'f', 1)
+                       .arg(m_engine->rfGain())
+                       .arg(m_traceBottom, 0, 'f', 0)
+                       .arg(m_traceTop, 0, 'f', 0);
+        }
         if (m_engine && !m_engine->traceAutoRange()) {
             // Manual: reference level at the top, range below it.
             m_traceTop = static_cast<float>(m_engine->traceRefDbm());

@@ -2022,6 +2022,17 @@ int MobileEngine::rfGain() const
     return m_pan ? m_pan->rfGain() : 0;
 }
 
+QString MobileEngine::panScaleInfo() const
+{
+    if (!m_pan) {
+        return QStringLiteral("no pan");
+    }
+    return QStringLiteral("ypixels %1, scale %2..%3 dBm")
+        .arg(m_pan->fftYPixels())
+        .arg(m_pan->minDbm(), 0, 'f', 0)
+        .arg(m_pan->maxDbm(), 0, 'f', 0);
+}
+
 int MobileEngine::rfGainLow() const
 {
     return m_pan && m_pan->hasRfGainRange() ? m_pan->rfGainLow() : -8;
