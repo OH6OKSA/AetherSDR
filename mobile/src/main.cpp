@@ -207,6 +207,7 @@ int main(int argc, char* argv[])
         const QString path = parser.value(screenshotOption);
         // Screenshots run against a real radio: change nothing on it.
         engine.setMicDefaultEnabled(false);
+        engine.setRedactIdentity(true);
         QObject::connect(&engine, &AetherSDR::mobile::MobileEngine::connectionStateChanged, &engine,
                          [&engine] { engine.setMuted(true); });
         QTimer::singleShot(parser.value(screenshotDelayOption).toInt(), &app, [&qml, path] {

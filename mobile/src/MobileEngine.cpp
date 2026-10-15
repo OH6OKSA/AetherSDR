@@ -2857,7 +2857,8 @@ QVariantMap MobileEngine::radioSetup() const
     d[QStringLiteral("callsign")] = callsign();
     d[QStringLiteral("nickname")] = rm.nickname();
     d[QStringLiteral("model")] = rm.model();
-    d[QStringLiteral("serial")] = rm.serial().isEmpty() ? rm.chassisSerial() : rm.serial();
+    d[QStringLiteral("serial")] = m_redactIdentity ? QStringLiteral("(hidden)")
+                                : rm.serial().isEmpty() ? rm.chassisSerial() : rm.serial();
     d[QStringLiteral("version")] = rm.version();
     d[QStringLiteral("region")] = rm.region();
     d[QStringLiteral("ip")] = rm.targetRadioIp();

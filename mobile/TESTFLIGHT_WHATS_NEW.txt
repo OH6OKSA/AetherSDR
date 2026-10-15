@@ -4,10 +4,12 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Korjaus äänen pätkimiseen: analogiset mittarit eivät enää piirrä koko asteikkoa jokaisella lukemalla. Kerro, loppuiko pätkiminen (myös SmartLinkillä).
-• Etäkäyttö VPN:n kautta: ääni Opus-pakattuna automaattisesti (Controls → Audio: Auto / Opus / Uncompressed).
-• Manual-nappi avaa ohjekirjan lyhyellä osoitteella.
-• Edelliseltä buildilta testattavaa: Radio Setup, IP-näppäimistö, kaiutin = äänenvoimakkuus.
+• PTT alimmaisena kaikissa asennoissa (iPad-vaaka: paneeli saa koko korkeuden; iPhone-vaaka: PTT step-rivin lopussa).
+• Band plan spektrin alareunassa (View → Band plan, oletus IARU Region 1).
+• Radio Setup → Network: MTU (oletus 1450).
+• RF GAIN spektrin oikeassa yläkulmassa: napauta → AGC, AGC-T, RF gain.
+• BC pois automaattisesti CW- ja datamodeissa (myös jos toinen kuuluva slice on niissä).
+• Edelliseltä: kerro, loppuiko äänen pätkiminen.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.

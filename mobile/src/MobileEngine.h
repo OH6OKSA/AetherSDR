@@ -519,6 +519,8 @@ public:
     Q_INVOKABLE void useDeviceMicrophone();
     // Dev/screenshot runs: leave the radio's mic input alone.
     void setMicDefaultEnabled(bool enabled) { m_micDefaultEnabled = enabled; }
+    // Screenshots for public pages: the radio's serial number reads "(hidden)".
+    void setRedactIdentity(bool on) { m_redactIdentity = on; }
     // Tune, recentring the pan when the target lies outside it.
     Q_INVOKABLE void tuneTo(double mhz);
     // Band change through the radio's band stack (Flex), which restores the
@@ -665,6 +667,7 @@ private:
     QString m_audioCodingInUse;
     // Sets the core's AudioCompression for the coming connection.
     void applyAudioCompression(const QHostAddress& radio, bool wan);
+    bool m_redactIdentity{false};
     int m_splitRxId{-1};
     int m_splitTxId{-1};
     bool m_splitPending{false};
