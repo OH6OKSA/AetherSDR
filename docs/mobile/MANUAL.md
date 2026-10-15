@@ -140,8 +140,11 @@ can be set together.
 
 **BC — beat cancel**, as on Kenwood rigs: finds steady carriers in the
 receive audio — someone tuning up on your frequency — and notches them out
-within about 0.15 s, leaving voice alone. Up to four carriers at a time. Voice
-modes only (it would remove the signal itself in CW and data modes).
+within about 0.15 s, leaving voice alone; it adds no delay to the audio. Up
+to four carriers at a time. Voice modes only: in CW and data modes (and
+whenever another audible slice is in one) it is off and not offered, since it
+would remove the signal itself; back in a voice mode it returns as you left
+it.
 
 **AGC** — off / slow / med / fast, the AGC threshold (AGC-T) and the
 panadapter's RF gain (preamp or attenuator, in the radio's steps).

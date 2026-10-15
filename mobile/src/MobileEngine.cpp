@@ -118,6 +118,7 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
+    connect(&rm, &RadioModel::sliceRemoved, this, [this](int) { applyBeatCancel(); });
     connect(&rm, &RadioModel::sliceRemoved, this, [this](int id) {
         // The split's TX slice closed (here, another client or the radio):
         // transmit goes back to the RX slice; either side gone ends split.
@@ -2232,15 +2233,29 @@ int MobileEngine::filterHigh() const
     return m_slice ? m_slice->filterHigh() : 0;
 }
 
-bool MobileEngine::beatCancelMode() const
+namespace {
+bool voiceMode(const QString& m)
 {
-    if (!m_slice) {
-        return false;
-    }
-    const QString m = m_slice->mode();
     return m == QLatin1String("USB") || m == QLatin1String("LSB") || m == QLatin1String("AM")
         || m == QLatin1String("SAM") || m == QLatin1String("DSB") || ModeFilters::isFmMode(m)
         || m == QLatin1String("DFM");
+}
+} // namespace
+
+bool MobileEngine::beatCancelMode() const
+{
+    // Voice only, never CW or data: BC would notch the signal itself. The
+    // receive audio mixes every audible slice, so every one that is not
+    // muted must be in a voice mode, not just the active one.
+    if (!m_slice || !voiceMode(m_slice->mode())) {
+        return false;
+    }
+    for (SliceModel* s : m_session.radioModel().slices()) {
+        if (!s->audioMute() && !voiceMode(s->mode())) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool MobileEngine::beatCancelSetting() const
@@ -2477,6 +2492,11 @@ void MobileEngine::wireRxAudio()
 
 void MobileEngine::onSliceAdded(SliceModel* slice)
 {
+    // Any audible slice's mode or mute decides whether BC may run.
+    connect(slice, &SliceModel::modeChanged, this, &MobileEngine::applyBeatCancel);
+    connect(slice, &SliceModel::audioMuteChanged, this, &MobileEngine::applyBeatCancel);
+    connect(slice, &SliceModel::modeChanged, this, &MobileEngine::dspChanged);
+    connect(slice, &SliceModel::audioMuteChanged, this, &MobileEngine::dspChanged);
     // The split's TX slice: same mode as the RX slice, muted (the RX slice
     // is what you listen to), transmits, and gets focus to tune the offset.
     if (m_splitPending && slice->sliceId() != m_splitRxId) {
