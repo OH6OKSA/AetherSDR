@@ -57,12 +57,12 @@ Page {
     // has no room for it (narrow Split View).
     readonly property bool infoUnder: width < 700
     // PTT height, shared with the drawer's copy of the button.
-    readonly property real pttHeight: (compact ? 2 : 3) * Theme.touchTarget
+    // PTT runs the full width along the bottom in every orientation.
+    readonly property real pttHeight: Math.round(Theme.touchTarget * 1.5)
     readonly property bool portrait: height > width
-    // Landscape side column: the control panel, or just a PTT strip when the
-    // panel is hidden. Fixed, so content can never widen it off screen.
-    readonly property int sideWidth: Engine.controlsVisible
-        ? Math.max(280, Math.min(360, width * 0.28)) : 160
+    // Landscape side column: the pinned control panel (none when hidden).
+    // Fixed, so content can never widen it off screen.
+    readonly property int sideWidth: Math.max(280, Math.min(360, width * 0.28))
 
     function formatMhz(mhz) {
         // 14.074.500 style: MHz . kHz . Hz
@@ -146,7 +146,11 @@ Page {
         columns: page.portrait ? 1 : 2
 
         // Left (top in portrait): frequency, S-meter and the panadapter area.
+        // Cells are placed by hand: a hidden panel must not let PTT slide
+        // into its cell.
         ColumnLayout {
+            Layout.row: 0
+            Layout.column: 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 320
@@ -237,36 +241,36 @@ Page {
             }
         }
 
-        // Right (bottom in portrait): controls scroll when they do not fit;
-        // PTT stays pinned below them.
+        // Right (bottom in portrait): the pinned controls, the full height
+        // of the side; they scroll when they do not fit.
         ColumnLayout {
+            visible: Engine.controlsVisible
+            Layout.row: page.portrait ? 1 : 0
+            Layout.column: page.portrait ? 0 : 1
             Layout.preferredWidth: page.portrait ? -1 : page.sideWidth
             Layout.maximumWidth: page.portrait ? Number.POSITIVE_INFINITY : page.sideWidth
             Layout.fillWidth: page.portrait
             Layout.fillHeight: !page.portrait
-            Layout.preferredHeight: page.portrait && Engine.controlsVisible ? page.height * 0.42 : -1
+            Layout.preferredHeight: page.portrait ? page.height * 0.42 : -1
             spacing: Theme.spacing
 
-          // Pinned panel: section toggles; the chosen sections stack below.
-          ControlsPanel {
-            visible: Engine.controlsVisible
-            multiSelect: true
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-          }
-
-            // With the panel hidden, keep PTT at the bottom of its strip.
-            Item {
-                visible: !Engine.controlsVisible && !page.portrait
+            // Pinned panel: section toggles; the chosen sections stack below.
+            ControlsPanel {
+                multiSelect: true
+                Layout.fillWidth: true
                 Layout.fillHeight: true
             }
+        }
 
-            PttButton {
-                id: ptt
-                Layout.fillWidth: true
-                Layout.preferredHeight: page.pttHeight
-                fontPx: 32
-            }
+        // PTT along the bottom, the full width, in every orientation.
+        PttButton {
+            id: ptt
+            Layout.row: page.portrait ? 2 : 1
+            Layout.column: 0
+            Layout.columnSpan: page.portrait ? 1 : 2
+            Layout.fillWidth: true
+            Layout.preferredHeight: page.pttHeight
+            fontPx: 32
         }
     }
 

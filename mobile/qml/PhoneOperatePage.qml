@@ -11,12 +11,9 @@ Page {
     background: Rectangle { color: Theme.background }
 
     readonly property bool landscape: width > height
-    // PTT height, shared with the drawer's copy of the button.
-    readonly property real pttHeight: landscape ? 120 : 64
-    // Landscape spectrum width: 56 % with the control panel, everything but
-    // a PTT strip without it.
-    readonly property int pttStripWidth: 120
-    readonly property int receiveWidth: Math.round(grid.width - pttStripWidth - grid.columnSpacing)
+    // PTT height, shared with the drawer's copy of the button. PTT runs
+    // along the bottom in both orientations; lower in landscape.
+    readonly property real pttHeight: landscape ? Math.round(Theme.touchTarget * 1.2) : 64
 
     function formatMhz(mhz) {
         const hz = Math.round(mhz * 1e6)
@@ -85,18 +82,15 @@ Page {
         anchors.rightMargin: Theme.spacing / 2 + grid.SafeArea.margins.right
         anchors.topMargin: Theme.spacing / 2
         anchors.bottomMargin: Theme.spacing / 2 + Math.max(grid.SafeArea.margins.bottom, 8)
-        columns: page.landscape ? 2 : 1
+        columns: 1
         columnSpacing: Theme.spacing / 2
         rowSpacing: Theme.spacing / 2
 
-        // ---- receive view: frequency, bands, spectrum, steps ----
-        // In landscape this column has a fixed share of the width, so text in
-        // the control column can never change the spectrum's size.
+        // ---- receive view: frequency, bands, spectrum, steps; the full
+        // width in both orientations ----
         ColumnLayout {
-            Layout.fillWidth: !page.landscape
+            Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.preferredWidth: page.landscape ? page.receiveWidth : -1
-            Layout.maximumWidth: page.landscape ? page.receiveWidth : Number.POSITIVE_INFINITY
             spacing: Theme.spacing / 2
 
             RowLayout {
@@ -158,7 +152,7 @@ Page {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 rfLabelWidth: sliceBar.rightMeterWidth
-                Layout.minimumHeight: 160
+                Layout.minimumHeight: page.landscape ? 90 : 160
             }
 
             RowLayout {
@@ -180,34 +174,36 @@ Page {
                         onClicked: Engine.tuneByHz(modelData)
                     }
                 }
+                // Landscape: the controls button and PTT end this row, so
+                // the low screen keeps its height for the spectrum.
+                AppButton {
+                    visible: page.landscape
+                    text: qsTr("☰")
+                    font.pixelSize: 20
+                    Layout.preferredWidth: Theme.touchTarget * 1.2
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: controlsDrawer.open()
+                }
+                PttButton {
+                    visible: page.landscape
+                    Layout.preferredWidth: Math.max(150, page.width * 0.2)
+                    Layout.preferredHeight: Theme.touchTarget
+                    fontPx: 22
+                }
             }
         }
 
-        // ---- PTT strip: right edge in landscape, bottom in portrait. The
-        // controls live in a drawer so the waterfall keeps the screen. ----
+        // ---- Portrait: PTT along the bottom, the controls button beside it
+        // (landscape puts both at the end of the step row); the controls
+        // live in a drawer. ----
         ColumnLayout {
-            Layout.fillWidth: !page.landscape
-            Layout.fillHeight: page.landscape
-            Layout.preferredWidth: page.landscape ? page.pttStripWidth : -1
+            visible: !page.landscape
+            Layout.fillWidth: true
             spacing: Theme.spacing / 2
-
-            AppButton {
-                text: qsTr("☰ Controls")
-                Layout.fillWidth: true
-                Layout.preferredHeight: Theme.touchTarget
-                onClicked: controlsDrawer.open()
-            }
-
-            // In landscape, PTT sits at the bottom of its strip.
-            Item {
-                visible: page.landscape
-                Layout.fillHeight: true
-            }
 
             Label {
                 Layout.fillWidth: true
                 visible: !Engine.transmitAvailable
-                         && !page.landscape
                 text: Engine.transmitUnavailableReason
                 color: Theme.textDim
                 font.pixelSize: 12
@@ -215,19 +211,27 @@ Page {
                 maximumLineCount: 2
                 elide: Text.ElideRight
             }
-
             Label {
                 visible: Engine.transmitting
                 text: qsTr("%1 W   SWR %2").arg(Engine.forwardPowerW.toFixed(0))
                       .arg(Engine.swrValid ? Engine.swr.toFixed(1) : "–")
                 color: Engine.swrValid && Engine.swr > 2.5 ? Theme.transmit : Theme.text
             }
-
-            PttButton {
-                id: ptt
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: page.pttHeight
-                fontPx: 26
+                spacing: Theme.spacing / 2
+                AppButton {
+                    text: qsTr("☰ Controls")
+                    Layout.preferredWidth: Math.max(110, page.width * 0.22)
+                    Layout.preferredHeight: page.pttHeight
+                    onClicked: controlsDrawer.open()
+                }
+                PttButton {
+                    id: ptt
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: page.pttHeight
+                    fontPx: 26
+                }
             }
         }
     }
