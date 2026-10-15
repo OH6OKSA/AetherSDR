@@ -2,8 +2,8 @@ import QtQuick
 import AetherMobile
 
 // Network quality at a glance: a coloured dot, the rating and the round
-// trip ("● Excellent 4 ms"), in the desktop's colours. compact drops the
-// word (phones).
+// trip ("● Excellent 4 ms"), in the desktop's colours, then the app's CPU.
+// compact drops the word (phones).
 Row {
     id: badge
     property string quality: Engine.networkQuality
@@ -33,6 +33,14 @@ Row {
         visible: badge.rttMs > 0
         text: badge.rttMs + " ms"
         color: "#8aa8c0"
+        font.pixelSize: 12
+    }
+    // The app's CPU (share of all cores, as the desktop's status bar).
+    Text {
+        anchors.verticalCenter: parent.verticalCenter
+        leftPadding: 6
+        text: "CPU " + Math.round(Engine.cpuPercent) + " %"
+        color: Engine.cpuPercent >= 80 ? "#cc3333" : Engine.cpuPercent >= 50 ? "#cc9900" : "#8aa8c0"
         font.pixelSize: 12
     }
 }

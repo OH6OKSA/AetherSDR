@@ -4,10 +4,9 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• iPad-vaaka: yksi PTT; paneeli piilossa → koko leveys; kiinnitettynä paneeli koko korkeudelta ja PTT spektrin alla.
-• Band plan näkyy myös 3D-näkymässä.
-• Edelliseltä: PTT alimmaisena, band plan, Network MTU, RF GAIN napautettava, BC pois CW/datamodeissa.
-• Kerro, loppuiko äänen pätkiminen.
+• Äänen pätkiminen: Controls → Audio → Audio buffer (Low latency / Normal / Smooth). Oletus Normal (200 ms). Jos pätkii, kokeile Smooth ja kerro auttoiko. Lokiin tulee rivi "audio underrun" aina kun puskuri tyhjenee.
+• CPU-kuorma yläpalkissa verkon laadun vieressä; napauta → Network & performance (CPU, ruudunpäivitys).
+• Edelliseltä: iPad-vaaka yksi PTT, band plan 3D:ssä.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.

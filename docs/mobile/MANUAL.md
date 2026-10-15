@@ -75,7 +75,7 @@ folding switch it live.
 
 ### Network quality
 
-The dot in the top row rates the connection as the desktop AetherSDR does —
+The dot in the top row (with the app's CPU next to it) rates the connection as the desktop AetherSDR does —
 **Excellent / Very Good** (green), **Good** (blue), **Fair** (amber),
 **Poor** (red) — with the round-trip time. On an iPhone only the dot and
 the time show. Tap it for the details:
@@ -88,6 +88,10 @@ the time show. Tap it for the details:
   per stream (audio, spectrum, waterfall, meters). Packets that merely
   arrive out of order are not counted as lost.
 - **Traffic** — receive and send rates and totals.
+- **Performance** — the app's CPU, as a share of all cores (also shown in the
+  top row) and of one core, and the screen frames drawn per second. iOS gives
+  apps no GPU load; frames drawn falling well below the display's rate means
+  the graphics are not keeping up.
 
 ## 3. Frequency, mode and the info panel
 
@@ -254,7 +258,10 @@ them back into the drawer.
   the internet) over SmartLink or when the radio is reached through a VPN,
   and uncompressed audio on the local network; *Opus* or *Uncompressed* fix
   it. It shows what the current connection uses; a change applies from the
-  next connection. Below, the radio's 8-band receive and transmit equalizer
+  next connection. **Audio buffer**: *Low latency*, *Normal* (default) or
+  *Smooth* — a longer buffer evens out a jittery Wi-Fi or mobile link for a
+  little more delay; try Smooth if the audio stutters. Below, the radio's
+  8-band receive and transmit equalizer
   (volume is on the info panel's speaker).
 - **TX** — TUNE and the ATU (tune, bypass, memories), tune power, RF power,
   speech processor (PROC NOR/DX/DX+), monitor (MON), radio mic level, device

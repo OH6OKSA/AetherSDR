@@ -13,6 +13,8 @@
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
+#include <QElapsedTimer>
+#include <atomic>
 #include <QTimer>
 
 #include <algorithm>
@@ -64,6 +66,13 @@ class MobileEngine : public QObject {
     // when not connected) and the round trip in ms, for the header.
     Q_PROPERTY(QString networkQuality READ networkQuality NOTIFY networkChanged)
     Q_PROPERTY(int networkRttMs READ networkRttMs NOTIFY networkChanged)
+    // The app's CPU as the desktop's status bar shows it (share of all
+    // cores, every 2 s), and frames drawn per second (no public GPU load on
+    // iOS: a falling frame rate is what shows the graphics not keeping up).
+    Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY performanceChanged)
+    Q_PROPERTY(double cpuPercentOfCore READ cpuPercentOfCore NOTIFY performanceChanged)
+    Q_PROPERTY(int cpuCores READ cpuCores CONSTANT)
+    Q_PROPERTY(int uiFps READ uiFps NOTIFY performanceChanged)
     // "26.10.1 (54)": app version and TestFlight build, for the header.
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     // The online manual (docs/mobile/MANUAL.md on the fork's GitHub).
@@ -253,6 +262,12 @@ public:
     void setAudioBuffer(const QString& mode);
     void applyAudioBuffer();
     QString networkQuality() const;
+    double cpuPercent() const { return m_cpuPercent; }
+    double cpuPercentOfCore() const { return m_cpuPercentOfCore; }
+    int cpuCores() const;
+    int uiFps() const { return m_uiFps; }
+    // Counts drawn frames (main.cpp connects the window's frameSwapped).
+    void countFrame() { ++m_framesThisPeriod; }
     int networkRttMs() const;
     // The details behind it (link timing, packet integrity per stream,
     // traffic), as the desktop's network diagnostics; the dialog polls it.
@@ -578,6 +593,7 @@ signals:
     void bandPlanChanged();
     void audioCompressionChanged();
     void networkChanged();
+    void performanceChanged();
     void frequencyChanged();
     void modeChanged();
     void modesChanged();
@@ -672,6 +688,14 @@ private:
     bool m_sliceRecoveryTried{false};
     bool m_sliceRecoveryPending{false};
     QString m_audioCodingInUse;
+    // Performance sampling (2 s).
+    QTimer m_perfTimer;
+    QElapsedTimer m_perfClock;
+    quint64 m_lastCpuUsecs{0};
+    double m_cpuPercent{0.0};
+    double m_cpuPercentOfCore{0.0};
+    std::atomic<int> m_framesThisPeriod{0};
+    int m_uiFps{0};
     // Audio diagnostics: underruns seen at the last 10 s check.
     quint64 m_lastUnderruns{0};
     QTimer m_audioDiagTimer;

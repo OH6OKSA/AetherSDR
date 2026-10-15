@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 
 #include "gui/ModeFilterPresets.h"
+#include "core/SystemInfo.h"
 #include "core/NetworkMtuPolicy.h"
 #include "gui/VoiceModeGate.h"
 
@@ -116,6 +117,25 @@ MobileEngine::MobileEngine(QObject* parent)
         m_lastUnderruns = underruns;
     });
     m_audioDiagTimer.start();
+    // CPU (as the desktop's status bar) and frames drawn, every 2 s.
+    m_perfClock.start();
+    if (const auto cpu = SystemInfo::processCpuUsecs()) {
+        m_lastCpuUsecs = *cpu;
+    }
+    m_perfTimer.setInterval(2000);
+    connect(&m_perfTimer, &QTimer::timeout, this, [this] {
+        const quint64 elapsedUs = static_cast<quint64>(m_perfClock.nsecsElapsed() / 1000);
+        m_perfClock.restart();
+        if (const auto cpu = SystemInfo::processCpuUsecs()) {
+            m_cpuPercent = SystemInfo::processPercentOfCapacity(m_lastCpuUsecs, *cpu, elapsedUs, cpuCores());
+            m_cpuPercentOfCore = elapsedUs > 0 && *cpu >= m_lastCpuUsecs
+                ? 100.0 * double(*cpu - m_lastCpuUsecs) / double(elapsedUs) : 0.0;
+            m_lastCpuUsecs = *cpu;
+        }
+        m_uiFps = elapsedUs > 0 ? qRound(m_framesThisPeriod.exchange(0) * 1e6 / double(elapsedUs)) : 0;
+        emit performanceChanged();
+    });
+    m_perfTimer.start();
     startStreamThread(m_audioThread);
 
     connect(&rm, &RadioModel::connectionStateChanged, this, &MobileEngine::onConnectionStateChanged);
@@ -2810,6 +2830,11 @@ QString MobileEngine::appVersion() const
 QString MobileEngine::manualUrl() const
 {
     return QStringLiteral("https://github.com/OH6OKSA/AetherSDR/blob/HEAD/docs/mobile/MANUAL.md");
+}
+
+int MobileEngine::cpuCores() const
+{
+    return std::max(1, QThread::idealThreadCount());
 }
 
 QString MobileEngine::networkQuality() const

@@ -118,6 +118,13 @@ int main(int argc, char* argv[])
     }
     AetherSDR::mobile::DevLink::instance()->attach(&engine, &qml);
 
+    // Frames drawn, for the performance read-out.
+    if (!qml.rootObjects().isEmpty()) {
+        if (auto* window = qobject_cast<QQuickWindow*>(qml.rootObjects().constFirst())) {
+            QObject::connect(window, &QQuickWindow::frameSwapped, &engine,
+                             [&engine] { engine.countFrame(); }, Qt::DirectConnection);
+        }
+    }
     if (parser.isSet(sizeOption) && !qml.rootObjects().isEmpty()) {
         const QStringList wh = parser.value(sizeOption).split(QLatin1Char('x'));
         if (auto* window = qobject_cast<QQuickWindow*>(qml.rootObjects().constFirst()); window && wh.size() == 2) {

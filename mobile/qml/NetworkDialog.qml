@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// Network diagnostics, as the desktop's: quality, link timing, packet
-// integrity per stream and traffic. Refreshed once a second while open.
+// Network and performance, as the desktop's diagnostics: quality, link
+// timing, packet integrity per stream, traffic, and the app's CPU and frame
+// rate. Refreshed once a second while open.
 Popup {
     id: dialog
     objectName: "networkDialog"
@@ -38,7 +39,7 @@ Popup {
         spacing: 4
         RowLayout {
             Layout.fillWidth: true
-            Label { text: qsTr("Network"); color: Theme.text; font.pixelSize: 18; font.bold: true; Layout.fillWidth: true }
+            Label { text: qsTr("Network & performance"); color: Theme.text; font.pixelSize: 18; font.bold: true; Layout.fillWidth: true }
             NetworkBadge { quality: dialog.d.quality || "Off"; rttMs: dialog.d.rttMs || 0 }
         }
         Row2 { label: qsTr("Connection"); value: dialog.d.path || "–" }
@@ -81,6 +82,28 @@ Popup {
         Row2 {
             label: qsTr("Sending")
             value: qsTr("%1 kbit/s · %2 MB").arg(Math.round(dialog.d.txKbps || 0)).arg((dialog.d.txMB || 0).toFixed(1))
+        }
+        Section { text: qsTr("PERFORMANCE") }
+        Row2 {
+            label: qsTr("App CPU, all %1 cores").arg(Engine.cpuCores)
+            value: Math.round(Engine.cpuPercent) + " %"
+            valueColor: Engine.cpuPercent >= 80 ? Theme.transmit : Engine.cpuPercent >= 50 ? Theme.warning : Theme.text
+        }
+        Row2 {
+            label: qsTr("App CPU, of one core")
+            value: Math.round(Engine.cpuPercentOfCore) + " %"
+        }
+        Row2 {
+            label: qsTr("Screen frames drawn")
+            value: Engine.uiFps + " /s"
+            valueColor: Engine.uiFps > 0 && Engine.uiFps < 20 ? Theme.warning : Theme.text
+        }
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("iOS shows apps no GPU load; frames drawn per second falling well below the display's rate means the graphics are not keeping up.")
+            color: Theme.textDim
+            font.pixelSize: 12
+            wrapMode: Text.Wrap
         }
         AppButton {
             text: qsTr("Close")
