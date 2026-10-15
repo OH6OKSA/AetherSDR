@@ -12,6 +12,8 @@ RowLayout {
     id: bar
     spacing: Theme.spacing / 2
     property bool compact: false
+    // The right meter's width: the RF GAIN label under it matches it.
+    readonly property real rightMeterWidth: rightMeter.width
     // The page gives the row its width (fillWidth); its contents must not
     // ask for more, as the meters size themselves from that width.
     Layout.preferredWidth: 0
@@ -119,6 +121,7 @@ RowLayout {
     }
 
     MeterBadge {
+        id: rightMeter
         side: "right"
         Layout.alignment: Qt.AlignTop
         dialHeight: bar.dialHeight

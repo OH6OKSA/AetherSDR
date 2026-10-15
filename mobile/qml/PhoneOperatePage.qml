@@ -149,6 +149,7 @@ Page {
             }
 
             SliceBar {
+                id: sliceBar
                 Layout.fillWidth: true
                 compact: true
             }
@@ -156,6 +157,7 @@ Page {
             PanadapterView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                rfLabelWidth: sliceBar.rightMeterWidth
                 Layout.minimumHeight: 160
             }
 

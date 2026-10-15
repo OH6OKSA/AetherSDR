@@ -8,6 +8,9 @@ import AetherMobile
 // by the tablet and phone layouts.
 Rectangle {
     id: panArea
+    // Width of the right meter above (from the page): the RF GAIN label
+    // matches it; 0 sizes the label to its text.
+    property real rfLabelWidth: 0
     color: Theme.surface
     radius: Theme.radius
     clip: true
@@ -247,8 +250,11 @@ Rectangle {
         visible: Engine.connectionState === "connected"
         anchors.top: parent.top
         anchors.right: parent.right
-        anchors.margins: 6
-        width: rfText.implicitWidth + 16
+        anchors.topMargin: 6
+        // Under the meter, edge to edge with it.
+        anchors.rightMargin: panArea.rfLabelWidth > 0 ? 0 : 6
+        // As wide as the right meter above it (the page passes its width).
+        width: panArea.rfLabelWidth > 0 ? panArea.rfLabelWidth : rfText.implicitWidth + 16
         height: Math.max(rfText.implicitHeight + 8, Math.round(Theme.touchTarget * 0.7))
         radius: 4
         color: rfArea.pressed ? Theme.surfaceRaised : Theme.surface
@@ -256,6 +262,10 @@ Rectangle {
         Text {
             id: rfText
             anchors.centerIn: parent
+            width: parent.width - 10
+            horizontalAlignment: Text.AlignHCenter
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: 9
             text: qsTr("RF GAIN %1%2 dB").arg(Engine.rfGain > 0 ? "+" : "").arg(Engine.rfGain)
             color: Engine.rfGain > 0 ? "#3fb6ff" : Engine.rfGain < 0 ? Theme.warning : Theme.text
             font.pixelSize: Theme.buttonFont

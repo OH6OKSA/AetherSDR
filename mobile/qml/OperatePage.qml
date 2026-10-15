@@ -202,6 +202,7 @@ Page {
             }
 
             SliceBar {
+                id: sliceBar
                 Layout.fillWidth: true
                 compact: page.compact
             }
@@ -209,6 +210,7 @@ Page {
             PanadapterView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                rfLabelWidth: sliceBar.rightMeterWidth
                 // Close under the slice row: the meters at its top corners
                 // sit right below the buttons.
                 Layout.topMargin: -Math.round(Theme.spacing / 2)
