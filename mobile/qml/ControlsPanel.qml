@@ -197,6 +197,30 @@ ColumnLayout {
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
             }
+            // Receive buffer: steadier audio over a jittery link.
+            Label { text: qsTr("Audio buffer"); color: Theme.textDim; Layout.topMargin: Theme.spacing / 2 }
+            RowLayout {
+                Layout.fillWidth: true
+                Repeater {
+                    model: [{ key: "Low", label: qsTr("Low latency") }, { key: "Normal", label: qsTr("Normal") },
+                            { key: "Smooth", label: qsTr("Smooth") }]
+                    delegate: AppButton {
+                        required property var modelData
+                        text: modelData.label
+                        checked: Engine.audioBuffer === modelData.key
+                        focusPolicy: Qt.NoFocus
+                        Layout.fillWidth: true
+                        onClicked: Engine.audioBuffer = modelData.key
+                    }
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("If the audio stutters, try Smooth: a longer buffer evens out a jittery Wi-Fi or mobile link for a little more delay.")
+                color: Theme.textDim
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
             // AF gain and mute are on the info panel's speaker.
             EqControls {
                 Layout.topMargin: Theme.spacing

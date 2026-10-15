@@ -91,6 +91,31 @@ MobileEngine::MobileEngine(QObject* parent)
     m_audioThread->setObjectName(QStringLiteral("AudioEngine"));
     m_audio = new AudioEngine;
     m_audio->moveToThread(m_audioThread);
+    // Receive audio: the chosen buffer, and a line in the log whenever the
+    // playback buffer ran dry in the last 10 s (with what the link did), so
+    // stutter can be told apart: late packets or too short a buffer.
+    QTimer::singleShot(0, this, [this] { applyAudioBuffer(); });
+    m_audioDiagTimer.setInterval(10000);
+    connect(&m_audioDiagTimer, &QTimer::timeout, this, [this] {
+        if (!m_connected || !m_audio) {
+            return;
+        }
+        const quint64 underruns = m_audio->rxBufferUnderrunCount();
+        if (underruns > m_lastUnderruns && m_lastUnderruns > 0) {
+            const RadioModel& model = m_session.radioModel();
+            qCInfo(lcMobile).noquote()
+                << QStringLiteral("audio underrun: %1 in 10 s, buffer %2 ms, queued %3 ms, "
+                                  "packet gap max %4 ms, jitter %5 ms, buffer mode %6")
+                       .arg(underruns - m_lastUnderruns)
+                       .arg(m_audio->rxBufferMs(), 0, 'f', 0)
+                       .arg(m_audio->rxPlaybackQueuedMs())
+                       .arg(model.audioPacketGapMaxMs())
+                       .arg(model.audioPacketJitterMs())
+                       .arg(audioBuffer());
+        }
+        m_lastUnderruns = underruns;
+    });
+    m_audioDiagTimer.start();
     startStreamThread(m_audioThread);
 
     connect(&rm, &RadioModel::connectionStateChanged, this, &MobileEngine::onConnectionStateChanged);
@@ -2996,6 +3021,37 @@ bool radioThroughVpn(const QHostAddress& radio)
     return tunnel;
 }
 } // namespace
+
+QString MobileEngine::audioBuffer() const
+{
+    const QString v = AppSettings::instance().value(QStringLiteral("MobileAudioBuffer"), QStringLiteral("Normal")).toString();
+    return (v == QLatin1String("Low") || v == QLatin1String("Smooth")) ? v : QStringLiteral("Normal");
+}
+
+void MobileEngine::setAudioBuffer(const QString& mode)
+{
+    if (mode == audioBuffer()) {
+        return;
+    }
+    AppSettings::instance().setValue(QStringLiteral("MobileAudioBuffer"), mode);
+    AppSettings::instance().save();
+    applyAudioBuffer();
+    emit audioCompressionChanged();
+}
+
+void MobileEngine::applyAudioBuffer()
+{
+    const QString mode = audioBuffer();
+    const int capMs = mode == QLatin1String("Low") ? 100 : mode == QLatin1String("Smooth") ? 400 : 200;
+    const int prebufferMs = mode == QLatin1String("Low") ? 0 : mode == QLatin1String("Smooth") ? 150 : 60;
+    AudioEngine* audio = m_audio;
+    QMetaObject::invokeMethod(audio, [audio, capMs, prebufferMs] {
+        audio->setRxBufferCapMs(capMs);
+        audio->setReceivePresentationDelays(prebufferMs, 0);
+    }, Qt::QueuedConnection);
+    qCInfo(lcMobile).noquote() << QStringLiteral("receive audio buffer: %1 (%2 ms, prebuffer %3 ms)")
+                                      .arg(mode).arg(capMs).arg(prebufferMs);
+}
 
 QString MobileEngine::audioCompression() const
 {

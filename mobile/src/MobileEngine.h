@@ -56,6 +56,10 @@ class MobileEngine : public QObject {
     // the next connection. audioCodingInUse says what this one uses and why.
     Q_PROPERTY(QString audioCompression READ audioCompression WRITE setAudioCompression NOTIFY audioCompressionChanged)
     Q_PROPERTY(QString audioCodingInUse READ audioCodingInUse NOTIFY audioCompressionChanged)
+    // Receive audio buffer: "Low" (100 ms, no prebuffer), "Normal" (200 ms,
+    // 60 ms prebuffer after a gap) or "Smooth" (400 ms, 150 ms): steadier
+    // audio over a jittery link for a little more delay.
+    Q_PROPERTY(QString audioBuffer READ audioBuffer WRITE setAudioBuffer NOTIFY audioCompressionChanged)
     // Network quality as the desktop rates it (Excellent ... Poor, "Off"
     // when not connected) and the round trip in ms, for the header.
     Q_PROPERTY(QString networkQuality READ networkQuality NOTIFY networkChanged)
@@ -245,6 +249,9 @@ public:
     QString audioCompression() const;
     void setAudioCompression(const QString& mode);
     QString audioCodingInUse() const { return m_audioCodingInUse; }
+    QString audioBuffer() const;
+    void setAudioBuffer(const QString& mode);
+    void applyAudioBuffer();
     QString networkQuality() const;
     int networkRttMs() const;
     // The details behind it (link timing, packet integrity per stream,
@@ -665,6 +672,9 @@ private:
     bool m_sliceRecoveryTried{false};
     bool m_sliceRecoveryPending{false};
     QString m_audioCodingInUse;
+    // Audio diagnostics: underruns seen at the last 10 s check.
+    quint64 m_lastUnderruns{0};
+    QTimer m_audioDiagTimer;
     // Sets the core's AudioCompression for the coming connection.
     void applyAudioCompression(const QHostAddress& radio, bool wan);
     bool m_redactIdentity{false};
