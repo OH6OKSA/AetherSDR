@@ -39,14 +39,30 @@ Item {
         return Math.ceil(Math.max(arc, hf * 8.5))
     }
 
-    // Eased needle, so meter jitter reads like a real movement.
+    // Pivot and radius, shared by the scale canvas and the needle.
+    readonly property real pivotX: width / 2
+    readonly property real pivotY: height - 3
+    readonly property real radius: Math.max(10, Math.min(pivotY - arcTop,
+        (width / 2 - fontPx * 1.0) / Math.sin(halfAngle) - 4 - fontPx * 0.8))
+    function angleOf(v) {
+        const span = max - min
+        return -Math.PI / 2 - halfAngle
+               + 2 * halfAngle * Math.max(0, Math.min(1, (v - min) / (span || 1)))
+    }
+
+    // Eased needle, so meter jitter reads like a real movement. Only the
+    // needle item turns with the reading: the scale canvas is painted when
+    // the size or meter changes, not on every reading (a JS repaint per
+    // meter update on the UI thread made receive audio stutter).
     property real shown: live ? Math.max(min, Math.min(max, value)) : min
     Behavior on shown { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
-    onShownChanged: face.requestPaint()
     onWidthChanged: face.requestPaint()
     onHeightChanged: face.requestPaint()
     onKindChanged: face.requestPaint()
     onLiveChanged: face.requestPaint()
+    onMinChanged: face.requestPaint()
+    onMaxChanged: face.requestPaint()
+    onRedChanged: face.requestPaint()
 
     // Scale marks: [value, label, red?]
     readonly property var marks: {
@@ -89,9 +105,9 @@ Item {
             const half = gauge.halfAngle
             // Clear of the header text: the top scale labels sit above the arc.
             const top = gauge.arcTop
-            const cx = w / 2
-            const cy = h - 3
-            const radius = Math.max(10, Math.min(cy - top, (w / 2 - fontPx * 1.0) / Math.sin(half) - 4 - fontPx * 0.8))
+            const cx = gauge.pivotX
+            const cy = gauge.pivotY
+            const radius = gauge.radius
             const start = -Math.PI / 2 - half
             const end = -Math.PI / 2 + half
             const span = gauge.max - gauge.min
@@ -140,25 +156,41 @@ Item {
                 ctx.fillText(m[1], cx + c * (inner - fontPx * 1.3), cy + s * (inner - fontPx * 1.3))
             }
 
-            // Needle.
-            const na = angleOf(gauge.shown)
-            ctx.strokeStyle = gauge.live ? "#ffffff" : "#8b98a5"
-            ctx.lineWidth = Math.max(1.5, 1.6 * gauge.unit)
-            ctx.beginPath()
-            ctx.moveTo(cx, cy)
-            ctx.lineTo(cx + Math.cos(na) * (radius + 3), cy + Math.sin(na) * (radius + 3))
-            ctx.stroke()
-
-            // Hub: a dark half disc with a warm glow, as on the desktop.
-            // The needle's balance/pivot cap: small, as on a real meter.
+            // Hub glow (under the needle item); the dark cap is drawn over it.
             const hub = Math.max(4, radius * 0.13)
             const glow = ctx.createRadialGradient(cx, cy, hub * 0.6, cx, cy, hub * 2.2)
             glow.addColorStop(0, "rgba(255,170,90,0.35)")
             glow.addColorStop(1, "rgba(255,170,90,0)")
             ctx.fillStyle = glow
             ctx.beginPath(); ctx.arc(cx, cy, hub * 2.2, Math.PI, 2 * Math.PI, false); ctx.fill()
-            ctx.fillStyle = "#05070a"
-            ctx.beginPath(); ctx.arc(cx, cy, hub, Math.PI, 2 * Math.PI, false); ctx.fill()
+        }
+    }
+
+    // The needle: a thin bar turned about the pivot (no repaint).
+    Rectangle {
+        id: needle
+        x: gauge.pivotX
+        y: gauge.pivotY - height / 2
+        width: gauge.radius + 3
+        height: Math.max(1.5, 1.6 * gauge.unit)
+        antialiasing: true
+        color: gauge.live ? "#ffffff" : "#8b98a5"
+        transformOrigin: Item.Left
+        rotation: gauge.angleOf(gauge.shown) * 180 / Math.PI
+    }
+    // The needle's balance cap: a small dark half disc over the pivot.
+    Item {
+        readonly property real hub: Math.max(4, gauge.radius * 0.13)
+        x: gauge.pivotX - hub
+        y: gauge.pivotY - hub
+        width: 2 * hub
+        height: hub
+        clip: true
+        Rectangle {
+            width: parent.width
+            height: parent.width
+            radius: width / 2
+            color: "#05070a"
         }
     }
 
