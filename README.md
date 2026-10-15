@@ -60,8 +60,8 @@ radio interface, with no computer running alongside.
   chooser; the width and the flags the mode's eight filter widths and the
   radio's DSP (NR, NB, ANF, APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where
   the radio has them; every one the radio offers is listed, lit when on);
-  AGC its modes, AGC threshold and RF gain; the speaker mutes, the lock
-  locks.
+  AGC its modes, AGC threshold and RF gain; the speaker the volume and
+  mute; the lock locks.
 - **Split**, as SmartSDR and AetherSDR: SPLIT on the info panel adds a TX
   slice 1 kHz (CW) or 5 kHz up, muted, with transmit and focus to tune the
   offset; tap again to end it.
@@ -70,8 +70,7 @@ radio interface, with no computer running alongside.
 - **Beat cancel (BC)**, as on Kenwood rigs: the app finds steady carriers
   in the receive audio (someone tuning up on the frequency) and notches
   them out within ~0.15 s, leaving voice alone. Voice modes only.
-- AF gain in the controls; RIT and XIT −/+ run while held, faster the
-  longer.
+- RIT and XIT −/+ run while held, faster the longer.
 - Notices and refusals pop up in the middle of the display.
 - Two meters on the slice row, SmartSDR style. Tap either one to choose S,
   Power, SWR, ALC, Mic, Compression, PA temperature or supply voltage,

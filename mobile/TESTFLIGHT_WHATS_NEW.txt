@@ -4,10 +4,11 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Verkon laatu yläpalkissa (väri ja ms); napauta → viive, pakettihäviö ja liikenne.
-• Versio ja Manual-nappi yläpalkissa: avaa ohjekirjan kuvineen.
-• Infopalkki näyttää kaikki radion DSP:t (päällä kirkkaana).
-• Edelliseltä buildilta edelleen testattavaa: SPLIT, ilmoitukset keskellä, TX-slicen siirto, PTT aina näkyvissä, RF gain, RIT/XIT pitkä painallus, CW-muistit ja kutsu.
+• Radio Setup (yläpalkki; iPhonella ⋯): kutsu, nimi, remote, TX-rajat, mikki, CW-keyer, audio-ulostulot. Uudelle radiolle (ei kutsua) tarjotaan kerran.
+• IP-osoite syötetään omalla näppäimistöllä (napauta osoitekenttää).
+• Jos radio hylkää ensimmäisen slicen, sovellus yrittää kerran uudella panoraamalla.
+• Kaiutin infopalkissa = äänenvoimakkuus ja mute.
+• Pieni pakettihäviö ei ole enää lokissa varoitus.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.

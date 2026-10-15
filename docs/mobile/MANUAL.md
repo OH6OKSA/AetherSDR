@@ -35,8 +35,10 @@ The first page lists the ways to reach a radio:
 - **SmartLink (remote)** — sign in with your FlexRadio SmartLink account
   to use your radio from anywhere. The sign-in is kept in the iOS Keychain
   on this device only; the password is never stored.
-- **By IP address** — type your radio's IP address (SmartSDR's radio
-  chooser and your router's device list both show it) and tap *Connect*.
+- **By IP address** — tap the address field and enter your radio's IP
+  address on the keypad (SmartSDR's radio chooser and your router's device
+  list both show it), then *Connect*. A hardware keyboard works in the
+  keypad too.
   The device must reach the radio on the same network or over a VPN.
 
 The top row shows the app version, **Manual** and **Log** (see
@@ -121,7 +123,7 @@ is a touch target with its choices behind it:
 | **ANT1** (blue) | Receive antenna | Choose the RX antenna |
 | **ANT1** (red) | Transmit antenna | Choose the TX antenna |
 | **2.7K** | Receive filter width | Filters and DSP |
-| Speaker | Audio on (blue) / muted (red) | Mute or unmute |
+| Speaker | Audio on (blue) / muted (red) | Volume (AF gain) and Mute |
 | Lock | Tuning lock open / locked | Lock or unlock tuning (flashes when a tune is refused) |
 | **NB NR ANF NRL …** | Every DSP the radio offers, bright when on (on an iPhone the rarer ones only while on) | Filters and DSP |
 | **AGC-M** | AGC mode | AGC mode, AGC threshold and RF gain |
@@ -243,7 +245,8 @@ at once.
 - **DSP** — RIT and XIT (on/off; − and + step 10 Hz and run while held,
   faster the longer: 10, then 50, then 100 Hz; tap the value to reset), and
   squelch.
-- **Audio** — AF gain and the radio's 8-band receive and transmit equalizer.
+- **Audio** — the radio's 8-band receive and transmit equalizer (volume is
+  on the info panel's speaker).
 - **TX** — TUNE and the ATU (tune, bypass, memories), tune power, RF power,
   speech processor (PROC NOR/DX/DX+), monitor (MON), radio mic level, device
   mic gain, microphone choice and the transmit filter (low and high cut).
@@ -299,7 +302,7 @@ Notices and refusals pop up in the middle of the display; tap one, or wait
 
 | You see | Why | What to do |
 |---|---|---|
-| **No slice** (frequency 0.000.000) | The radio did not give the app a slice — usually all its slices are in use by other programs (SmartSDR, another station) | Close a slice there, then **Try again** |
+| **No slice** (frequency 0.000.000) | The radio did not give the app a slice. The app first retries once on a fresh panadapter; if it still fails, the radio's slices may all be in use by other programs | Close a slice there, then **Try again** |
 | *No slice transmits* | No slice has transmit | Press and hold a slice → **Make TX slice** |
 | *Interlock / did not accept the transmit request* | The radio refused to transmit; its reason is shown | Check TX antenna, band, other clients |
 | A band button opens another band | The radio's band stack (in its global profile) holds that frequency | Tune the band where you want it and save the profile |
