@@ -2459,6 +2459,7 @@ public:
     double  packetLossPercent() const;
     int     audioPacketGapMs() const;
     int     audioPacketGapMaxMs() const;
+    int     takeAudioPacketGapWindowMaxMs();
     int     audioPacketJitterMs() const;
     int     packetDropCount()  const;
     int     packetTotalCount() const;

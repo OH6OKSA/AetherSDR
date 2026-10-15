@@ -428,6 +428,8 @@ public:
     qint64 totalTxBytes() const { return m_totalTxBytes.load(); }
     int audioPacketGapMs() const { return m_audioPacketGapMs.load(); }
     int audioPacketGapMaxMs() const { return m_audioPacketGapMaxMs.load(); }
+    // Longest gap since the last call (a per-window max for periodic logs).
+    int takeAudioPacketGapWindowMaxMs() { return m_audioPacketGapWindowMaxMs.exchange(0); }
     int audioPacketJitterMs() const { return m_audioPacketJitterMs.load(); }
 
 private:
@@ -435,6 +437,7 @@ private:
     std::atomic<qint64> m_totalTxBytes{0};
     std::atomic<int> m_audioPacketGapMs{0};
     std::atomic<int> m_audioPacketGapMaxMs{0};
+    std::atomic<int> m_audioPacketGapWindowMaxMs{0};
     std::atomic<int> m_audioPacketJitterMs{0};
     QElapsedTimer m_audioPacketTimer;
     bool m_audioPacketTimerStarted{false};

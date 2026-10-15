@@ -102,21 +102,23 @@ MobileEngine::MobileEngine(QObject* parent)
             return;
         }
         const quint64 underruns = m_audio->rxBufferUnderrunCount();
+        RadioModel& model = m_session.radioModel();
+        const int gapWindowMaxMs = model.takeAudioPacketGapWindowMaxMs();
         if (underruns > m_lastUnderruns && m_lastUnderruns > 0) {
-            const RadioModel& model = m_session.radioModel();
             qCInfo(lcMobile).noquote()
                 << QStringLiteral("audio underrun: %1 in 10 s, buffer %2 ms, queued %3 ms, "
-                                  "packet gap max %4 ms, jitter %5 ms, buffer mode %6, "
+                                  "packet gap max %4 ms (session %10 ms), jitter %5 ms, buffer mode %6, "
                                   "CPU %7 % (%8 % of one core), %9 frames/s")
                        .arg(underruns - m_lastUnderruns)
                        .arg(m_audio->rxBufferMs(), 0, 'f', 0)
                        .arg(m_audio->rxPlaybackQueuedMs())
-                       .arg(model.audioPacketGapMaxMs())
+                       .arg(gapWindowMaxMs)
                        .arg(model.audioPacketJitterMs())
                        .arg(audioBuffer())
                        .arg(qRound(m_cpuPercent))
                        .arg(qRound(m_cpuPercentOfCore))
-                       .arg(m_uiFps);
+                       .arg(m_uiFps)
+                       .arg(model.audioPacketGapMaxMs());
         }
         m_lastUnderruns = underruns;
     });

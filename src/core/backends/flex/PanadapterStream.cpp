@@ -857,6 +857,8 @@ void PanadapterStream::processDatagram(const QByteArray& data)
                 const int gapMs = static_cast<int>(m_audioPacketTimer.restart());
                 m_audioPacketGapMs.store(gapMs);
                 m_audioPacketGapMaxMs.store(std::max(m_audioPacketGapMaxMs.load(), gapMs));
+                m_audioPacketGapWindowMaxMs.store(
+                    std::max(m_audioPacketGapWindowMaxMs.load(), gapMs));
                 if (m_previousAudioPacketGapMs > 0) {
                     const double variation = std::abs(gapMs - m_previousAudioPacketGapMs);
                     m_audioPacketJitterEstimateMs +=
@@ -1469,6 +1471,7 @@ void PanadapterStream::resetAudioStreamStats()
     m_audioStreamStatsTimer.restart();
     m_audioPacketGapMs.store(0);
     m_audioPacketGapMaxMs.store(0);
+    m_audioPacketGapWindowMaxMs.store(0);
     m_audioPacketJitterMs.store(0);
     m_audioPacketTimerStarted = false;
     m_previousAudioPacketGapMs = 0;

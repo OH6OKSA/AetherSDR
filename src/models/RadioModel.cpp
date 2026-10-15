@@ -8824,6 +8824,13 @@ int RadioModel::audioPacketGapMaxMs() const
     return usesBackendLinkStats() ? std::max(0, m_linkStats.gapMaxMs) : 0;
 }
 
+int RadioModel::takeAudioPacketGapWindowMaxMs()
+{
+    if (m_panStream)
+        return m_panStream->takeAudioPacketGapWindowMaxMs();
+    return audioPacketGapMaxMs();
+}
+
 int RadioModel::audioPacketJitterMs() const
 {
     if (m_panStream)
