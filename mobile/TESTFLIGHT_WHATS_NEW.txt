@@ -4,9 +4,8 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Äänen pätkiminen: Controls → Audio → Audio buffer (Low latency / Normal / Smooth). Oletus Normal (200 ms). Jos pätkii, kokeile Smooth ja kerro auttoiko. Lokiin tulee rivi "audio underrun" aina kun puskuri tyhjenee.
-• CPU-kuorma yläpalkissa verkon laadun vieressä; napauta → Network & performance (CPU, ruudunpäivitys).
-• Edelliseltä: iPad-vaaka yksi PTT, band plan 3D:ssä.
+• Audio buffer (Controls → Audio): Normal (200 ms) on oletus. Low latency pätkii tavallisella Wi-Fillä; jos Normal pätkii, kokeile Smooth.
+• Lokiin kerran minuutissa "performance" (CPU, ruudunpäivitys); "audio underrun" näyttää pisimmän pakettivälin 10 s ajalta.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
