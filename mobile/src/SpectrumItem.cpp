@@ -3,6 +3,8 @@
 #include <QFontMetricsF>
 
 #include "MobileEngine.h"
+#include "SpectrumPalette.h"
+#include "gui/NoiseFloorEstimator.h"
 
 #include <QDateTime>
 #include <QLoggingCategory>
@@ -22,18 +24,15 @@ namespace {
 // How often the spectrum's levels go to the log.
 constexpr qint64 kLevelLogIntervalMs = 30000;
 
-// Trace scale: bottom a little below the noise, top above the strongest
-// signals, at least kTraceMinSpanDb tall, eased so the trace does not jump.
-constexpr float kTraceBelowNoiseDb = 8.0f;
-constexpr float kTraceAboveTopDb = 10.0f;
-constexpr float kTraceMinSpanDb = 50.0f;
-constexpr float kTraceSmoothing = 0.1f;
-constexpr float kRangeSmoothing = 0.05f;
-// Minimum colour span, in the row's units (dB-like for both Flex intensity
-// and dBm), so a noise-only band stays dark instead of being stretched.
-constexpr float kMinimumSpan = 30.0f;
+// Auto trace scale: the noise floor this far up from the bottom (the
+// desktop's default noise floor position, 75 % down from the top).
+constexpr float kNoiseTargetFraction = 0.75f;
+// Trace averaging, the desktop's SMOOTH_ALPHA (share of the new frame).
+constexpr float kTraceAverage = 0.35f;
 // Row interval for the TX waterfall drawn from trace frames.
 constexpr qint64 kTxRowIntervalMs = 100;
+// Waterfall rows dropped after a transmission while the AGC settles.
+constexpr qint64 kPostTxSettleMs = 400;
 
 } // namespace
 
@@ -42,6 +41,9 @@ SpectrumItem::SpectrumItem(QQuickItem* parent)
 {
     setOpaquePainting(true);
     setFillColor(QColor(QStringLiteral("#0b0f14")));
+    for (int i = 0; i < 256; ++i) {
+        m_palette[i] = spectrumPaletteAt(i / 255.0f);
+    }
 }
 
 void SpectrumItem::setEngine(MobileEngine* engine)
@@ -100,8 +102,6 @@ void SpectrumItem::reportPixels()
         QImage resized(w, wfH, QImage::Format_RGB32);
         resized.fill(Qt::black);
         m_waterfall = resized;
-        // Rows at the new width come at a new scale; re-learn the range.
-        m_rangeSeeded = false;
         m_viewLowMhz = 0.0;
         m_viewHighMhz = 0.0;
     }
@@ -113,92 +113,135 @@ void SpectrumItem::reportPixels()
 void SpectrumItem::onSpectrum(const QVector<float>& binsDbm)
 {
     // Non-finite bins (empty frames) would make the scale infinite.
-    m_spectrum = binsDbm;
-    for (float& v : m_spectrum) {
+    QVector<float> raw = binsDbm;
+    for (float& v : raw) {
         if (!std::isfinite(v)) {
             v = -200.0f;
         }
         v = std::clamp(v, -200.0f, 50.0f);
     }
-    if (!m_spectrum.isEmpty()) {
-        QVector<float> sorted = m_spectrum;
-        std::sort(sorted.begin(), sorted.end());
-        // Auto follows the band without the RF gain, so a preamp or
-        // attenuator step shows on the trace (as on a fixed SmartSDR scale)
-        // instead of being levelled away.
-        const float gain = m_engine ? static_cast<float>(m_engine->rfGain()) : 0.0f;
-        const float noise = sorted.at(sorted.size() / 2) - gain;
-        const float peak = sorted.last() - gain;
-        const float bottom = noise - kTraceBelowNoiseDb;
-        const float top = std::max(bottom + kTraceMinSpanDb, peak + kTraceAboveTopDb);
-        // Levels in the log now and then: bins pinned at the lowest value
-        // mean the noise sits below the radio's scale and draws flat.
-        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-        if (m_engine && nowMs >= m_nextLevelLogMs) {
-            m_nextLevelLogMs = nowMs + kLevelLogIntervalMs;
-            const auto atLowest = std::upper_bound(sorted.cbegin(), sorted.cend(), sorted.first())
-                - sorted.cbegin();
-            qCInfo(lcSpectrum).noquote()
-                << QStringLiteral("spectrum levels: %1 bins on %2x%3, %4, lowest %5 dBm (%6 % of bins), "
-                                  "noise %7 dBm, peak %8 dBm, RF gain %9 dB, trace %10..%11 dBm")
-                       .arg(sorted.size())
-                       .arg(static_cast<int>(width()))
-                       .arg(static_cast<int>(height() * m_spectrumFraction))
-                       .arg(m_engine->panScaleInfo())
-                       .arg(sorted.first(), 0, 'f', 1)
-                       .arg(qRound(100.0 * atLowest / sorted.size()))
-                       .arg(sorted.at(sorted.size() / 2), 0, 'f', 1)
-                       .arg(sorted.last(), 0, 'f', 1)
-                       .arg(m_engine->rfGain())
-                       .arg(m_traceBottom, 0, 'f', 0)
-                       .arg(m_traceTop, 0, 'f', 0);
-        }
-        if (!m_autoSeeded) {
-            m_autoNoise = noise;
-            m_autoTop = top;
-            m_autoSeeded = true;
-        } else {
-            m_autoNoise += (noise - m_autoNoise) * kTraceSmoothing;
-            m_autoTop += (top - m_autoTop) * kTraceSmoothing;
-        }
-        if (m_engine && !m_engine->traceAutoRange()) {
-            // Manual: reference level at the top, range below it.
-            m_traceTop = static_cast<float>(m_engine->traceRefDbm());
-            m_traceBottom = m_traceTop - static_cast<float>(m_engine->traceRangeDb());
-            m_traceSeeded = true;
-        } else if (!m_traceSeeded) {
-            m_traceBottom = bottom;
-            m_traceTop = top;
-            m_traceSeeded = true;
-        } else {
-            m_traceBottom += (bottom - m_traceBottom) * kTraceSmoothing;
-            m_traceTop += (top - m_traceTop) * kTraceSmoothing;
-        }
-        // Tell the scale strip when the scale moved by at least 1 dB.
-        if (std::abs(m_traceTop - m_reportedTop) >= 1.0f
-            || std::abs(m_traceBottom - m_reportedBottom) >= 1.0f
-            || std::abs(m_autoNoise - m_reportedNoise) >= 0.5f
-            || std::abs(m_autoTop - m_reportedAutoTop) >= 1.0f) {
-            m_reportedTop = m_traceTop;
-            m_reportedBottom = m_traceBottom;
-            m_reportedNoise = m_autoNoise;
-            m_reportedAutoTop = m_autoTop;
-            emit traceScaleChanged();
-        }
-        // Own transmission in the waterfall: the radio pauses waterfall rows
-        // during TX, so draw them from the trace on the trace's scale.
-        if (m_engine && m_engine->radioTransmitting() && !m_waterfall.isNull()) {
-            const qint64 now = QDateTime::currentMSecsSinceEpoch();
-            if (now >= m_nextTxRowMs) {
-                m_nextTxRowMs = now + kTxRowIntervalMs;
-                followView();
-                pushRow(m_spectrum, m_viewLowMhz, m_viewHighMhz, m_traceBottom + kTraceBelowNoiseDb,
-                        std::max(kMinimumSpan, m_traceTop - m_traceBottom - kTraceBelowNoiseDb));
-                return;
-            }
+    if (raw.isEmpty()) {
+        update();
+        return;
+    }
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const bool transmitting = m_engine && m_engine->radioTransmitting();
+    // A retune or zoom moves every bin to a new frequency: start the
+    // averaging and the noise floor afresh, as the desktop does.
+    const double center = m_engine ? m_engine->panCenterMhz() : 0.0;
+    const double bandwidth = m_engine ? m_engine->panBandwidthMhz() : 0.0;
+    const bool frameChanged = !qFuzzyCompare(1.0 + center, 1.0 + m_frameCenterMhz)
+        || !qFuzzyCompare(1.0 + bandwidth, 1.0 + m_frameBandwidthMhz);
+    if (frameChanged) {
+        m_frameCenterMhz = center;
+        m_frameBandwidthMhz = bandwidth;
+        m_noise.reset();
+    }
+    // Trace averaging (the desktop's SMOOTH_ALPHA): steadies the trace,
+    // restarted on a new frame, a new width and after a transmission.
+    if (m_spectrum.size() != raw.size() || frameChanged || (m_wasTransmitting && !transmitting)) {
+        m_spectrum = raw;
+    } else {
+        for (qsizetype i = 0; i < raw.size(); ++i) {
+            m_spectrum[i] = kTraceAverage * raw.at(i) + (1.0f - kTraceAverage) * m_spectrum.at(i);
         }
     }
+    if (m_wasTransmitting && !transmitting) {
+        m_txEndMs = nowMs;
+    }
+    m_wasTransmitting = transmitting;
+
+    // Noise floor as the desktop tracks it. Without the RF gain, so a
+    // preamp or attenuator step shows on the trace, waterfall and 3D (as
+    // on a fixed SmartSDR scale) instead of being levelled away.
+    const float gain = m_engine ? static_cast<float>(m_engine->rfGain()) : 0.0f;
+    if (!transmitting) {
+        m_noise.observe(estimateNoiseFloorDbm(std::span<const float>(raw.constData(), raw.size())) - gain, nowMs);
+    }
+    const float noise = m_noise.valid() ? m_noise.baseline() : m_autoNoise;
+    // The 3D floor's anchor (SpectrumWidget::dssFloorDbm): follows the
+    // baseline slowly, jumps when it is far off, in half-dB steps.
+    if (!m_anchorSeeded || std::abs(noise - m_anchor) > 18.0f) {
+        m_anchor = noise;
+        m_anchorSeeded = true;
+    } else {
+        m_anchor += (noise - m_anchor) * 0.04f;
+    }
+    m_autoNoise = std::round(m_anchor * 2.0f) / 2.0f;
+
+    // Trace scale. Auto as the desktop: the span stays (Range), the noise
+    // floor sits a quarter of it above the bottom, and the level eases
+    // there (a changing span made signal heights jump). Manual: reference
+    // level at the top, range below it.
+    const float range = m_engine ? static_cast<float>(m_engine->traceRangeDb()) : 90.0f;
+    if (m_engine && !m_engine->traceAutoRange()) {
+        m_traceTop = static_cast<float>(m_engine->traceRefDbm());
+        m_traceSeeded = true;
+    } else {
+        const float target = noise + kNoiseTargetFraction * range;
+        const float elapsedSec = m_lastTraceMs > 0 ? (nowMs - m_lastTraceMs) / 1000.0f : 1.0f;
+        m_traceTop = m_traceSeeded ? easeLevelToward(m_traceTop, target, elapsedSec) : target;
+        m_traceSeeded = true;
+    }
+    m_traceBottom = m_traceTop - range;
+    m_lastTraceMs = nowMs;
+
+    // Levels in the log now and then: bins pinned at the lowest value
+    // mean the noise sits below the radio's scale and draws flat.
+    if (m_engine && nowMs >= m_nextLevelLogMs) {
+        m_nextLevelLogMs = nowMs + kLevelLogIntervalMs;
+        QVector<float> sorted = raw;
+        std::sort(sorted.begin(), sorted.end());
+        const auto atLowest = std::upper_bound(sorted.cbegin(), sorted.cend(), sorted.first()) - sorted.cbegin();
+        qCInfo(lcSpectrum).noquote()
+            << QStringLiteral("spectrum levels: %1 bins on %2x%3, %4, lowest %5 dBm (%6 % of bins), "
+                              "noise %7 dBm, peak %8 dBm, RF gain %9 dB, trace %10..%11 dBm")
+                   .arg(sorted.size())
+                   .arg(static_cast<int>(width()))
+                   .arg(static_cast<int>(height() * m_spectrumFraction))
+                   .arg(m_engine->panScaleInfo())
+                   .arg(sorted.first(), 0, 'f', 1)
+                   .arg(qRound(100.0 * atLowest / sorted.size()))
+                   .arg(noise + gain, 0, 'f', 1)
+                   .arg(sorted.last(), 0, 'f', 1)
+                   .arg(m_engine->rfGain())
+                   .arg(m_traceBottom, 0, 'f', 0)
+                   .arg(m_traceTop, 0, 'f', 0);
+    }
+
+    // Tell the scale strip and the 3D view when a level moved.
+    if (std::abs(m_traceTop - m_reportedTop) >= 0.5f || std::abs(m_traceBottom - m_reportedBottom) >= 0.5f
+        || std::abs(m_autoNoise - m_reportedNoise) >= 0.5f) {
+        m_reportedTop = m_traceTop;
+        m_reportedBottom = m_traceBottom;
+        m_reportedNoise = m_autoNoise;
+        emit traceScaleChanged();
+    }
+    // Own transmission in the waterfall: the radio pauses waterfall rows
+    // during TX, so draw them from the trace on the RX colour scale.
+    if (transmitting && !m_waterfall.isNull() && nowMs >= m_nextTxRowMs) {
+        m_nextTxRowMs = nowMs + kTxRowIntervalMs;
+        followView();
+        pushRow(m_spectrum, m_viewLowMhz, m_viewHighMhz, waterfallParams(noise));
+        return;
+    }
     update();
+}
+
+WaterfallLevelMap::Params SpectrumItem::waterfallParams(float autoBlack) const
+{
+    // The desktop's waterfall law: black at the tracked noise floor (Black
+    // level biases it, 50 = none) or, with Auto off, a fixed black point;
+    // the colour range's width set by Colour gain alone, so the same signal
+    // looks the same on any band and a strong carrier does not darken the
+    // rest.
+    WaterfallLevelMap::Params p;
+    p.autoBlack = !m_engine || m_engine->wfAutoLevel();
+    p.autoBlackThresh = autoBlack;
+    p.autoBlackOffset = m_engine ? m_engine->wfBlackLevel() : 50;
+    p.blackLevel = m_engine ? m_engine->wfBlackLevel() : 50;
+    p.colorGain = m_engine ? m_engine->wfColorGain() : 50;
+    return p;
 }
 
 void SpectrumItem::followView()
@@ -233,44 +276,31 @@ void SpectrumItem::followView()
 
 void SpectrumItem::onWaterfallRow(const QVector<float>& bins, double lowMhz, double highMhz)
 {
-    // While transmitting the TX rows come from the trace (onSpectrum).
-    if (bins.isEmpty() || m_waterfall.isNull() || (m_engine && m_engine->radioTransmitting())) {
+    // While transmitting the TX rows come from the trace (onSpectrum); for
+    // 400 ms after it the radio's AGC settles and its rows are dropped, as
+    // the desktop's kPostTxAgcSettleMs.
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    if (bins.isEmpty() || m_waterfall.isNull() || (m_engine && m_engine->radioTransmitting())
+        || nowMs - m_txEndMs < kPostTxSettleMs) {
         return;
     }
     followView();
-    // Black at the median (the band's noise), full scale near the 99.5th
-    // percentile; smoothed across rows so the picture does not pump with
-    // every strong signal.
-    // Tracked without the RF gain, so a gain step brightens or darkens the
-    // picture as on the desktop instead of being levelled away.
-    QVector<float> sorted = bins;
-    std::sort(sorted.begin(), sorted.end());
+    // Black point: the tile's noise floor (mean of the bins under the mean),
+    // smoothed across rows; held while transmitting. Without the RF gain, so
+    // a gain step brightens or darkens the picture as on the desktop.
     const float gain = m_engine ? static_cast<float>(m_engine->rfGain()) : 0.0f;
-    const float floor = sorted.at(sorted.size() / 2) - gain;
-    const float top = sorted.at(std::min<qsizetype>(sorted.size() - 1, sorted.size() * 995 / 1000)) - gain;
-    const float span = std::max(kMinimumSpan, (top - floor) * 1.2f);
-    const bool autoLevel = !m_engine || m_engine->wfAutoLevel();
-    if (!m_rangeSeeded) {
-        m_floor = floor;
-        m_span = span;
-        m_rangeSeeded = true;
-    } else if (autoLevel) {
-        m_floor += (floor - m_floor) * kRangeSmoothing;
-        m_span += (span - m_span) * kRangeSmoothing;
+    const float estimate = estimateNoiseFloorDbm(std::span<const float>(bins.constData(), bins.size()));
+    if (estimate > -500.0f) {
+        m_wfBlack = m_wfBlackSeeded ? 0.95f * m_wfBlack + 0.05f * (estimate - gain) : estimate - gain;
+        m_wfBlackSeeded = true;
     }
-    // Black level shifts the black point (50 = the tracked noise floor, as
-    // the desktop's SW auto black offset); colour gain stretches (100) or
-    // widens (0) the colour range by up to 2x.
-    float wfFloor = m_floor;
-    float wfSpan = m_span;
-    if (m_engine) {
-        wfFloor += (50 - m_engine->wfBlackLevel()) * 0.4f;
-        wfSpan *= std::pow(2.0f, (50 - m_engine->wfColorGain()) / 50.0f);
-    }
-    pushRow(bins, lowMhz, highMhz, wfFloor, wfSpan);
+    WaterfallLevelMap::Params p = waterfallParams(m_wfBlack);
+    // Rows carry the RF gain; the black point does not.
+    pushRow(bins, lowMhz, highMhz, p);
 }
 
-void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double highMhz, float floor, float span)
+void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double highMhz,
+                           const WaterfallLevelMap::Params& levels)
 {
     if (bins.isEmpty() || m_waterfall.isNull()) {
         return;
@@ -301,7 +331,7 @@ void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double hig
         } else {
             i = std::min<qsizetype>(n - 1, static_cast<qsizetype>(x) * n / w);
         }
-        row[x] = colourFor((bins.at(i) - floor) / span);
+        row[x] = m_palette[std::clamp(static_cast<int>(WaterfallLevelMap::level(bins.at(i), levels) * 255.0f + 0.5f), 0, 255)];
     }
     update();
 }
@@ -414,28 +444,6 @@ void SpectrumItem::drawFrequencyAxis(QPainter* painter, qreal w, qreal specH) co
     }
 }
 
-QRgb SpectrumItem::colourFor(float v) const
-{
-    v = std::clamp(v, 0.0f, 1.0f);
-    // black → blue → cyan → yellow → red → white
-    struct Stop { float at; int r; int g; int b; };
-    static constexpr Stop kStops[] = {
-        {0.00f, 0, 0, 0}, {0.12f, 0, 0, 70}, {0.30f, 0, 40, 200}, {0.50f, 0, 170, 220},
-        {0.65f, 240, 230, 0}, {0.85f, 230, 30, 0}, {1.00f, 255, 255, 255},
-    };
-    for (size_t i = 1; i < std::size(kStops); ++i) {
-        if (v <= kStops[i].at) {
-            const Stop& a = kStops[i - 1];
-            const Stop& b = kStops[i];
-            const float t = (v - a.at) / (b.at - a.at);
-            return qRgb(static_cast<int>(a.r + (b.r - a.r) * t),
-                        static_cast<int>(a.g + (b.g - a.g) * t),
-                        static_cast<int>(a.b + (b.b - a.b) * t));
-        }
-    }
-    return qRgb(255, 255, 255);
-}
-
 void SpectrumItem::paint(QPainter* painter)
 {
     const qreal w = width();
@@ -475,7 +483,14 @@ void SpectrumItem::paint(QPainter* painter)
         fill.lineTo(w, specH);
         fill.lineTo(0, specH);
         fill.closeSubpath();
-        painter->fillPath(fill, QColor(63, 182, 255, 50));
+        // The desktop's gradient fill: the trace colour at the top, darker
+        // and fainter toward the bottom (fill alpha 0.70).
+        QLinearGradient gradient(0, 0, 0, specH);
+        QColor bottom = QColor(63, 182, 255).darker(300);
+        bottom.setAlpha(42);
+        gradient.setColorAt(0.0, QColor(63, 182, 255, 140));
+        gradient.setColorAt(1.0, bottom);
+        painter->fillPath(fill, gradient);
         painter->setPen(QPen(QColor(63, 182, 255), 1.5));
         painter->drawPath(path);
     }

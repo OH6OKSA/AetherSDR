@@ -6,6 +6,11 @@
 #include <QVector>
 #include <QtQml/qqmlregistration.h>
 
+#include <array>
+
+#include "NoiseFloorTracker.h"
+#include "gui/WaterfallLevelMap.h"
+
 
 namespace AetherSDR::mobile {
 
@@ -23,10 +28,10 @@ class SpectrumItem : public QQuickPaintedItem {
     // area), for the dBm scale strip and its drag.
     Q_PROPERTY(double traceTopDbm READ traceTopDbm NOTIFY traceScaleChanged)
     Q_PROPERTY(double traceBottomDbm READ traceBottomDbm NOTIFY traceScaleChanged)
-    // Automatic levels whatever the trace's mode: the noise and the top the
-    // auto scale would use (both without the RF gain). The 3D view takes these.
+    // The tracked noise floor whatever the trace's mode (without the RF
+    // gain), smoothed and in half-dB steps as the desktop's 3D floor anchor.
+    // The 3D view takes it.
     Q_PROPERTY(double noiseFloorDbm READ noiseFloorDbm NOTIFY traceScaleChanged)
-    Q_PROPERTY(double autoTopDbm READ autoTopDbm NOTIFY traceScaleChanged)
     // Height of the band plan strip at the bottom of the spectrum (0 when no
     // plan is shown): the 3D view ends above it.
     Q_PROPERTY(double bandPlanHeight READ bandPlanHeight NOTIFY bandPlanHeightChanged)
@@ -40,7 +45,6 @@ public:
     double traceTopDbm() const { return m_traceTop; }
     double traceBottomDbm() const { return m_traceBottom; }
     double noiseFloorDbm() const { return m_autoNoise; }
-    double autoTopDbm() const { return m_autoTop; }
     double bandPlanHeight() const;
     void setSpectrumFraction(double fraction);
 
@@ -63,27 +67,33 @@ private:
     void followView();
     void reportPixels();
     // Scrolls the waterfall by one row coloured from bins over
-    // lowMhz..highMhz, with black at floor and full scale at floor + span.
-    void pushRow(const QVector<float>& bins, double lowMhz, double highMhz, float floor, float span);
-    QRgb colourFor(float normalised) const;
+    // lowMhz..highMhz by the desktop's waterfall level law.
+    void pushRow(const QVector<float>& bins, double lowMhz, double highMhz,
+                 const WaterfallLevelMap::Params& levels);
+    WaterfallLevelMap::Params waterfallParams(float autoBlack) const;
     void drawFrequencyAxis(QPainter* painter, qreal w, qreal specH) const;
     void drawBandPlan(QPainter* painter, qreal w, qreal specH) const;
 
     QPointer<MobileEngine> m_engine;
     QVector<float> m_spectrum;
     QImage m_waterfall;
-    float m_floor{0.0f};
-    float m_span{0.0f};
-    bool m_rangeSeeded{false};
+    std::array<QRgb, 256> m_palette{};
+    NoiseFloorTracker m_noise;
+    double m_frameCenterMhz{0.0};
+    double m_frameBandwidthMhz{0.0};
+    float m_anchor{-120.0f};
+    bool m_anchorSeeded{false};
+    qint64 m_lastTraceMs{0};
+    float m_wfBlack{100.0f};
+    bool m_wfBlackSeeded{false};
+    bool m_wasTransmitting{false};
+    qint64 m_txEndMs{0};
     double m_viewLowMhz{0.0};
     double m_viewHighMhz{0.0};
     float m_traceBottom{-130.0f};
     float m_traceTop{-40.0f};
     float m_autoNoise{-120.0f};
-    float m_autoTop{-40.0f};
-    bool m_autoSeeded{false};
     float m_reportedNoise{0.0f};
-    float m_reportedAutoTop{0.0f};
     bool m_traceSeeded{false};
     float m_reportedTop{0.0f};
     float m_reportedBottom{0.0f};

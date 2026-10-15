@@ -35,8 +35,9 @@ radio interface, with no computer running alongside.
 ## Features
 
 **Receive**
-- Live panadapter and waterfall, or the 3D stacked trace (after the
-  desktop's 3DSS, drawn on the GPU through Metal). Tap to tune (snapped to the tuning step). Drag inside the
+- Live panadapter and waterfall, or the 3D stacked trace: the desktop's
+  3DSS renderer and shaders, drawn on the GPU through Metal. Spectrum,
+  waterfall and 3D levels follow the noise floor as on the desktop. Tap to tune (snapped to the tuning step). Drag inside the
   filter passband to tune, anywhere else to move the view, as on the
   desktop; while tuning, holding the finger at either edge keeps scrolling,
   faster nearer the edge. Pinch or use −/+ (bottom left of the waterfall)

@@ -18,6 +18,8 @@ qt_add_executable(aether-mobile
     src/RadioListModel.h
     src/SpectrumItem.cpp
     src/SpectrumItem.h
+    src/SpectrumPalette.h
+    src/NoiseFloorTracker.h
     src/Spectrum3DItem.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/MemoryCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/ModeFilterPresets.cpp
@@ -94,15 +96,15 @@ target_link_libraries(aether-mobile PRIVATE
 )
 
 # Precompiled shaders for Spectrum3DItem (SPIR-V, GLSL, HLSL and Metal in
-# one .qsb). Regenerate after editing shaders/*.vert|frag with
-#   qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 -o X.qsb X
+# one .qsb): the desktop's resources/shaders/dss_mesh.{vert,frag}, copied
+# unchanged. Regenerate after editing shaders/*.vert|frag with
+#   qsb --glsl "300 es,150" --hlsl 50 --msl 12 -o X.qsb X
 # so the iOS build needs no Qt ShaderTools.
 qt_add_resources(aether-mobile "spectrum3d_shaders"
     PREFIX "/"
     FILES
-        shaders/spectrum3d.vert.qsb
-        shaders/spectrum3d.frag.qsb
-        shaders/spectrum3d_line.frag.qsb
+        shaders/dss_mesh.vert.qsb
+        shaders/dss_mesh.frag.qsb
 )
 
 if(MSVC)

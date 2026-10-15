@@ -192,6 +192,7 @@ class MobileEngine : public QObject {
     // 2D waterfall.
     Q_PROPERTY(bool spectrum3D READ spectrum3D WRITE setSpectrum3D NOTIFY displayLevelsChanged)
     Q_PROPERTY(int spectrum3DFloorDepth READ spectrum3DFloorDepth WRITE setSpectrum3DFloorDepth NOTIFY displayLevelsChanged)
+    Q_PROPERTY(int spectrum3DGain READ spectrum3DGain WRITE setSpectrum3DGain NOTIFY displayLevelsChanged)
     // Meter faces: analog gauges (arc and needle) instead of bars.
     // Analog or bar, each meter on its own; analogMeters sets both (true
     // only when both are analog).
@@ -447,6 +448,9 @@ public:
     // "3D Floor" (0-24, default 6).
     int spectrum3DFloorDepth() const { return displayInt("Mobile3DFloorDepth", 6); }
     void setSpectrum3DFloorDepth(int v) { setDisplayInt("Mobile3DFloorDepth", std::clamp(v, 0, 24)); }
+    // The desktop's 3D Gain (0-100, default 70): the 3D colours' gamma.
+    int spectrum3DGain() const { return displayInt("Mobile3DGain", 70); }
+    void setSpectrum3DGain(int v) { setDisplayInt("Mobile3DGain", std::clamp(v, 0, 100)); }
     bool analogMeters() const { return analogLeft() && analogRight(); }
     void setAnalogMeters(bool on) { setMeterAnalog(QStringLiteral("left"), on); setMeterAnalog(QStringLiteral("right"), on); }
     // Each side falls back to the old shared setting.

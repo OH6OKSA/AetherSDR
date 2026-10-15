@@ -63,6 +63,21 @@ ColumnLayout {
         value: Engine.spectrum3DFloorDepth
         onMoved: Engine.spectrum3DFloorDepth = Math.round(value)
     }
+    // The desktop's 3D Gain: the 3D colours' gamma (higher lifts colour toward
+    // the noise floor, lower keeps it for the strongest signals).
+    Label {
+        visible: Engine.spectrum3D
+        text: qsTr("3D gain  %1").arg(Engine.spectrum3DGain)
+        color: Theme.textDim
+        font.pixelSize: 15
+    }
+    Slider {
+        visible: Engine.spectrum3D
+        Layout.fillWidth: true
+        from: 0; to: 100; stepSize: 1
+        value: Engine.spectrum3DGain
+        onMoved: Engine.spectrum3DGain = Math.round(value)
+    }
     RowLayout {
         Layout.fillWidth: true
         Label { text: qsTr("Waterfall"); color: Theme.textDim; font.pixelSize: 16; Layout.fillWidth: true }
@@ -112,15 +127,15 @@ ColumnLayout {
         value: Engine.traceRefDbm
         onMoved: Engine.traceRefDbm = Math.round(value)
     }
+    // Range is the span in Auto too (Auto slides the level to the noise),
+    // and the 3D view's height span.
     Label {
         text: qsTr("Range  %1 dB").arg(Engine.traceRangeDb)
         color: Theme.textDim
-        opacity: Engine.traceAutoRange ? 0.5 : 1
         font.pixelSize: 15
     }
     Slider {
         Layout.fillWidth: true
-        enabled: !Engine.traceAutoRange
         from: 20; to: 150; stepSize: 5
         value: Engine.traceRangeDb
         onMoved: Engine.traceRangeDb = Math.round(value)

@@ -210,9 +210,27 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
 - In CW, decoded text runs along the top of the waterfall.
 
 **View** (in Controls) switches between the 2D waterfall and the **3D**
-stacked trace (in portrait the 3D keeps landscape's shape and the waterfall
-gets the rest of the height), and sets the waterfall's black level and colour gain and the
-spectrum's reference and range (or Auto).
+stacked trace and sets the levels. They work as on the desktop AetherSDR:
+
+- **Spectrum** — *Auto* keeps the noise floor a quarter of the way up and
+  follows it calmly: it rises only once a change has lasted over a second
+  (a lightning crash does not lift it), falls quickly, and re-locks after a
+  retune or zoom. **Range** is the height of the scale, in Auto too; with
+  Auto off, **Reference** is the top. The trace is lightly averaged.
+- **Waterfall** — *Auto* puts black at the noise floor; **Black level**
+  moves it (50 = at the noise, higher shows more of it). **Colour gain**
+  sets how many dB the colours span, so the same signal looks the same on
+  any band and a strong carrier does not darken the rest. During and just
+  after a transmission the levels hold.
+- **3D** — the surface takes a row with each waterfall line and glides
+  between them; rows are smoothed (no flicker from single spikes), ridges
+  are soft lines, the near rows widen over the side gaps where the radio's
+  wider waterfall data reaches, and the slices' passbands and carriers are
+  shaded into the surface in perspective. Its height is the spectrum's
+  Range; **3D floor** sets how far under the noise its zero sits and
+  **3D gain** how far down the colours reach. In portrait the 3D keeps
+  landscape's shape and the waterfall gets the rest of the height. It keeps
+  its history while you are in 2D.
 
 ## 6. Split
 
@@ -289,7 +307,7 @@ them back into the drawer.
   - Speed, pitch, **Break-in** (QSK) and the **Decoder**. Decoded text shows
     here and along the top of the waterfall; what you send shows there too,
     marked `[TX]`.
-- **View** — 2D waterfall or 3D, waterfall levels, spectrum range.
+- **View** — 2D waterfall or 3D, waterfall levels, spectrum range, 3D floor and gain.
 - **Profiles** — the radio's global, TX and mic profiles: load, save,
   delete, as in SmartSDR.
 - **Memory** — the radio's memory channels: tap to tune, *Save* stores the

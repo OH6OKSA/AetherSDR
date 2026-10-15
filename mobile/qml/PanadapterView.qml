@@ -32,12 +32,13 @@ Rectangle {
     // 3D stacked trace on the GPU in place of the trace (the waterfall stays
     // below), as the desktop's 3DSS. As there, its levels are automatic
     // whatever the 2D trace's mode: the floor (its zero) follows the noise,
-    // 3D Floor dB under it, so the noise reads dark blue; the top follows the
-    // strongest signals.
+    // 3D Floor dB under it, so the noise reads dark blue.
     Spectrum3DItem {
         id: surface3D
         readonly property real floor: spectrum.noiseFloorDbm - Engine.spectrum3DFloorDepth
-        readonly property real span: Math.max(20, Math.min(100, spectrum.autoTopDbm - floor))
+        // Fixed height span, the spectrum's Range (the desktop's dynamic
+        // range, 10-120 dB): ridges do not rescale as stations come and go.
+        readonly property real span: Math.max(10, Math.min(120, Engine.traceRangeDb))
         visible: Engine.spectrum3D
         engine: Engine
         x: 0
@@ -47,7 +48,7 @@ Rectangle {
         height: Math.round(parent.height * spectrum.spectrumFraction - spectrum.bandPlanHeight)
         floorDbm: floor
         rangeDb: span
-        colorGain: Engine.wfColorGain
+        colorGain: Engine.spectrum3DGain
     }
 
     // Filter passband between the slice's filter edges (Hz offsets from the
@@ -63,7 +64,12 @@ Rectangle {
         width: Math.max(2, (Engine.filterHigh - Engine.filterLow) / 1e6 * pxPerMhz)
         height: parent.height
 
+        // In 3D the surface itself darkens the passband in perspective (as
+        // the desktop's slice shadow), so the flat fill and the edges over
+        // the 3D view go; the edges stay through the waterfall.
+        readonly property real edgeTop: Engine.spectrum3D ? panArea.height * spectrum.spectrumFraction : 0
         Rectangle {
+            visible: !Engine.spectrum3D
             width: parent.width
             height: parent.height * spectrum.spectrumFraction
             color: Theme.passband
@@ -71,15 +77,17 @@ Rectangle {
         }
         Rectangle {
             x: 0
+            y: parent.edgeTop
             width: 1.5
-            height: parent.height
+            height: parent.height - y
             color: Theme.passband
             opacity: 0.9
         }
         Rectangle {
             x: parent.width - width
+            y: parent.edgeTop
             width: 1.5
-            height: parent.height
+            height: parent.height - y
             color: Theme.passband
             opacity: 0.9
         }
@@ -107,7 +115,8 @@ Rectangle {
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 2
-                height: parent.height
+                y: Engine.spectrum3D ? panArea.height * spectrum.spectrumFraction : 0
+                height: parent.height - y
                 color: Theme.textDim
                 opacity: 0.8
             }
@@ -148,11 +157,13 @@ Rectangle {
         }
     }
 
-    // Slice marker: where the active slice sits inside the pan.
+    // Slice marker: where the active slice sits inside the pan (in 3D through
+    // the waterfall only; the surface draws its own cue in perspective).
     Rectangle {
         visible: Engine.panBandwidthMhz > 0
         width: 2
-        height: parent.height
+        y: Engine.spectrum3D ? parent.height * spectrum.spectrumFraction : 0
+        height: parent.height - y
         color: Theme.warning
         opacity: 0.8
         x: (Engine.frequencyMhz - Engine.panCenterMhz) / Engine.panBandwidthMhz * parent.width
