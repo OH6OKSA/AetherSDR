@@ -152,8 +152,25 @@ MobileEngine::MobileEngine(QObject* parent)
     connect(&rm, &RadioModel::callsignChanged, this, &MobileEngine::callsignChanged);
     connect(&rm, &RadioModel::networkQualityChanged, this, &MobileEngine::networkChanged);
     connect(&rm, &RadioModel::sliceCreateFailed, this, [this](int limit, const QString&) {
+        RadioModel& model = m_session.radioModel();
+        // The first slice refused on a pan the radio restored from an earlier
+        // session (seen with free slices, and another client working at once):
+        // close that pan and start on a fresh one, once per connection.
+        if (model.slices().isEmpty() && !m_sliceRecoveryTried && !model.panadapters().isEmpty()) {
+            m_sliceRecoveryTried = true;
+            m_sliceRecoveryPending = true;
+            const QList<PanadapterModel*> pans = model.panadapters();
+            qCWarning(lcMobile) << "slice refused on the restored pan"
+                                << (pans.isEmpty() ? QString() : pans.first()->panId())
+                                << ": recreating the panadapter";
+            for (PanadapterModel* pan : pans) {
+                model.removePanadapter(pan->panId());
+            }
+            QTimer::singleShot(500, this, [this] { m_session.radioModel().createPanadapter(); });
+            return;
+        }
         // With no slice at all the app cannot tune: say why and what helps.
-        if (m_session.radioModel().slices().isEmpty()) {
+        if (model.slices().isEmpty()) {
             setLastError(tr("The radio did not give this app a slice. Its %1 slices may all be "
                             "in use by other programs (SmartSDR, another station): close one "
                             "there, then try again.").arg(limit));
@@ -166,6 +183,13 @@ MobileEngine::MobileEngine(QObject* parent)
     });
     connect(&rm, &RadioModel::panadapterAdded, this, [this](PanadapterModel* pan) {
         sendPanDimensions(pan->panId());
+        // The fresh pan of a slice recovery: put the slice on it.
+        if (m_sliceRecoveryPending && m_session.radioModel().slices().isEmpty()) {
+            m_sliceRecoveryPending = false;
+            qCInfo(lcMobile) << "slice recovery: creating the slice on the new pan" << pan->panId();
+            const QString panId = pan->panId();
+            QTimer::singleShot(400, this, [this, panId] { m_session.radioModel().addSliceOnPan(panId); });
+        }
         selectActiveSlice();
         emit slicesChanged();
     });
@@ -2353,6 +2377,8 @@ void MobileEngine::onConnectionStateChanged(bool connected)
     m_connected = connected;
     m_micDefaulted = false;
     m_netSampleMs = 0;
+    m_sliceRecoveryTried = false;
+    m_sliceRecoveryPending = false;
     emit networkChanged();
     if (connected) {
         defaultMicToDevice();

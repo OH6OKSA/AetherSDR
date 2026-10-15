@@ -637,6 +637,10 @@ private:
     qint64 m_netRxBytes{0};
     qint64 m_netTxBytes{0};
     qint64 m_netSampleMs{0};
+    // A slice refused on the pan the radio restored for this client: one
+    // retry per connection on a fresh panadapter (pending until it arrives).
+    bool m_sliceRecoveryTried{false};
+    bool m_sliceRecoveryPending{false};
     int m_splitRxId{-1};
     int m_splitTxId{-1};
     bool m_splitPending{false};
