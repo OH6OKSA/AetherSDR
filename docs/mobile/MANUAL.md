@@ -258,9 +258,13 @@ them back into the drawer.
   the internet) over SmartLink or when the radio is reached through a VPN,
   and uncompressed audio on the local network; *Opus* or *Uncompressed* fix
   it. It shows what the current connection uses; a change applies from the
-  next connection. **Audio buffer**: *Low latency*, *Normal* (default) or
-  *Smooth* — a longer buffer evens out a jittery Wi-Fi or mobile link for a
-  little more delay; try Smooth if the audio stutters. Below, the radio's
+  next connection. **Audio buffer**: *Low latency* (100 ms), *Normal*
+  (200 ms, the default) or *Smooth* (400 ms) — a longer buffer evens out a
+  jittery Wi-Fi or mobile link for a little more delay. Low latency is for a
+  wired or very steady link only; on ordinary Wi-Fi it stutters. If Normal
+  stutters, try Smooth. Every 10 s with stutter the log gets an
+  "audio underrun" line (count, buffer, longest packet gap, buffer mode),
+  and once a minute a "performance" line (CPU, frames drawn). Below, the radio's
   8-band receive and transmit equalizer
   (volume is on the info panel's speaker).
 - **TX** — TUNE and the ATU (tune, bypass, memories), tune power, RF power,
