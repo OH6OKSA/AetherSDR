@@ -12,6 +12,24 @@ ColumnLayout {
     spacing: Theme.spacing / 2
     implicitWidth: 200
 
+    // Band plan strip along the bottom of the spectrum.
+    Label { text: qsTr("Band plan"); color: Theme.textDim; font.pixelSize: 16 }
+    Flow {
+        Layout.fillWidth: true
+        spacing: 4
+        Repeater {
+            model: [""].concat(Engine.bandPlans)
+            delegate: AppButton {
+                required property string modelData
+                text: modelData.length > 0 ? modelData : qsTr("Off")
+                checked: Engine.bandPlan === modelData
+                leftPadding: 10
+                rightPadding: 10
+                focusPolicy: Qt.NoFocus
+                onClicked: Engine.bandPlan = modelData
+            }
+        }
+    }
     // 2D waterfall or the 3D stacked trace.
     RowLayout {
         Layout.fillWidth: true

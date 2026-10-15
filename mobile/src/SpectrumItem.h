@@ -56,6 +56,7 @@ private:
     void pushRow(const QVector<float>& bins, double lowMhz, double highMhz, float floor, float span);
     QRgb colourFor(float normalised) const;
     void drawFrequencyAxis(QPainter* painter, qreal w, qreal specH) const;
+    void drawBandPlan(QPainter* painter, qreal w, qreal specH) const;
 
     QPointer<MobileEngine> m_engine;
     QVector<float> m_spectrum;

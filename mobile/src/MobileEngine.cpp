@@ -78,6 +78,10 @@ MobileEngine::MobileEngine(QObject* parent)
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
+    m_bandPlan.loadPlans();
+    if (!bandPlan().isEmpty()) {
+        m_bandPlan.setActivePlan(bandPlan());
+    }
     RadioModel& rm = m_session.radioModel();
     m_session.setSessionId(1);
 
@@ -3014,6 +3018,42 @@ void MobileEngine::applyAudioCompression(const QHostAddress& radio, bool wan)
                               : QStringLiteral("Uncompressed");
     qCInfo(lcMobile).noquote() << "receive audio:" << m_audioCodingInUse << "(setting" << choice + ")";
     emit audioCompressionChanged();
+}
+
+namespace {
+const QString kBandPlanKey = QStringLiteral("MobileBandPlan");
+}
+
+QString MobileEngine::bandPlan() const
+{
+    // Unset: IARU Region 1 (the app's first users are in Europe); "Off"
+    // hides the strip.
+    const QString v = AppSettings::instance().value(kBandPlanKey, QStringLiteral("IARU Region 1")).toString();
+    return v == QLatin1String("Off") ? QString() : v;
+}
+
+void MobileEngine::setBandPlan(const QString& name)
+{
+    const QString stored = name.isEmpty() ? QStringLiteral("Off") : name;
+    AppSettings::instance().setValue(kBandPlanKey, stored);
+    AppSettings::instance().save();
+    if (!name.isEmpty()) {
+        m_bandPlan.setActivePlan(name);
+    }
+    emit bandPlanChanged();
+}
+
+QStringList MobileEngine::bandPlans() const
+{
+    return m_bandPlan.availablePlans();
+}
+
+QVector<BandPlanManager::Segment> MobileEngine::bandPlanSegments() const
+{
+    if (bandPlan().isEmpty() || m_bandPlan.activePlanName() != bandPlan()) {
+        return {};
+    }
+    return m_bandPlan.segments();
 }
 
 QString MobileEngine::callsign() const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "models/BandPlanManager.h"
 #include "RadioListModel.h"
 
 #include "core/TxCoordinator.h"
@@ -46,6 +47,10 @@ class MobileEngine : public QObject {
     Q_PROPERTY(AetherSDR::mobile::RadioListModel* radios READ radios CONSTANT)
     Q_PROPERTY(QString connectionState READ connectionState NOTIFY connectionStateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    // Band plan strip at the bottom of the spectrum, as the desktop's:
+    // which plan ("" = off) and the plans bundled with the app.
+    Q_PROPERTY(QString bandPlan READ bandPlan WRITE setBandPlan NOTIFY bandPlanChanged)
+    Q_PROPERTY(QStringList bandPlans READ bandPlans CONSTANT)
     // Receive audio coding: "Auto" (Opus when remote: SmartLink, a tailnet,
     // or the radio reached through a VPN), "Opus" or "None"; applies from
     // the next connection. audioCodingInUse says what this one uses and why.
@@ -232,6 +237,11 @@ public:
     QString connectionState() const { return m_connectionState; }
     QString lastError() const { return m_lastError; }
     QString callsign() const;
+    QString bandPlan() const;
+    void setBandPlan(const QString& name);
+    QStringList bandPlans() const;
+    // The active plan's segments (empty when off), for the spectrum.
+    QVector<BandPlanManager::Segment> bandPlanSegments() const;
     QString audioCompression() const;
     void setAudioCompression(const QString& mode);
     QString audioCodingInUse() const { return m_audioCodingInUse; }
@@ -556,6 +566,7 @@ signals:
     void connectionStateChanged();
     void lastErrorChanged();
     void callsignChanged();
+    void bandPlanChanged();
     void audioCompressionChanged();
     void networkChanged();
     void frequencyChanged();
@@ -640,6 +651,7 @@ private:
     std::unique_ptr<RadioDiscoverySource> m_discovery;
     QThread* m_audioThread{nullptr};
     AudioEngine* m_audio{nullptr};
+    BandPlanManager m_bandPlan;
     // Split: the listening and transmitting slices (-1: none); pending while
     // the TX slice is being created.
     // Traffic rate: bytes and time at the last networkDetails() call.

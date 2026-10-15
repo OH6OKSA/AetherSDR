@@ -1,5 +1,7 @@
 #include "SpectrumItem.h"
 
+#include <QFontMetricsF>
+
 #include "MobileEngine.h"
 
 #include <QDateTime>
@@ -50,6 +52,7 @@ void SpectrumItem::setEngine(MobileEngine* engine)
         connect(m_engine, &MobileEngine::waterfallRow, this, &SpectrumItem::onWaterfallRow);
         connect(m_engine, &MobileEngine::panGeometryChanged, this, &SpectrumItem::followView);
         connect(m_engine, &MobileEngine::displayLevelsChanged, this, [this] { update(); });
+        connect(m_engine, &MobileEngine::bandPlanChanged, this, [this] { update(); });
         reportPixels();
     }
     emit engineChanged();
@@ -257,6 +260,56 @@ void SpectrumItem::pushRow(const QVector<float>& bins, double lowMhz, double hig
     update();
 }
 
+void SpectrumItem::drawBandPlan(QPainter* painter, qreal w, qreal specH) const
+{
+    // The band plan as a strip along the bottom of the spectrum, as the
+    // desktop draws it: each segment in its colour, mixed into the dark
+    // background, with its label where it fits.
+    if (!m_engine || m_engine->panBandwidthMhz() <= 0.0 || w <= 0) {
+        return;
+    }
+    const QVector<BandPlanManager::Segment> segments = m_engine->bandPlanSegments();
+    if (segments.isEmpty()) {
+        return;
+    }
+    const double span = m_engine->panBandwidthMhz();
+    const double low = m_engine->panCenterMhz() - span / 2.0;
+    const double high = low + span;
+    const qreal stripH = std::clamp<qreal>(height() * 0.025, 14.0, 20.0);
+    const qreal y = specH - stripH;
+    QFont font = painter->font();
+    font.setPixelSize(static_cast<int>(stripH * 0.62));
+    font.setBold(true);
+    painter->setFont(font);
+    const QFontMetricsF fm(font);
+    const QColor bg(0x0a, 0x0a, 0x14);
+    for (const BandPlanManager::Segment& seg : segments) {
+        if (seg.highMhz <= low || seg.lowMhz >= high) {
+            continue;
+        }
+        const qreal x1 = (std::max(seg.lowMhz, low) - low) / span * w;
+        const qreal x2 = (std::min(seg.highMhz, high) - low) / span * w;
+        if (x2 - x1 < 1.0) {
+            continue;
+        }
+        // License contrast as the desktop: wider access brighter.
+        float blend = 0.5f;
+        if (seg.license == QLatin1String("E")) blend = 0.2f;
+        else if (seg.license == QLatin1String("E,G")) blend = 0.4f;
+        else if (seg.license.contains(QLatin1Char('T'))) blend = 0.6f;
+        const QColor fill(static_cast<int>(seg.color.red() * blend + bg.red() * (1 - blend)),
+                          static_cast<int>(seg.color.green() * blend + bg.green() * (1 - blend)),
+                          static_cast<int>(seg.color.blue() * blend + bg.blue() * (1 - blend)));
+        painter->fillRect(QRectF(x1, y, x2 - x1, stripH), fill);
+        painter->setPen(QColor(10, 10, 20, 200));
+        painter->drawLine(QPointF(x1, y), QPointF(x1, y + stripH));
+        if (fm.horizontalAdvance(seg.label) + 6 < x2 - x1) {
+            painter->setPen(Qt::white);
+            painter->drawText(QRectF(x1, y, x2 - x1, stripH), Qt::AlignCenter, seg.label);
+        }
+    }
+}
+
 void SpectrumItem::drawFrequencyAxis(QPainter* painter, qreal w, qreal specH) const
 {
     // Frequency scale at the top of the waterfall, as AetherSDR's: ticks on
@@ -338,6 +391,7 @@ void SpectrumItem::paint(QPainter* painter)
         painter->drawImage(QPointF(0, specH), m_waterfall);
     }
     drawFrequencyAxis(painter, w, specH);
+    drawBandPlan(painter, w, specH);
     // In 3D the spectrum area belongs to Spectrum3DItem (GPU), as on the
     // desktop: the stacked trace replaces the trace, the waterfall stays.
     if (m_engine && m_engine->spectrum3D()) {
