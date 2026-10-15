@@ -128,11 +128,11 @@ Popup {
         }
         GridLayout {
             Layout.fillWidth: true
-            columns: 4
+            columns: 5
             columnSpacing: 4
             rowSpacing: 4
             Repeater {
-                model: [qsTr("Radio"), qsTr("Transmit"), qsTr("Phone/CW"), qsTr("Audio")]
+                model: [qsTr("Radio"), qsTr("Transmit"), qsTr("Phone/CW"), qsTr("Audio"), qsTr("Network")]
                 delegate: AppButton {
                     required property int index
                     required property string modelData
@@ -280,6 +280,65 @@ Popup {
                     OnOff { label: qsTr("Line out muted"); on: !!setup.d.lineoutMute; onToggled: (v) => setup.set("lineoutMute", v) }
                     Level { label: qsTr("Headphones"); current: setup.d.headphoneGain || 0; onCommitted: (v) => setup.set("headphoneGain", v) }
                     OnOff { label: qsTr("Headphones muted"); on: !!setup.d.headphoneMute; onToggled: (v) => setup.set("headphoneMute", v) }
+                }
+
+                // ---- Network ----
+                ColumnLayout {
+                    id: network
+                    spacing: Theme.spacing / 2
+                    // Held −/+ count from the value at the press (the radio
+                    // read-back lags behind the repeats).
+                    property int acc: 1450
+                    function step(n, dir) {
+                        if (n === 0) acc = setup.d.networkMtu || 1450
+                        acc = Math.max(576, Math.min(9000, acc + dir * (n < 10 ? 10 : 50)))
+                        setup.set("networkMtu", acc)
+                    }
+                    Heading { text: qsTr("Network MTU") }
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Largest packet the radio sends this app (VITA-49 over UDP). 1450 suits most networks and VPNs; lower it if the waterfall or audio break up over a tunnel. Over Tailscale at most 1200 is used.")
+                        color: Theme.textDim
+                        font.pixelSize: 13
+                        wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        RepeatButton {
+                            text: "−"
+                            Layout.preferredWidth: 56
+                            onStepped: (n) => network.step(n, -1)
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            text: (setup.d.networkMtu || 1450) + " " + qsTr("bytes")
+                            color: Theme.text
+                            font.pixelSize: 20
+                            font.bold: true
+                        }
+                        RepeatButton {
+                            text: "+"
+                            Layout.preferredWidth: 56
+                            onStepped: (n) => network.step(n, 1)
+                        }
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Repeater {
+                            model: [1500, 1450, 1400, 1300, 1200, 1000]
+                            delegate: AppButton {
+                                required property int modelData
+                                text: modelData + (modelData === 1450 ? " (" + qsTr("default") + ")" : "")
+                                checked: setup.d.networkMtu === modelData
+                                leftPadding: 12
+                                rightPadding: 12
+                                focusPolicy: Qt.NoFocus
+                                onClicked: setup.set("networkMtu", modelData)
+                            }
+                        }
+                    }
                 }
             }
         }

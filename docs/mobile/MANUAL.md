@@ -296,6 +296,10 @@ radio.
 - **Phone/CW** — microphone bias and boost; the CW keyer's break-in delay,
   iambic mode (off, A, B) and swapped paddles.
 - **Audio** — the radio's line out and headphone levels and muting.
+- **Network** — the network MTU: the largest packet the radio sends the app
+  (1450 by default, as in SmartSDR and the desktop). Lower it if the
+  waterfall or audio break up over a VPN or tunnel; over Tailscale at most
+  1200 is used.
 
 **A new radio.** When the app connects to a radio that has no callsign yet —
 a new or reset radio — it offers *Set up* once, a few seconds after

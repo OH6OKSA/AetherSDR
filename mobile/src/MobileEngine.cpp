@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 
 #include "gui/ModeFilterPresets.h"
+#include "core/NetworkMtuPolicy.h"
 #include "gui/VoiceModeGate.h"
 
 #include "AudioSession.h"
@@ -2876,6 +2877,7 @@ QVariantMap MobileEngine::radioSetup() const
     d[QStringLiteral("lineoutMute")] = rm.lineoutMute();
     d[QStringLiteral("headphoneGain")] = rm.headphoneGain();
     d[QStringLiteral("headphoneMute")] = rm.headphoneMute();
+    d[QStringLiteral("networkMtu")] = rm.networkMtuSetting();
     return d;
 }
 
@@ -2928,6 +2930,17 @@ void MobileEngine::setRadioSetup(const QString& key, const QVariant& value)
         rm.setHeadphoneGain(std::clamp(value.toInt(), 0, 100));
     } else if (key == QLatin1String("headphoneMute")) {
         rm.setHeadphoneMute(value.toBool());
+    } else if (key == QLatin1String("networkMtu")) {
+        // The app's own setting (VITA-49 packet size the radio sends us),
+        // as the desktop's Network MTU: saved, then sent (capped over a
+        // tailnet by the core).
+        const int mtu = std::clamp(value.toInt(), kMinNetworkMtu, kMaxNetworkMtu);
+        AppSettings::instance().setValue(QStringLiteral("NetworkMtu"), QString::number(mtu));
+        AppSettings::instance().save();
+        if (flex) {
+            rm.sendCommand(QStringLiteral("client set enforce_network_mtu=1 network_mtu=%1")
+                               .arg(rm.networkMtuParam(mtu)));
+        }
     }
 }
 
