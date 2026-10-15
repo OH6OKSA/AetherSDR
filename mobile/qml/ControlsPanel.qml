@@ -172,20 +172,9 @@ ColumnLayout {
     Component {
         id: audioSection
         ColumnLayout {
-            Label { text: qsTr("AF gain"); color: Theme.textDim }
-            RowLayout {
-                Layout.fillWidth: true
-                Slider {
-                    Layout.fillWidth: true
-                    from: 0
-                    to: 100
-                    value: Engine.afGain
-                    onMoved: Engine.afGain = value
-                }
-            }
+            // AF gain and mute are on the info panel's speaker.
             EqControls {
                 Layout.fillWidth: true
-                Layout.topMargin: Theme.spacing
             }
         }
     }

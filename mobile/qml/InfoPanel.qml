@@ -9,7 +9,7 @@ import AetherMobile
 // DSP flags (lit when on) and AGC, which can run long. Each is a
 // finger-sized target with its choices behind it: antennas open their
 // chooser, the width and the flags the filter/DSP chooser, AGC its modes, AGC-T and RF gain;
-// the speaker mutes, the lock locks.
+// the speaker the volume and mute, the lock locks.
 // Two rows next to the frequency on a tablet; one row elsewhere.
 Item {
     id: info
@@ -172,7 +172,7 @@ Item {
                 pad: info.singleLine ? 6 : 12
                 onTapped: filterChooser.open()
             }
-            // Speaker: tap to mute.
+            // Speaker: tap for the volume (AF gain) and mute.
             Item {
                 implicitWidth: info.singleLine ? speaker.width + 10 : Math.max(info.rowH * 0.9, speaker.width + 12)
                 implicitHeight: info.rowH
@@ -203,7 +203,7 @@ Item {
                         }
                     }
                 }
-                MouseArea { anchors.fill: parent; onClicked: Engine.muted = !Engine.muted }
+                MouseArea { anchors.fill: parent; onClicked: volumePopup.open() }
             }
             // Tuning lock: tap to lock; flashes when a tune is refused.
             Item {
@@ -320,6 +320,41 @@ Item {
         current: Engine.txAntenna
         y: info.height + 4
         onPicked: (name) => Engine.txAntenna = name
+    }
+    // Volume: AF gain and mute, from the speaker.
+    Popup {
+        id: volumePopup
+        objectName: "volumePopup"
+        y: info.height + 4
+        width: Math.min(360, (info.parent ? info.parent.width : 360))
+        margins: Theme.spacing
+        padding: Theme.spacing
+        background: Rectangle { color: Theme.surface; border.color: Theme.surfaceRaised; radius: Theme.radius }
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing / 2
+            Label {
+                text: qsTr("Volume  %1").arg(Math.round(Engine.afGain))
+                color: Theme.textDim
+                font.pixelSize: Math.round(Theme.buttonFont * 0.9)
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Slider {
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 100
+                    value: Engine.afGain
+                    onMoved: Engine.afGain = value
+                }
+                AppButton {
+                    text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
+                    checked: Engine.muted
+                    focusPolicy: Qt.NoFocus
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: Engine.muted = !Engine.muted
+                }
+            }
+        }
     }
     AgcChooser {
         id: agcChooser
