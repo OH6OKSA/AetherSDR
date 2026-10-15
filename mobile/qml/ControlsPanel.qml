@@ -38,7 +38,7 @@ ColumnLayout {
 
     AppButton {
         visible: panel.showPinButton
-        text: qsTr("Pin controls to the side")
+        text: qsTr("Pin Controls")
         Layout.fillWidth: true
         onClicked: panel.pinRequested()
     }

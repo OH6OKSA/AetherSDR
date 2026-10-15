@@ -234,9 +234,10 @@ assigned* or *The selected TX antenna cannot transmit on this frequency*).
 
 ## 8. Controls
 
-**Controls** (top row) opens the controls; on an iPad, *Pin controls to the
-side* keeps them at the right, with toggle buttons to show several sections
-at once.
+**Controls** (top row) opens the controls; on an iPad, *Pin Controls* keeps
+them in the page (at the right in landscape, under the display in portrait),
+with toggle buttons to show several sections at once; *Hide controls* puts
+them back into the drawer.
 
 | DSP | Audio | TX |
 |---|---|---|
