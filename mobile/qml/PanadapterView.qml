@@ -156,13 +156,15 @@ Rectangle {
 
     // dBm scale on the left of the spectrum (the reference level control of
     // SmartSDR/AetherSDR): drag it up or down to move the trace. A drag
-    // switches the trace to manual; Auto in the View tab gives it back.
+    // switches the trace to manual; Auto in the View tab gives it back. The
+    // 3D view takes the same levels; its heights are not linear, so there it
+    // shows only the top and the floor (its zero), down to the band plan.
     Item {
         id: scaleStrip
         z: 4
-        visible: !Engine.spectrum3D
         width: 40
         height: parent.height * spectrum.spectrumFraction
+                - (Engine.spectrum3D ? spectrum.bandPlanHeight : 0)
         readonly property real topDbm: spectrum.traceTopDbm
         readonly property real bottomDbm: spectrum.traceBottomDbm
         readonly property real range: Math.max(1, topDbm - bottomDbm)
@@ -178,6 +180,7 @@ Rectangle {
             // Bounded: a non-finite scale (no data yet) must never spin here.
             model: {
                 const ticks = []
+                if (Engine.spectrum3D) return ticks
                 const top = scaleStrip.topDbm
                 const bottom = scaleStrip.bottomDbm
                 if (!isFinite(top) || !isFinite(bottom) || top <= bottom) return ticks
@@ -191,6 +194,19 @@ Rectangle {
                 y: (scaleStrip.topDbm - modelData) / scaleStrip.range * scaleStrip.height - height / 2
                 visible: y > 0 && y < scaleStrip.height - height
                 text: modelData
+                color: Theme.textDim
+                font.pixelSize: 11
+            }
+        }
+        Repeater {
+            model: Engine.spectrum3D ? [scaleStrip.topDbm, scaleStrip.bottomDbm] : []
+            delegate: Label {
+                required property real modelData
+                required property int index
+                x: 3
+                y: index === 0 ? 3 : scaleStrip.height - height - 3
+                visible: isFinite(modelData)
+                text: Math.round(modelData)
                 color: Theme.textDim
                 font.pixelSize: 11
             }

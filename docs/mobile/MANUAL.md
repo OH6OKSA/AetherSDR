@@ -196,7 +196,9 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
 - **Pinch**, or **− / +** (bottom left), to zoom around the slice.
 - The **frequency scale** runs along the top of the waterfall.
 - The **dBm scale** at the left: drag it up or down to move the trace (the
-  reference level).
+  reference level). In 3D it shows the top and the floor (the zero of the
+  3D view); dragging down lowers the floor and shows more of the noise.
+  Auto in View gives the automatic levels back.
 - **RF GAIN +8 dB** (top right) shows the RF gain; tap it for AGC, AGC-T and
   RF gain. A gain step shows on the
   waterfall and trace, as on the desktop.
@@ -206,7 +208,8 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
 - In CW, decoded text runs along the top of the waterfall.
 
 **View** (in Controls) switches between the 2D waterfall and the **3D**
-stacked trace, and sets the waterfall's black level and colour gain and the
+stacked trace (in portrait the 3D keeps landscape's shape and the waterfall
+gets the rest of the height), and sets the waterfall's black level and colour gain and the
 spectrum's reference and range (or Auto).
 
 ## 6. Split
