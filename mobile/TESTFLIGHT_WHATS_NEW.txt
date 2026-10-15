@@ -4,11 +4,10 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Radio Setup (yläpalkki; iPhonella ⋯): kutsu, nimi, remote, TX-rajat, mikki, CW-keyer, audio-ulostulot. Uudelle radiolle (ei kutsua) tarjotaan kerran.
-• IP-osoite syötetään omalla näppäimistöllä (napauta osoitekenttää).
-• Jos radio hylkää ensimmäisen slicen, sovellus yrittää kerran uudella panoraamalla.
-• Kaiutin infopalkissa = äänenvoimakkuus ja mute.
-• Pieni pakettihäviö ei ole enää lokissa varoitus.
+• Korjaus äänen pätkimiseen: analogiset mittarit eivät enää piirrä koko asteikkoa jokaisella lukemalla. Kerro, loppuiko pätkiminen (myös SmartLinkillä).
+• Etäkäyttö VPN:n kautta: ääni Opus-pakattuna automaattisesti (Controls → Audio: Auto / Opus / Uncompressed).
+• Manual-nappi avaa ohjekirjan lyhyellä osoitteella.
+• Edelliseltä buildilta testattavaa: Radio Setup, IP-näppäimistö, kaiutin = äänenvoimakkuus.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
