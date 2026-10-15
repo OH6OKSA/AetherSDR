@@ -66,6 +66,13 @@ constexpr int kPanPixelsSettleMs = 400;
 // when the radio's y_pixels echo for a rotation was missed, the decoder kept
 // the old height and the trace and 3D view drew flat until the next resend.
 constexpr int kPanYPixels = 700;
+// The pan's dBm scale the radio encodes against. Bins below the bottom are
+// pinned there, and narrow FFT bins on a quiet band with RF gain 0 sit near
+// -140 dBm, under the radio's usual -135 bottom: the trace and the 3D view
+// then drew a flat line. The app scales the view itself, so ask for a scale
+// wide enough to hold the noise and the strongest signals.
+constexpr float kPanMinDbm = -165.0f;
+constexpr float kPanMaxDbm = -20.0f;
 const QString kSmartLinkTokenKey = QStringLiteral("smartlink_refresh_token");
 // SmartLink UDP port when the radio reports none (FlexLib default).
 constexpr quint16 kDefaultWanUdpPort = 4993;
@@ -2738,6 +2745,14 @@ void MobileEngine::sendPanDimensions(const QString& panId)
     if (!rm.requestLocalPanPixelWidth(panId, m_panWidth) && rm.hasCommandPlane()) {
         rm.sendCommand(QStringLiteral("display pan set %1 xpixels=%2 ypixels=%3")
                            .arg(panId).arg(m_panWidth).arg(yPixels));
+    }
+    const PanadapterModel* pan = rm.panadapter(panId);
+    if (rm.hasCommandPlane()
+        && (std::abs(pan->minDbm() - kPanMinDbm) > 0.5f || std::abs(pan->maxDbm() - kPanMaxDbm) > 0.5f)) {
+        rm.sendCommand(QStringLiteral("display pan set %1 min_dbm=%2 max_dbm=%3")
+                           .arg(panId)
+                           .arg(static_cast<double>(kPanMinDbm), 0, 'f', 2)
+                           .arg(static_cast<double>(kPanMaxDbm), 0, 'f', 2));
     }
 }
 
