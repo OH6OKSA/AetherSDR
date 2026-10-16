@@ -1666,14 +1666,21 @@ void MobileEngine::releasePtt(const QString& reason)
     const TxSendStats& st = *m_txSendStats;
     const int packets = st.packets;
     const qint64 spanMs = packets > 1 ? st.lastMs - st.firstMs : 0;
+    // The microphone's real rate: a 10 ms Opus packet each, so 100/s is real
+    // time, and the mic must deliver its nominal rate for that.
+    const qint64 micSpanMs = m_audio->txMicLastMs() - m_audio->txMicFirstMs();
+    const int micRate = micSpanMs > 200 ? qRound(m_audio->txMicFramesDelivered() * 1000.0 / micSpanMs) : 0;
     qCInfo(lcMobile).noquote()
-        << QStringLiteral("TX audio: %1 packets in %2 s (%3/s), %4 bytes each, send gap max %5 ms, %6 stopped by the fence")
+        << QStringLiteral("TX audio: %1 packets in %2 s (%3/s, 100/s is real time), %4 bytes each, send gap max %5 ms, "
+                          "%6 stopped by the fence; mic delivered %7 Hz of nominal %8 Hz")
                .arg(packets)
                .arg(spanMs / 1000.0, 0, 'f', 1)
                .arg(spanMs > 0 ? qRound(packets * 1000.0 / spanMs) : 0)
                .arg(packets > 0 ? qRound(static_cast<double>(st.bytes) / packets) : 0)
                .arg(static_cast<qint64>(st.maxGapMs))
-               .arg(static_cast<int>(st.fenced));
+               .arg(static_cast<int>(st.fenced))
+               .arg(micRate)
+               .arg(m_audio->txInputRate());
 }
 
 // ---- tuning, bands, filters ------------------------------------------------

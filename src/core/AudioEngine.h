@@ -155,6 +155,13 @@ public:
     Q_INVOKABLE void stopTxClipRecording();
     Q_INVOKABLE void playTxClip(const QByteArray& floatMono, int sampleRate);
     Q_INVOKABLE void stopTxClip();
+    // Microphone frames actually delivered since the TX stream started, and
+    // the first/last delivery times (ms, monotonic): the real capture rate,
+    // to check against the format's nominal one. Any thread.
+    qint64 txMicFramesDelivered() const { return m_txMicFrames.load(); }
+    qint64 txMicFirstMs() const { return m_txMicFirstMs.load(); }
+    qint64 txMicLastMs() const { return m_txMicLastMs.load(); }
+    int txInputRate() const { return m_txInputRate; }
 
     // Set the DAX TX stream ID (from radio's response to "stream create type=dax_tx")
     void setTxStreamId(quint32 id) { m_txStreamId = id; }
@@ -1314,6 +1321,9 @@ private:
     int   m_txInputRate{24000};          // TX: actual input sample rate
     // App-side voice keyer state (audio thread).
     bool       m_txClipRecording{false};
+    std::atomic<qint64> m_txMicFrames{0};
+    std::atomic<qint64> m_txMicFirstMs{0};
+    std::atomic<qint64> m_txMicLastMs{0};
     int        m_txClipMaxFrames{0};
     QByteArray m_txClipRecorded;          // float mono at m_txInputRate
     QByteArray m_txClipPlaying;           // float mono

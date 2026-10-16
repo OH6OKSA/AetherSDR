@@ -8856,6 +8856,9 @@ void AudioEngine::logTxCaptureHealthSummary(const QString& reason, bool anomaly)
 
 bool AudioEngine::startTxStream(const QHostAddress& radioAddress, quint16 radioPort)
 {
+    m_txMicFrames = 0;
+    m_txMicFirstMs = 0;
+    m_txMicLastMs = 0;
     if (m_audioSource) return true;  // already running
 
     // WASAPI silent-open recovery (#2929). If the previous open was driven by
@@ -9686,6 +9689,17 @@ void AudioEngine::onTxAudioReady()
         return;
     }
     logTxInputChannelDiagnostics(channelDiagnostics, "TX mic");
+    {
+        // Real delivered capture rate (frames over wall time), for diagnosis.
+        const qint64 nowMs = TxCoordinator::monotonicMs();
+        const qint64 blockFrames = data.size() / static_cast<qint64>(2 * (capturedFloat32 ? sizeof(float) : sizeof(int16_t)));
+        if (m_txMicFirstMs.load() == 0) {
+            m_txMicFirstMs = nowMs;
+        } else {
+            m_txMicFrames += blockFrames;
+        }
+        m_txMicLastMs = nowMs;
+    }
 
     // App-side voice keyer. Recording keeps the canonical mono signal (left
     // of the duplicated stereo pair) and sends nothing; playback overwrites

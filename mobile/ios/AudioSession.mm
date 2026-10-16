@@ -30,6 +30,12 @@ void activate()
         qCWarning(lcAudioSession) << "setCategory failed:"
                                   << QString::fromNSString(error.localizedDescription);
     }
+    // Ask for 48 kHz, the rate the TX voice chain works at: in play-and-record
+    // with the built-in mic some iPhones otherwise run the input at a lower
+    // rate than the format the app is handed (a tester's iPhone 17 sent 71 %
+    // of real time, so speech came out broken).
+    error = nil;
+    [session setPreferredSampleRate:48000.0 error:&error];
     error = nil;
     if (![session setActive:YES error:&error]) {
         g_active = false;
@@ -44,7 +50,10 @@ void activate()
     } else {
         g_active = true;
         qCInfo(lcAudioSession) << "play-and-record session active, route"
-                               << QString::fromNSString(session.currentRoute.outputs.firstObject.portType);
+                               << QString::fromNSString(session.currentRoute.outputs.firstObject.portType)
+                               << "rate" << session.sampleRate << "Hz, input channels"
+                               << static_cast<int>(session.inputNumberOfChannels) << ", IO buffer"
+                               << qRound(session.IOBufferDuration * 1000.0) << "ms";
     }
 }
 
