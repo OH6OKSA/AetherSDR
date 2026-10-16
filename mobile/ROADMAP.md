@@ -51,7 +51,7 @@ From the comparison with upstream main and tester requests:
   - [#6532](https://github.com/aethersdr/AetherSDR/issues/6532): RFC, client-side Beat Cancel;
   - [#6533](https://github.com/aethersdr/AetherSDR/issues/6533): closing the TX slice leaves no slice transmitting;
   - [#6534](https://github.com/aethersdr/AetherSDR/issues/6534): RFC, Opus under Auto over a VPN;
-  - PR for [#6051](https://github.com/aethersdr/AetherSDR/issues/6051): VITA-49 loss counted net of reordering.
+  - [PR #6535](https://github.com/aethersdr/AetherSDR/pull/6535) for #6051: VITA-49 loss counted net of reordering.
 - **To verify:** CW keying, CWX and the decoder on the air; the app against
   SmartSDR 4.3.x firmware.
 
