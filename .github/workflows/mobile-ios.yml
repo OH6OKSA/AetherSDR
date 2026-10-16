@@ -6,15 +6,21 @@ on:
   workflow_dispatch:
   push:
     branches: ['mobile/**']
-    # Documentation alone (README, screenshots) needs no iOS build; a push
-    # still cancels a running build of the same branch, so this matters.
-    paths-ignore:
-      - 'README.md'
-      - 'docs/**'
-      - '**/*.md'
-      # Tools for TestFlight housekeeping change nothing in the app.
-      - '.github/workflows/testflight-expire.yml'
-      - '.github/scripts/testflight_expire.py'
+    # Only what goes into the app starts a build (each push uploads to
+    # TestFlight, and a push cancels a running build of the same branch).
+    # Docs, screenshots, tools, tests, notes and other workflows do not.
+    paths:
+      - 'src/**'
+      - 'resources/**'
+      - 'third_party/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'mobile/CMakeLists.txt'
+      - 'mobile/src/**'
+      - 'mobile/qml/**'
+      - 'mobile/ios/**'
+      - 'mobile/shaders/**'
+      - '.github/workflows/mobile-ios.yml'
 
 permissions:
   contents: read
