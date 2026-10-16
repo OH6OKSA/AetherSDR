@@ -4,7 +4,7 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Lähetysääni: korjaus rämisevään/pätkivään lähetykseen joillain iPhoneilla. Lähetä loki muutaman PTT:n jälkeen ("TX audio" -rivit). [TX]
+• Lähetysääni: mikrofoni avataan nyt 48 kHz monona; aiemmin noin 30 % puheesta katosi ja ääni rämisi. Lähetä loki muutaman PTT:n jälkeen ("TX audio" -rivillä pitäisi lukea noin 100/s). [TX]
 • CW: 12 muistia, F1–F12 näppäimistöltä, Esc keskeyttää, Live-tila (kirjaimet lähtevät kirjoittaessa). [TX]
 • Äänimakrot (TX → Voice keyer): 12 paikkaa, pitkä painallus tallentaa. Ilman SmartSDR+:aa tallenteet ovat puhelimessa. [TX]
 • Edelliseltä: DSP-tasot, viritysaskel, slicekohtainen ääni, Connected stations, MOX/VOX/DEXP.
