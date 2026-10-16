@@ -58,8 +58,8 @@ Popup {
                     Label {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
-                        text: row.modelData.program + (row.modelData.transmitting ? qsTr(" · transmitting") : "")
-                        color: row.modelData.transmitting ? Theme.transmit : Theme.textDim
+                        text: row.modelData.program + (row.modelData.localPtt ? qsTr(" · PTT") : "")
+                        color: Theme.textDim
                         font.pixelSize: Math.round(Theme.buttonFont * 0.8)
                     }
                 }

@@ -2330,7 +2330,8 @@ QVariantList MobileEngine::stations() const
             {QStringLiteral("station"), it->station.isEmpty() ? QStringLiteral("(unnamed)") : it->station},
             {QStringLiteral("program"), it->program},
             {QStringLiteral("ours"), it.key() == ours},
-            {QStringLiteral("transmitting"), it->localPtt},
+            // The radio's local_ptt: this station holds the PTT right.
+            {QStringLiteral("localPtt"), it->localPtt},
         });
     }
     return list;
