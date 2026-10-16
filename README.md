@@ -186,9 +186,10 @@ refreshed with every user-interface change.</sub>
 
 ## Try it
 
-- **TestFlight beta.** Ask for an invitation at oh6oksa@gmail.com. You need
-  iPadOS or iOS 18 or newer and a FlexRadio: on the same network, through
-  SmartLink from anywhere, or over your own VPN.
+- **TestFlight beta.** Ask for an invitation at oh6oksa@gmail.com; see
+  **[how to join the test group](docs/mobile/TESTING.md)** for what to send.
+  You need iPadOS or iOS 18 or newer and a FlexRadio: on the same network,
+  through SmartLink from anywhere, or over your own VPN.
 - **Build it yourself.** Linux or macOS works for development with the
   built-in demo radio; see [`mobile/README.md`](mobile/README.md):
 
