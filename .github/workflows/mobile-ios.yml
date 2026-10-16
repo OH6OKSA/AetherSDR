@@ -12,6 +12,9 @@ on:
       - 'README.md'
       - 'docs/**'
       - '**/*.md'
+      # Tools for TestFlight housekeeping change nothing in the app.
+      - '.github/workflows/testflight-expire.yml'
+      - '.github/scripts/testflight_expire.py'
 
 permissions:
   contents: read

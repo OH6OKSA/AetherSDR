@@ -1,0 +1,37 @@
+name: TestFlight expire old builds
+
+# Expires every TestFlight build numbered below keep_from, so testers see
+# only the builds still in use. Run by hand; dry_run lists without expiring.
+on:
+  workflow_dispatch:
+    inputs:
+      keep_from:
+        description: 'Lowest build number to keep'
+        required: true
+      dry_run:
+        description: 'List only, expire nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  expire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - name: Install PyJWT
+        run: python3 -m pip install --quiet 'pyjwt[crypto]==2.10.1'
+      - name: Expire builds
+        env:
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          BUNDLE_ID: ${{ vars.AETHER_MOBILE_BUNDLE_ID || 'com.aethersdr.mobile' }}
+          KEEP_FROM: ${{ inputs.keep_from }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python3 .github/scripts/testflight_expire.py
