@@ -193,6 +193,7 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool spectrum3D READ spectrum3D WRITE setSpectrum3D NOTIFY displayLevelsChanged)
     Q_PROPERTY(int spectrum3DFloorDepth READ spectrum3DFloorDepth WRITE setSpectrum3DFloorDepth NOTIFY displayLevelsChanged)
     Q_PROPERTY(int spectrum3DGain READ spectrum3DGain WRITE setSpectrum3DGain NOTIFY displayLevelsChanged)
+    Q_PROPERTY(int spectrum3DSmoothing READ spectrum3DSmoothing WRITE setSpectrum3DSmoothing NOTIFY displayLevelsChanged)
     // Meter faces: analog gauges (arc and needle) instead of bars.
     // Analog or bar, each meter on its own; analogMeters sets both (true
     // only when both are analog).
@@ -451,6 +452,11 @@ public:
     // The desktop's 3D Gain (0-100, default 70): the 3D colours' gamma.
     int spectrum3DGain() const { return displayInt("Mobile3DGain", 70); }
     void setSpectrum3DGain(int v) { setDisplayInt("Mobile3DGain", std::clamp(v, 0, 100)); }
+    // 3D row smoothing: 0 off (raw rows, as live as the 2D trace), 1 light
+    // (a light blend with the previous row only; narrow dips stay), 2 the
+    // desktop's (median of three rows, column pass, 40 % previous row).
+    int spectrum3DSmoothing() const { return displayInt("Mobile3DSmoothing", 1); }
+    void setSpectrum3DSmoothing(int v) { setDisplayInt("Mobile3DSmoothing", std::clamp(v, 0, 2)); }
     bool analogMeters() const { return analogLeft() && analogRight(); }
     void setAnalogMeters(bool on) { setMeterAnalog(QStringLiteral("left"), on); setMeterAnalog(QStringLiteral("right"), on); }
     // Each side falls back to the old shared setting.

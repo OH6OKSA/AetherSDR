@@ -25,8 +25,10 @@ namespace {
 
 using Row = std::array<float, Spectrum3DItem::kCols>;
 
-// Temporal blend, the desktop's kTemporalAlpha (share of the new row).
+// Temporal blend (share of the new row): the desktop's kTemporalAlpha, and
+// the light setting's.
 constexpr float kTemporalAlpha = 0.60f;
+constexpr float kLightTemporalAlpha = 0.80f;
 // Without waterfall lines (the radio pauses them while transmitting) rows
 // come from the trace at this interval.
 constexpr qint64 kFftRowFallbackAfterMs = 400;
@@ -90,11 +92,27 @@ Row resampled(const QVector<float>& bins, float fallback)
     return row;
 }
 
-// DssRenderer's smoothDssRow: median of the last three raw rows (impulses
-// gone), a [1/4 1/2 1/4] pass across columns, then a blend with the previous
-// row when it shows the same frequencies.
-Row smoothRow(const Row& raw, Row& prev1, Row& prev2, int& histCount, const Row* previous)
+// DssRenderer's smoothDssRow (level 2): median of the last three raw rows
+// (impulses gone), a [1/4 1/2 1/4] pass across columns, then a blend with the
+// previous row when it shows the same frequencies. Level 1 keeps only a light
+// blend, so narrow dips (gaps in a voice's spectrum) stay visible; level 0
+// draws the rows raw, as live as the 2D trace.
+Row smoothRow(const Row& raw, Row& prev1, Row& prev2, int& histCount, const Row* previous, int level)
 {
+    if (level <= 0) {
+        histCount = 0;
+        return raw;
+    }
+    if (level == 1) {
+        histCount = 0;
+        Row blended = raw;
+        if (previous) {
+            for (int c = 0; c < Spectrum3DItem::kCols; ++c) {
+                blended[c] = kLightTemporalAlpha * raw[c] + (1.0f - kLightTemporalAlpha) * (*previous)[c];
+            }
+        }
+        return blended;
+    }
     Row row = raw;
     if (histCount >= 2) {
         for (int c = 0; c < Spectrum3DItem::kCols; ++c) {
@@ -261,7 +279,9 @@ void Spectrum3DItem::pushRow(const QVector<float>& tile, double tileLowMhz, doub
         // would smear a signal along the retune.
         m_rawHistCount = 0;
     }
-    const Row smoothed = smoothRow(raw, m_rawPrev1, m_rawPrev2, m_rawHistCount, continues ? &m_rows[m_head] : nullptr);
+    const int level = m_engine ? m_engine->spectrum3DSmoothing() : 1;
+    const Row smoothed =
+        smoothRow(raw, m_rawPrev1, m_rawPrev2, m_rawHistCount, continues ? &m_rows[m_head] : nullptr, level);
     const int previousRing = m_head;
     m_head = (m_head - 1 + kRows) % kRows;
     m_rows[m_head] = smoothed;
@@ -290,7 +310,7 @@ void Spectrum3DItem::pushRow(const QVector<float>& tile, double tileLowMhz, doub
         const QVector<float> asVector(calibrated.begin(), calibrated.end());
         m_supplemental[m_head] = smoothRow(resampled(asVector, -200.0f), m_supplementalPrev1, m_supplementalPrev2,
                                            m_supplementalHistCount,
-                                           tileContinues ? &m_supplemental[previousRing] : nullptr);
+                                           tileContinues ? &m_supplemental[previousRing] : nullptr, level);
         m_supplementalCoverage[m_head].fill(1);
         m_supplementalCenterMhz[m_head] = center;
         m_supplementalBandwidthMhz[m_head] = bandwidth;

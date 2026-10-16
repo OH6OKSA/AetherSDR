@@ -63,6 +63,29 @@ ColumnLayout {
         value: Engine.spectrum3DFloorDepth
         onMoved: Engine.spectrum3DFloorDepth = Math.round(value)
     }
+    // How much the 3D rows are smoothed: Off is as live as the 2D trace,
+    // Light keeps narrow dips, Desktop is the desktop's calm surface.
+    Label {
+        visible: Engine.spectrum3D
+        text: qsTr("3D smoothing")
+        color: Theme.textDim
+        font.pixelSize: 15
+    }
+    RowLayout {
+        visible: Engine.spectrum3D
+        Layout.fillWidth: true
+        Repeater {
+            model: [qsTr("Off"), qsTr("Light"), qsTr("Desktop")]
+            delegate: AppButton {
+                required property string modelData
+                required property int index
+                text: modelData
+                checked: Engine.spectrum3DSmoothing === index
+                Layout.fillWidth: true
+                onClicked: Engine.spectrum3DSmoothing = index
+            }
+        }
+    }
     // The desktop's 3D Gain: the 3D colours' gamma (higher lifts colour toward
     // the noise floor, lower keeps it for the strongest signals).
     Label {

@@ -223,7 +223,11 @@ stacked trace and sets the levels. They work as on the desktop AetherSDR:
   any band and a strong carrier does not darken the rest. During and just
   after a transmission the levels hold.
 - **3D** — the surface takes a row with each waterfall line and glides
-  between them; rows are smoothed (no flicker from single spikes), ridges
+  between them. **3D smoothing**: *Off* draws the rows as live as the 2D
+  trace, *Light* (default) blends a little with the previous row so the
+  narrow dips (say, gaps in your own voice's spectrum) stay visible,
+  *Desktop* smooths as the desktop does (no flicker from single spikes,
+  a calm surface). Ridges
   are soft lines, the near rows widen over the side gaps where the radio's
   wider waterfall data reaches, and the slices' passbands and carriers are
   shaded into the surface in perspective. Its height is the spectrum's
@@ -307,7 +311,7 @@ them back into the drawer.
   - Speed, pitch, **Break-in** (QSK) and the **Decoder**. Decoded text shows
     here and along the top of the waterfall; what you send shows there too,
     marked `[TX]`.
-- **View** — 2D waterfall or 3D, waterfall levels, spectrum range, 3D floor and gain.
+- **View** — 2D waterfall or 3D, waterfall levels, spectrum range, 3D floor, smoothing and gain.
 - **Profiles** — the radio's global, TX and mic profiles: load, save,
   delete, as in SmartSDR.
 - **Memory** — the radio's memory channels: tap to tune, *Save* stores the
