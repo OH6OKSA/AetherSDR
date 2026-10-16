@@ -9700,10 +9700,11 @@ void AudioEngine::onTxAudioReady()
         return;
     }
     logTxInputChannelDiagnostics(channelDiagnostics, "TX mic");
+#if defined(Q_OS_IOS)
     {
-        // Soft start: a microphone's first ~60 ms after opening carry its
-        // start-up noise (heard as a short whoosh at the far end); send them
-        // as silence, then ramp in over 40 ms.
+        // Soft start (iOS): the device microphone's first ~60 ms after opening
+        // carry its start-up noise (heard as a short whoosh at the far end);
+        // send them as silence, then ramp in over 40 ms.
         const int frames = data.size() / static_cast<int>(2 * (capturedFloat32 ? sizeof(float) : sizeof(int16_t)));
         const qint64 muteFrames = static_cast<qint64>(m_txInputRate) * 60 / 1000;
         const qint64 rampFrames = static_cast<qint64>(m_txInputRate) * 40 / 1000;
@@ -9725,6 +9726,7 @@ void AudioEngine::onTxAudioReady()
         }
         m_txFadeFrames += frames;
     }
+#endif
     {
         // Real delivered capture rate (frames over wall time), for diagnosis.
         const qint64 nowMs = TxCoordinator::monotonicMs();

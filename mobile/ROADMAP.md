@@ -20,6 +20,8 @@ Earlier builds: see the git log and `TESTFLIGHT_WHATS_NEW.txt`.
 
 ## Next build
 
+- New name: **OksaSDR** (formerly AetherSDR Mobile), at the AetherSDR
+  maintainer's request. Settings and voice macros carry over.
 - TX soft start (60 ms mute + 40 ms ramp at key-up) limited to iOS, so the
   shared engine's desktop path is unchanged.
 - iOS workflow builds only for changes that go into the app.
