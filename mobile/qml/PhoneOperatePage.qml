@@ -103,6 +103,12 @@ Page {
                     TapHandler { onTapped: freqDialog.open() }
                 }
                 ModeButton { fontSize: 18 }
+                // Portrait has room beside the mode for the tuning step;
+                // landscape keeps it on the info panel.
+                StepButton {
+                    visible: !page.landscape
+                    fontSize: 13
+                }
                 // The slice at a glance and in reach (one row); under the
                 // frequency in portrait.
                 InfoPanel {
@@ -114,6 +120,7 @@ Page {
             }
             InfoPanel {
                 visible: !page.landscape
+                showStep: false
                 singleLine: true
                 Layout.fillWidth: true
             }
