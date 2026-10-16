@@ -46,30 +46,34 @@ radio interface, with no computer running alongside.
 - Your own transmission shows in the waterfall.
 - dBm scale on the spectrum: drag it up or down to move the trace, as
   the reference level in SmartSDR and AetherSDR.
-- Waterfall black level and colour gain, and the spectrum's reference level
-  and range (or Auto), in the View tab. Remembered on the device.
+- Waterfall black level and colour gain, the spectrum's reference level
+  and range (or Auto), and the 3D floor, gain and smoothing in the View
+  tab, remembered on the device; plus the radio's own FFT average, FFT
+  frames/s and waterfall speed.
+- **Band** beside −/+ zooms out to the whole band.
 - RF gain; the radio's memory channels (recall, save, delete).
 - The radio's global, TX and mic profiles: load, save and delete, as in
   SmartSDR and AetherSDR.
 - Filter passband drawn on the display, on the correct side for USB/LSB and
   centred for CW/AM.
 - Mode: tap the mode next to the frequency for the mode buttons.
+- **STEP** under the mode: the tuning step, from the radio's step list.
 - Info panel next to the frequency, after the slice flag of SmartSDR-style
-  clients: slice letter and TX tag, RX and TX antenna, filter width,
-  speaker, tuning lock, the DSP flags (lit when on), AGC and the tuning
-  step. Each is a
+  clients: the settings that are always there first (slice letter and TX
+  tag, RX and TX antenna, filter width, AGC, speaker, tuning lock), then
+  split and the DSP flags (lit when on). Each is a
   touch target with its choices behind it: the antennas open their
   chooser; the width and the flags the mode's eight filter widths and the
   radio's DSP (NR, NB, ANF, APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where
   the radio has them, and WNB; every one the radio offers is listed, lit
   when on), with a level slider for each DSP that is on; AGC its modes, AGC
   threshold and RF gain; the speaker every slice's volume, mute and pan;
-  the step the radio's step list; the lock locks.
+  the lock locks.
 - Connected stations (multiFLEX): every program on the radio, and
   disconnecting one to free its slices.
 - **Split**, as SmartSDR and AetherSDR: SPLIT on the info panel adds a TX
   slice 1 kHz (CW) or 5 kHz up, muted, with transmit and focus to tune the
-  offset; tap again to end it.
+  offset; tap again to end it. Press and hold SPLIT for +1, +5 or +10 kHz.
 - RF gain shown at the top right of the spectrum; a preamp or attenuator
   step shows on the waterfall and trace, as on the desktop.
 - **Beat cancel (BC)**, as on Kenwood rigs: the app finds steady carriers
@@ -81,9 +85,10 @@ radio interface, with no computer running alongside.
   Power, SWR, ALC, Mic, Compression, PA temperature or supply voltage,
   separately for receive and transmit (e.g. S and Power, then SWR and Power
   on the air). Each one a bar or an analog gauge (arc, needle, S1–S9 and
-  +20…+60 in red). The choices are remembered.
-- Band buttons use the radio's own band stack, so each band comes back to its
-  last frequency and mode.
+  +20…+60 in red). The choices are remembered. Each meter holds its
+  peak for 1.5 s (amber needle or tick).
+- Band buttons (160 m … 6 m, WWV, GEN) use the radio's own band stack, so
+  each band comes back to its last frequency and mode.
 - Step buttons from ±1 Hz to ±1 kHz land on round frequencies: +10 Hz from
   14.100002 goes to 14.100010, not 14.100012.
 - RIT and XIT, squelch (FM/AM).
@@ -98,8 +103,12 @@ radio interface, with no computer running alongside.
 - TX audio passband (low and high cut) and the radio's 8-band RX and TX
   equalizer, as in SmartSDR.
 - TUNE carrier with tune power, MOX, the radio's ATU (tune or bypass,
-  memories) and the speech processor (PROC NOR/DX/DX+), VOX (level, delay),
-  DEXP, AM carrier, monitor and radio mic level.
+  memories) and the speech processor (PROC NOR/DX/DX+), VOX (level, delay)
+  and DEXP when the radio's own microphone is in use, AM carrier, monitor
+  and radio mic level.
+- **Voice keyer**: twelve voice macros F1–F12. With SmartSDR+ they are the
+  radio's DVK; without it the app records and plays them itself, kept on
+  the device.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input is
   set to `PC` when the app connects), with RF power, mic gain and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
@@ -107,8 +116,9 @@ radio interface, with no computer running alongside.
   sidetone); editable memories ({CALL} = your callsign) and CWX text
   sent by the radio at the set speed; speed, pitch and break-in, plus the CW decoder
   with the decoded text along the top of the waterfall (what you send shows
-  there too). Nine memories; the callsign {CALL} sends can be set in the
-  app (written to the radio).
+  there too). Twelve memories, also on F1–F12 from a keyboard (Esc stops),
+  and a Live mode that sends letters as you type; the callsign {CALL} sends
+  can be set in the app (written to the radio).
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The
   transmitter unkeys on release, on disconnect, when the app loses focus,
@@ -162,15 +172,16 @@ refreshed with every user-interface change.</sub>
 | Connect by IP, slice and panadapter, spectrum and waterfall, S-meter | ✅ Tested against a FLEX on SmartSDR API 1.4 |
 | Mode, filters, DSP, AGC, band stack, RF power and mic level | ✅ Tested against a FLEX |
 | iPad and iPhone builds, signing, TestFlight delivery | ✅ Automated in GitHub Actions |
-| RX audio on device | 🧪 In beta testing |
-| Pinch/−+ zoom and PTT hold on iOS | 🧪 Fixes in testing (builds 20–24) |
-| SmartLink remote, extra slices/panadapters | 🧪 New, in testing |
+| RX audio on device | ✅ In daily use by testers, also with Bluetooth headsets |
+| Voice transmit on air (device mic, Bluetooth headset) | ✅ Used on air by testers. Test at low power or into a dummy load first. |
+| Remote over a VPN (connect by IP) | 🧪 In testing (OpenVPN, WireGuard) |
+| SmartLink remote, extra slices/panadapters | 🧪 In testing |
 | CW keying, CWX and decoder on air | ⏳ Not yet verified |
-| Transmit on air | ⏳ Not yet verified. Test at low power or into a dummy load. |
 | LAN discovery on iOS | ⏳ Needs Apple's multicast entitlement. Connect by IP for now. |
 
-**Next:** confirm RX audio, TX, CW and SmartLink on devices, and offer
-upstreaming through an RFC.
+**Next:** CW and SmartLink on air, and offering the engine-side work
+(beat cancel, packet-loss tracking, TX hand-over) upstream; see
+[discussion #6409](https://github.com/aethersdr/AetherSDR/discussions/6409).
 
 ## Try it
 
