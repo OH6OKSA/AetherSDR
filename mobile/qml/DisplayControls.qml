@@ -101,6 +101,37 @@ ColumnLayout {
         value: Engine.spectrum3DGain
         onMoved: Engine.spectrum3DGain = Math.round(value)
     }
+    // The radio's FFT and waterfall pacing (the desktop's overlay menu):
+    // averaging smooths the trace, FPS sets its frame rate, the waterfall
+    // speed how fast lines scroll. Sent when a slider is released.
+    component PanSetting: ColumnLayout {
+        id: ps
+        property string key: ""
+        property string title: ""
+        property int from: 0
+        property int to: 100
+        Layout.fillWidth: true
+        spacing: 0
+        Label {
+            text: ps.title + "  " + Math.round(psSlider.value)
+            color: Theme.textDim
+            font.pixelSize: 15
+        }
+        Slider {
+            id: psSlider
+            Layout.fillWidth: true
+            from: ps.from; to: ps.to; stepSize: 1
+            onPressedChanged: if (!pressed) Engine.setPanDisplay(ps.key, Math.round(value))
+            Binding on value {
+                when: !psSlider.pressed
+                value: Engine.panDisplay[ps.key] !== undefined ? Engine.panDisplay[ps.key] : ps.from
+            }
+        }
+    }
+    PanSetting { key: "average"; title: qsTr("FFT average"); from: 0; to: 100 }
+    PanSetting { key: "fps"; title: qsTr("FFT frames/s"); from: 5; to: 60 }
+    PanSetting { key: "wfRate"; title: qsTr("Waterfall speed"); from: 1; to: 100 }
+
     RowLayout {
         Layout.fillWidth: true
         Label { text: qsTr("Waterfall"); color: Theme.textDim; font.pixelSize: 16; Layout.fillWidth: true }

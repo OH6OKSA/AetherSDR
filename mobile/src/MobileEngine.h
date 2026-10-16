@@ -244,6 +244,7 @@ class MobileEngine : public QObject {
     // Phone transmit extras, as the desktop's Phone applet: voxOn, voxLevel,
     // voxDelay, dexpOn, dexpLevel, amCarrier (levels 0-100).
     Q_PROPERTY(QVariantMap phone READ phone NOTIFY phoneChanged)
+    Q_PROPERTY(QVariantMap panDisplay READ panDisplay NOTIFY panDisplayChanged)
     // The radio's voice keyer (DVK): 12 slots of up to 10 s, kept in the
     // radio. Each: id, name, seconds (0 = empty).
     Q_PROPERTY(QVariantList dvkSlots READ dvkSlots NOTIFY dvkChanged)
@@ -623,6 +624,13 @@ public:
     // offset); the RX slice keeps listening. Off: transmit back to the RX
     // slice and the TX slice closes.
     Q_INVOKABLE void toggleSplit();
+    // Split with the TX slice this many kHz up (the desktop's Split Up 1/5/10);
+    // 0 = the mode's default (1 kHz CW, 5 kHz voice). Off when split is on.
+    Q_INVOKABLE void toggleSplitUp(int khz);
+    // The pan's display settings, as the desktop's overlay menu: average
+    // (0-100), fps (5-60), wfRate (1-100, the waterfall's speed), bandZoom.
+    QVariantMap panDisplay() const;
+    Q_INVOKABLE void setPanDisplay(const QString& key, int value);
     bool splitActive() const;
     bool splitAvailable() const;
     Q_INVOKABLE void removeSlice(int sliceId);
@@ -695,6 +703,7 @@ signals:
     void slicesChanged();
     void stationsChanged();
     void phoneChanged();
+    void panDisplayChanged();
     void dvkChanged();
     // The connected-stations list was asked for (Radio Setup); the operate
     // page opens it.
@@ -729,7 +738,13 @@ private:
     QString meterChoice(const char* key, const char* fallback) const;
     int displayInt(const char* key, int fallback) const;
     void setDisplayInt(const char* key, int value);
-    void sendPanDimensions(const QString& panId);
+    // Sends the pan's size to the radio; once per pan and width (connect and
+    // slice selection used to send it five or six times), always when the
+    // radio asks (panDimensionsNeeded: it reset to defaults).
+    void sendPanDimensions(const QString& panId, bool force = false);
+    QString m_sentPanId;
+    int m_sentPanWidth{0};
+    qint64 m_sentPanSizeMs{0};
     void setConnectionState(const QString& state);
     void setLastError(const QString& error);
     void connectWithInfo(const RadioInfo& info, const QString& displayName);
@@ -818,6 +833,7 @@ private:
     void ensurePanDbmRange(const QString& panId);
     qint64 m_lastDbmRangeSendMs{0};
     bool m_dbmRangeRetryPending{false};
+    int m_splitUpKhz{0};
     void onVoiceClipRecorded(const QByteArray& clip, int rate);
     void onVoiceClipFinished();
     QString m_voiceState{QStringLiteral("idle")};

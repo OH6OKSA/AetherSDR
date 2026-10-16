@@ -275,6 +275,19 @@ Rectangle {
                 onClicked: Engine.zoom(modelData.factor)
             }
         }
+        // Band zoom (the desktop's): the radio fits the pan to the whole
+        // band; tap again to leave it.
+        AppButton {
+            objectName: "bandZoomButton"
+            text: qsTr("Band")
+            checked: !!Engine.panDisplay.bandZoom
+            font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+            height: Theme.touchTarget
+            leftPadding: 8
+            rightPadding: 8
+            opacity: 0.85
+            onClicked: Engine.setPanDisplay("bandZoom", checked ? 0 : 1)
+        }
     }
 
     // RF gain at the top right of the spectrum, under the right meter, as

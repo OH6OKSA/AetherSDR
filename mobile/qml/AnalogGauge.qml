@@ -14,6 +14,8 @@ Item {
     property bool live: false
     property string text: ""
     property bool compact: false
+    // Peak hold value (drawn as a thin amber needle when above the reading).
+    property real peak: min
     // Size unit, from the height: text and strokes follow it. The host can
     // size the width to fitWidth; a narrower face shrinks the unit too.
     readonly property real unit: Math.min(height / 95, width / 140)
@@ -177,6 +179,19 @@ Item {
         color: gauge.live ? "#ffffff" : "#8b98a5"
         transformOrigin: Item.Left
         rotation: gauge.angleOf(gauge.shown) * 180 / Math.PI
+    }
+    // Peak hold: a thin amber needle where the highest recent reading was.
+    Rectangle {
+        visible: gauge.live && gauge.peak > gauge.shown + (gauge.max - gauge.min) * 0.01
+        x: gauge.pivotX
+        y: gauge.pivotY - height / 2
+        width: gauge.radius + 3
+        height: Math.max(1, 1.0 * gauge.unit)
+        antialiasing: true
+        color: "#f0b429"
+        opacity: 0.8
+        transformOrigin: Item.Left
+        rotation: gauge.angleOf(Math.max(gauge.min, Math.min(gauge.max, gauge.peak))) * 180 / Math.PI
     }
     // The needle's balance cap: a small dark half disc over the pivot.
     Item {

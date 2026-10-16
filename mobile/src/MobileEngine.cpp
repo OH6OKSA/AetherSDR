@@ -283,7 +283,7 @@ MobileEngine::MobileEngine(QObject* parent)
         selectActiveSlice();
         emit slicesChanged();
     });
-    connect(&rm, &RadioModel::panDimensionsNeeded, this, &MobileEngine::sendPanDimensions);
+    connect(&rm, &RadioModel::panDimensionsNeeded, this, [this](const QString& panId) { sendPanDimensions(panId, true); });
     m_panPreviewEndTimer.setSingleShot(true);
     m_panPreviewEndTimer.setInterval(kPanPreviewHoldMs + 20);
     // Back to the radio's centre (normally the same by now).
@@ -1729,7 +1729,9 @@ QStringList MobileEngine::bands() const
 {
     return {QStringLiteral("160m"), QStringLiteral("80m"), QStringLiteral("60m"), QStringLiteral("40m"),
             QStringLiteral("30m"), QStringLiteral("20m"), QStringLiteral("17m"), QStringLiteral("15m"),
-            QStringLiteral("12m"), QStringLiteral("10m"), QStringLiteral("6m")};
+            QStringLiteral("12m"), QStringLiteral("10m"), QStringLiteral("6m"),
+            // The radio's WWV and general-coverage stacks, as the desktop's band panel.
+            QStringLiteral("WWV"), QStringLiteral("GEN")};
 }
 
 bool MobileEngine::bandsAvailable() const
@@ -2008,6 +2010,48 @@ bool MobileEngine::splitAvailable() const
     return splitActive() || (m_slice && canAddSlice() && m_caps.canTransmit);
 }
 
+void MobileEngine::toggleSplitUp(int khz)
+{
+    m_splitUpKhz = splitActive() ? 0 : std::clamp(khz, 0, 100);
+    toggleSplit();
+    m_splitUpKhz = 0;
+}
+
+QVariantMap MobileEngine::panDisplay() const
+{
+    if (!m_pan) {
+        return {};
+    }
+    return {
+        {QStringLiteral("average"), std::max(0, m_pan->average())},
+        {QStringLiteral("fps"), m_pan->fps() > 0 ? m_pan->fps() : 25},
+        {QStringLiteral("wfRate"), m_pan->waterfallLineDuration() > 0 ? m_pan->waterfallLineDuration() : 50},
+        {QStringLiteral("bandZoom"), m_pan->bandZoomOn()},
+    };
+}
+
+void MobileEngine::setPanDisplay(const QString& key, int value)
+{
+    if (!m_pan || !m_connected) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    const QString id = m_pan->panId();
+    const int fps = m_pan->fps() > 0 ? m_pan->fps() : 25;
+    const int rate = m_pan->waterfallLineDuration() > 0 ? m_pan->waterfallLineDuration() : 50;
+    if (key == QLatin1String("average")) {
+        rm.requestPanAverage(id, std::clamp(value, 0, 100));
+    } else if (key == QLatin1String("fps")) {
+        rm.requestPanDisplayRates(id, std::clamp(value, 5, 60), rate);
+    } else if (key == QLatin1String("wfRate")) {
+        rm.requestPanDisplayRates(id, fps, std::clamp(value, 1, 100));
+    } else if (key == QLatin1String("bandZoom")) {
+        // FlexLib's per-pan band zoom: the radio fits the pan to the band.
+        rm.sendCommand(QStringLiteral("display pan set %1 band_zoom=%2").arg(id).arg(value ? 1 : 0));
+    }
+    qCInfo(lcMobile) << "pan display" << key << value;
+}
+
 void MobileEngine::toggleSplit()
 {
     RadioModel& rm = m_session.radioModel();
@@ -2036,7 +2080,7 @@ void MobileEngine::toggleSplit()
     }
     const QString mode = m_slice->mode();
     const bool cw = mode == QLatin1String("CW") || mode == QLatin1String("CWL") || mode == QLatin1String("CWU");
-    const double txMhz = m_slice->frequency() + (cw ? 0.001 : 0.005);
+    const double txMhz = m_slice->frequency() + (m_splitUpKhz > 0 ? m_splitUpKhz / 1000.0 : (cw ? 0.001 : 0.005));
     m_splitRxId = m_slice->sliceId();
     m_splitTxId = -1;
     m_splitPending = true;
@@ -3052,6 +3096,9 @@ void MobileEngine::onConnectionStateChanged(bool connected)
     m_netSampleMs = 0;
     m_sliceRecoveryTried = false;
     m_sliceRecoveryPending = false;
+    // A new session: the radio has none of our pan sizes yet.
+    m_sentPanId.clear();
+    m_sentPanWidth = 0;
     emit networkChanged();
     if (connected) {
         defaultMicToDevice();
@@ -3282,6 +3329,11 @@ void MobileEngine::bindPan(PanadapterModel* pan)
         m_panConnections.append(connect(pan, &PanadapterModel::infoChanged, this, &MobileEngine::panGeometryChanged));
         m_panConnections.append(connect(pan, &PanadapterModel::rfGainChanged, this, &MobileEngine::rfGainChanged));
         m_panConnections.append(connect(pan, &PanadapterModel::wnbChanged, this, &MobileEngine::dspChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::averageChanged, this, &MobileEngine::panDisplayChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::fpsReported, this, &MobileEngine::panDisplayChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::waterfallLineDurationChanged, this,
+                                        &MobileEngine::panDisplayChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::bandZoomChanged, this, &MobileEngine::panDisplayChanged));
         // A band change restores the band's stored dBm scale: put ours back.
         m_panConnections.append(connect(pan, &PanadapterModel::levelChanged, this, [this, id = pan->panId()] {
             QTimer::singleShot(300, this, [this, id] { ensurePanDbmRange(id); });
@@ -3311,12 +3363,23 @@ void MobileEngine::setPanPixels(int width, int height)
     m_panPixelsTimer.start();
 }
 
-void MobileEngine::sendPanDimensions(const QString& panId)
+void MobileEngine::sendPanDimensions(const QString& panId, bool force)
 {
     RadioModel& rm = m_session.radioModel();
     if (panId.isEmpty() || m_panWidth <= 0 || m_panHeight <= 0 || !rm.panadapter(panId)) {
         return;
     }
+    // The radio's pan and waterfall both report the reset in one go, which
+    // asked twice: the same size within half a second is sent once.
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const bool same = panId == m_sentPanId && m_panWidth == m_sentPanWidth;
+    if (same && (!force || nowMs - m_sentPanSizeMs < 500)) {
+        ensurePanDbmRange(panId);
+        return;
+    }
+    m_sentPanId = panId;
+    m_sentPanWidth = m_panWidth;
+    m_sentPanSizeMs = nowMs;
     // Self-shaping backends take the width through the seam; the
     // xpixels/ypixels text is the Flex command-plane contract.
     // ypixels sets only the FFT's vertical resolution (the view scales the

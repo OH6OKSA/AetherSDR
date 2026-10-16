@@ -58,10 +58,33 @@ Item {
         return { v: 0, min: 0, max: 1, live: false, text: kind, red: 1e9 }
     }
 
+    // Peak hold (the desktop meters' peak): the highest reading stays 1.5 s,
+    // then falls back toward the current one.
+    property real peak: reading.min
+    property double peakHoldUntil: 0
+    readonly property real currentValue: reading.live ? reading.v : reading.min
+    onCurrentValueChanged: {
+        if (currentValue >= peak) {
+            peak = currentValue
+            peakHoldUntil = Date.now() + 1500
+        }
+    }
+    Timer {
+        interval: 100
+        repeat: true
+        running: meter.reading.live && meter.peak > meter.currentValue
+        onTriggered: {
+            if (Date.now() < meter.peakHoldUntil) return
+            const fall = (meter.reading.max - meter.reading.min) * 0.04
+            meter.peak = Math.max(meter.currentValue, meter.peak - fall)
+        }
+    }
+
     AnalogGauge {
         id: gauge
         anchors.fill: parent
         visible: meter.analog
+        peak: meter.peak
         compact: meter.compact
         kind: meter.kind
         value: meter.reading.v
@@ -100,6 +123,15 @@ Item {
                                                               / (meter.reading.max - meter.reading.min)))
                        : 0
                 color: meter.reading.v >= meter.reading.red ? Theme.transmit : Theme.accent
+            }
+            // Peak hold tick.
+            Rectangle {
+                visible: meter.reading.live && meter.peak > meter.currentValue
+                width: 2
+                height: parent.height
+                color: "#f0b429"
+                x: Math.max(0, Math.min(parent.width - width, parent.width
+                    * (meter.peak - meter.reading.min) / (meter.reading.max - meter.reading.min) - width / 2))
             }
         }
     }

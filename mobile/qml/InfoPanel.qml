@@ -84,6 +84,7 @@ Item {
         property real rowH: 40
         property real pad: 12
         signal tapped()
+        signal held()
         implicitWidth: label.implicitWidth + pad
         implicitHeight: rowH
         Rectangle {
@@ -102,6 +103,7 @@ Item {
             id: area
             anchors.fill: parent
             onClicked: hit.tapped()
+            onPressAndHold: hit.held()
         }
     }
 
@@ -303,6 +305,8 @@ Item {
                 rowH: info.rowH
                 pad: info.singleLine ? 6 : 12
                 onTapped: Engine.toggleSplit()
+                // Press and hold: split up 1, 5 or 10 kHz (the desktop's Split Up).
+                onHeld: splitChooser.open()
             }
             // DSP flags: tap for the filter/DSP chooser.
             Item {
@@ -353,6 +357,17 @@ Item {
                     Engine.setStepHz(list[i])
                 }
             }
+        }
+    }
+    ChooserPopup {
+        id: splitChooser
+        objectName: "splitChooser"
+        title: Engine.splitActive ? qsTr("Split") : qsTr("Split up")
+        options: Engine.splitActive ? [qsTr("Off")] : ["+1 kHz", "+5 kHz", "+10 kHz"]
+        y: info.height + 4
+        onPicked: (name) => {
+            if (Engine.splitActive) Engine.toggleSplit()
+            else Engine.toggleSplitUp(parseInt(name.replace("+", "")))
         }
     }
     ChooserPopup {
