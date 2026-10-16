@@ -65,6 +65,10 @@ int main(int argc, char* argv[])
     const QCommandLineOption previewNoSliceOption(QStringLiteral("preview-no-slice"),
         QStringLiteral("Show the no-slice notice over the display (screenshots)."));
     parser.addOption(previewNoSliceOption);
+    const QCommandLineOption dvkTestOption(QStringLiteral("dvk-record-test"),
+        QStringLiteral("Development: record 3 s into this empty voice keyer slot, listen to it, then clear it "
+                       "(no transmission)."), QStringLiteral("slot"));
+    parser.addOption(dvkTestOption);
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
@@ -177,6 +181,29 @@ int main(int argc, char* argv[])
                     QMetaObject::invokeMethod(dialog, "open");
                 }
             }
+        });
+    }
+    if (parser.isSet(dvkTestOption)) {
+        const int slot = parser.value(dvkTestOption).toInt();
+        QTimer::singleShot(10000, &app, [&engine, slot] {
+            const QVariantList dvkList = engine.dvkSlots();
+            if (slot < 1 || slot > dvkList.size() || dvkList.at(slot - 1).toMap().value(QStringLiteral("seconds")).toDouble() > 0) {
+                qWarning() << "dvk-record-test: slot" << slot << "is not empty; not touching it";
+                return;
+            }
+            engine.dvkRecord(slot);
+            QTimer::singleShot(3000, &engine, [&engine, slot] { engine.dvkRecord(slot); });
+            QTimer::singleShot(5000, &engine, [&engine, slot] {
+                qInfo() << "dvk-record-test: slot after recording" << engine.dvkSlots().at(slot - 1);
+                engine.dvkPreview(slot);
+            });
+            QTimer::singleShot(9000, &engine, [&engine, slot] {
+                engine.dvkStop();
+                engine.dvkClear(slot);
+            });
+            QTimer::singleShot(11000, &engine, [&engine, slot] {
+                qInfo() << "dvk-record-test: slot after clear" << engine.dvkSlots().at(slot - 1);
+            });
         });
     }
     if (parser.isSet(previewNoSliceOption)) {

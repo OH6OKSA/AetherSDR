@@ -179,6 +179,117 @@ ColumnLayout {
         title: qsTr("Carrier")
     }
 
+    // ---- Voice keyer: the radio's DVK, 12 slots of up to 10 s kept in the
+    // radio. Tap plays (transmits), tap again stops; press and hold for
+    // record, listen, rename and clear. F1-F12 on a keyboard play them in
+    // voice modes, Esc stops. ----
+    Label {
+        visible: !Engine.cwMode && Engine.dvkState !== "unavailable"
+        text: Engine.dvkState === "idle" ? qsTr("Voice keyer")
+              : Engine.dvkState === "recording" ? qsTr("Voice keyer: recording F%1 (tap it to stop)").arg(Engine.dvkActiveId)
+              : Engine.dvkState === "preview" ? qsTr("Voice keyer: listening to F%1").arg(Engine.dvkActiveId)
+              : qsTr("Voice keyer: sending F%1").arg(Engine.dvkActiveId)
+        color: Engine.dvkState === "idle" ? Theme.textDim : Theme.warning
+        font.pixelSize: 15
+    }
+    GridLayout {
+        visible: !Engine.cwMode && Engine.dvkState !== "unavailable"
+        Layout.fillWidth: true
+        columns: width > 520 ? 4 : 3
+        columnSpacing: Theme.spacing / 2
+        rowSpacing: Theme.spacing / 2
+        Repeater {
+            model: Engine.dvkSlots
+            delegate: AppButton {
+                id: slotButton
+                required property var modelData
+                readonly property bool active: Engine.dvkActiveId === modelData.id && Engine.dvkState !== "idle"
+                text: "F" + modelData.id + "  " + modelData.name
+                      + (modelData.seconds > 0 ? "  " + modelData.seconds.toFixed(1) + " s" : "")
+                checked: active
+                opacity: modelData.seconds > 0 || active ? 1.0 : 0.6
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: Theme.touchTarget
+                onClicked: {
+                    if (Engine.dvkState === "recording") Engine.dvkRecord(modelData.id)
+                    else if (Engine.dvkState === "preview") Engine.dvkPreview(modelData.id)
+                    else if (modelData.seconds > 0 || Engine.dvkState === "playback") Engine.dvkPlay(modelData.id)
+                    else dvkMenu.openFor(modelData)
+                }
+                onPressAndHold: dvkMenu.openFor(modelData)
+            }
+        }
+    }
+    Popup {
+        id: dvkMenu
+        objectName: "dvkMenu"
+        property int slotId: 1
+        property string slotName: ""
+        function openFor(slot) {
+            slotId = slot.id
+            slotName = slot.name
+            nameField.text = slot.name
+            open()
+        }
+        anchors.centerIn: Overlay.overlay
+        modal: true
+        padding: Theme.spacing
+        background: Rectangle { color: Theme.surface; border.color: Theme.surfaceRaised; radius: Theme.radius }
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing / 2
+            Label {
+                text: qsTr("F%1  %2").arg(dvkMenu.slotId).arg(dvkMenu.slotName)
+                color: Theme.text
+                font.pixelSize: Theme.buttonFont
+                font.bold: true
+            }
+            Label {
+                Layout.maximumWidth: 320
+                wrapMode: Text.Wrap
+                color: Theme.textDim
+                font.pixelSize: 13
+                text: qsTr("Record speaks into this device's microphone; the radio keeps up to 10 s. "
+                           + "Recording and listening do not transmit.")
+            }
+            RowLayout {
+                AppButton {
+                    text: Engine.dvkState === "recording" ? qsTr("Stop recording") : qsTr("Record")
+                    Layout.fillWidth: true
+                    onClicked: Engine.dvkRecord(dvkMenu.slotId)
+                }
+                AppButton {
+                    text: Engine.dvkState === "preview" ? qsTr("Stop") : qsTr("Listen")
+                    Layout.fillWidth: true
+                    onClicked: Engine.dvkPreview(dvkMenu.slotId)
+                }
+            }
+            RowLayout {
+                TextField {
+                    id: nameField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("Name")
+                }
+                AppButton {
+                    text: qsTr("Rename")
+                    onClicked: Engine.dvkRename(dvkMenu.slotId, nameField.text)
+                }
+            }
+            RowLayout {
+                AppButton {
+                    text: qsTr("Clear")
+                    Layout.fillWidth: true
+                    onClicked: Engine.dvkClear(dvkMenu.slotId)
+                }
+                AppButton {
+                    text: qsTr("Close")
+                    Layout.fillWidth: true
+                    onClicked: dvkMenu.close()
+                }
+            }
+        }
+    }
+
     // ---- Monitor ----
     RowLayout {
         Layout.fillWidth: true

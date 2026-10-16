@@ -244,6 +244,12 @@ class MobileEngine : public QObject {
     // Phone transmit extras, as the desktop's Phone applet: voxOn, voxLevel,
     // voxDelay, dexpOn, dexpLevel, amCarrier (levels 0-100).
     Q_PROPERTY(QVariantMap phone READ phone NOTIFY phoneChanged)
+    // The radio's voice keyer (DVK): 12 slots of up to 10 s, kept in the
+    // radio. Each: id, name, seconds (0 = empty).
+    Q_PROPERTY(QVariantList dvkSlots READ dvkSlots NOTIFY dvkChanged)
+    // "idle", "recording", "preview", "playback", "unavailable".
+    Q_PROPERTY(QString dvkState READ dvkState NOTIFY dvkChanged)
+    Q_PROPERTY(int dvkActiveId READ dvkActiveId NOTIFY dvkChanged)
     Q_PROPERTY(int procLevel READ procLevel WRITE setProcLevel NOTIFY txAudioChanged)
     Q_PROPERTY(int procLevelMax READ procLevelMax NOTIFY txAudioChanged)
     Q_PROPERTY(bool monitor READ monitor WRITE setMonitor NOTIFY txAudioChanged)
@@ -500,6 +506,16 @@ public:
     Q_INVOKABLE void setPhone(const QString& key, int value);
     // MOX: transmit latched on until pressed again (the desktop's MOX).
     Q_INVOKABLE void toggleMox();
+    QVariantList dvkSlots() const;
+    QString dvkState() const;
+    int dvkActiveId() const;
+    // Tap again to stop. Play transmits; record and preview do not.
+    Q_INVOKABLE void dvkPlay(int id);
+    Q_INVOKABLE void dvkRecord(int id);
+    Q_INVOKABLE void dvkPreview(int id);
+    Q_INVOKABLE void dvkStop();
+    Q_INVOKABLE void dvkClear(int id);
+    Q_INVOKABLE void dvkRename(int id, const QString& name);
     // Radio RF power setting (Flex rfpower, 0..100).
     int rfPower() const;
     void setRfPower(int power);
@@ -672,6 +688,7 @@ signals:
     void slicesChanged();
     void stationsChanged();
     void phoneChanged();
+    void dvkChanged();
     // The connected-stations list was asked for (Radio Setup); the operate
     // page opens it.
     void stationsRequested();
@@ -788,6 +805,9 @@ private:
     TxController::Input m_cwKeyInput;
     TxController::Input m_cwxInput;
     bool m_cwxLiveInDecoder{false};
+    bool m_dvkRecordingMic{false};
+    int m_dvkRecordSlot{0};
+    static QString dvkStateName(int status);
     bool m_cwKeyHeld{false};
     std::unique_ptr<CwRxModel> m_cwDecoder;
     std::unique_ptr<DecoderAudioModel> m_cwAudio;

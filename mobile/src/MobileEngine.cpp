@@ -776,6 +776,31 @@ void MobileEngine::wireTransmit()
     });
     connect(&tm, &TransmitModel::micStateChanged, this, &MobileEngine::txAudioChanged);
     connect(&tm, &TransmitModel::phoneStateChanged, this, &MobileEngine::phoneChanged);
+    DvkModel& dvk = rm.dvkModel();
+    connect(&dvk, &DvkModel::recordingChanged, this, &MobileEngine::dvkChanged);
+    connect(&dvk, &DvkModel::recordingsLoaded, this, &MobileEngine::dvkChanged);
+    connect(&dvk, &DvkModel::licenseRefusedChanged, this, &MobileEngine::dvkChanged);
+    connect(&rm, &RadioModel::licenseFeaturesChanged, this, &MobileEngine::dvkChanged);
+    connect(&dvk, &DvkModel::commandFailed, this, [this](const QString& verb, int id, uint, const QString& message) {
+        qCWarning(lcMobile).noquote() << QStringLiteral("DVK %1 slot %2 refused: %3").arg(verb).arg(id).arg(message);
+        setLastError(tr("Voice keyer: %1").arg(message));
+    });
+    connect(&dvk, &DvkModel::statusChanged, this, [this](DvkModel::Status status, int id) {
+        // The radio records the selected mic input, which is this device:
+        // the microphone streams for as long as the radio records.
+        if (status != DvkModel::Recording && m_dvkRecordingMic) {
+            m_dvkRecordingMic = false;
+            if (!m_pttHeld) {
+                stopDeviceMicrophoneCapture();
+            }
+            const TxSendStats& st = *m_txSendStats;
+            qCInfo(lcMobile).noquote() << QStringLiteral("DVK recorded slot %1: %2 mic packets sent, %3 stopped by the fence")
+                                              .arg(m_dvkRecordSlot).arg(static_cast<int>(st.packets))
+                                              .arg(static_cast<int>(st.fenced));
+        }
+        qCInfo(lcMobile) << "DVK" << dvkStateName(status) << "slot" << id;
+        emit dvkChanged();
+    });
     connect(&rm.meterModel(), &MeterModel::txMetersChanged, this,
             [this](float fwdPower, float swr, bool swrValid) {
         m_forwardPowerW = fwdPower;
@@ -1102,6 +1127,131 @@ void MobileEngine::setAtuMemories(bool on)
     if (hasTunerMemories()) {
         m_session.radioModel().transmitModel().setAtuMemories(on);
     }
+}
+
+QString MobileEngine::dvkStateName(int status)
+{
+    switch (status) {
+    case DvkModel::Recording: return QStringLiteral("recording");
+    case DvkModel::Preview: return QStringLiteral("preview");
+    case DvkModel::Playback: return QStringLiteral("playback");
+    case DvkModel::Disabled: return QStringLiteral("unavailable");
+    default: return QStringLiteral("idle");
+    }
+}
+
+QVariantList MobileEngine::dvkSlots() const
+{
+    // RadioModel has no const DvkModel accessor; only const DvkModel calls follow.
+    const DvkModel& dvk = const_cast<RadioModel&>(m_session.radioModel()).dvkModel();
+    QVariantList list;
+    for (int id = 1; id <= DvkModel::kSlotCount; ++id) {
+        QString name;
+        int ms = 0;
+        for (const DvkRecording& r : dvk.recordings()) {
+            if (r.id == id) {
+                name = r.name;
+                ms = r.durationMs;
+            }
+        }
+        list.append(QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("name"), name.isEmpty() ? DvkModel::defaultName(id) : name},
+            {QStringLiteral("seconds"), ms / 1000.0},
+        });
+    }
+    return list;
+}
+
+QString MobileEngine::dvkState() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    // The voice keyer needs a SmartSDR+ subscription: the radio's license
+    // status says so at connect (DIGITAL_VOICE_KEYER enabled=0 reason=PLUS),
+    // a refused command latches it too.
+    const QString feature = QString(DvkModel::kLicenseFeature);
+    const bool unlicensed = (rm.licenseFeatureSeen(feature) && !rm.licenseFeatureEnabled(feature))
+        || (rm.licenseFeatureSeen(feature.toUpper()) && !rm.licenseFeatureEnabled(feature.toUpper()));
+    if (!m_connected || rm.dvkLicenseRefused() || unlicensed) {
+        return QStringLiteral("unavailable");
+    }
+    return dvkStateName(const_cast<RadioModel&>(rm).dvkModel().status());
+}
+
+int MobileEngine::dvkActiveId() const
+{
+    return const_cast<RadioModel&>(m_session.radioModel()).dvkModel().activeId();
+}
+
+void MobileEngine::dvkPlay(int id)
+{
+    DvkModel& dvk = m_session.radioModel().dvkModel();
+    if (dvk.status() == DvkModel::Playback) {
+        dvk.playbackStop();
+        return;
+    }
+    if (!transmitAvailable()) {
+        setLastError(transmitUnavailableReason());
+        return;
+    }
+    if (!dvk.canStartOperation()) {
+        return;
+    }
+    qCInfo(lcMobile) << "DVK play slot" << id;
+    dvk.playbackStart(id);
+}
+
+void MobileEngine::dvkRecord(int id)
+{
+    DvkModel& dvk = m_session.radioModel().dvkModel();
+    if (dvk.status() == DvkModel::Recording) {
+        dvk.recStop();
+        return;
+    }
+    if (!dvk.canStartOperation()) {
+        return;
+    }
+    // Recording does not transmit; the device microphone feeds the radio's
+    // PC mic input meanwhile.
+    m_dvkRecordingMic = true;
+    m_dvkRecordSlot = id;
+    m_txSendStats->reset();
+    startDeviceMicrophoneCapture();
+    qCInfo(lcMobile) << "DVK record slot" << id;
+    dvk.recStart(id);
+}
+
+void MobileEngine::dvkPreview(int id)
+{
+    DvkModel& dvk = m_session.radioModel().dvkModel();
+    if (dvk.status() == DvkModel::Preview) {
+        dvk.previewStop();
+        return;
+    }
+    if (dvk.canStartOperation()) {
+        dvk.previewStart(id);
+    }
+}
+
+void MobileEngine::dvkStop()
+{
+    DvkModel& dvk = m_session.radioModel().dvkModel();
+    switch (dvk.status()) {
+    case DvkModel::Recording: dvk.recStop(); break;
+    case DvkModel::Preview: dvk.previewStop(); break;
+    case DvkModel::Playback: dvk.playbackStop(); break;
+    default: break;
+    }
+}
+
+void MobileEngine::dvkClear(int id)
+{
+    m_session.radioModel().dvkModel().clear(id);
+}
+
+void MobileEngine::dvkRename(int id, const QString& name)
+{
+    m_session.radioModel().dvkModel().setName(id, DvkModel::sanitizeName(name));
 }
 
 QVariantMap MobileEngine::phone() const
