@@ -39,6 +39,8 @@ Dialog {
 
     Item {
         id: keyCatcher
+        // The operate page leaves the keyboard focus here (see OperatePage).
+        readonly property bool keepsKeyboard: true
         Keys.onPressed: (event) => {
             if (event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
                 dialog.digit(event.text)

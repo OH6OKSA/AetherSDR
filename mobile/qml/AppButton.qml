@@ -5,6 +5,9 @@ import QtQuick.Controls
 // size everywhere (the band buttons'); only PTT and KEY are larger.
 Button {
     id: control
+    // Never takes the keyboard focus: a tapped button would otherwise catch
+    // the Magic Keyboard's Space (pressing itself instead of PTT) and arrows.
+    focusPolicy: Qt.NoFocus
     font.pixelSize: Theme.buttonFont
     leftPadding: 4
     rightPadding: 4

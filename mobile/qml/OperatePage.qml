@@ -47,6 +47,27 @@ Page {
             Engine.setPtt(false, "page lost keyboard focus")
         }
     }
+    // Keyboard focus returns to the page whenever a control (a slider, a
+    // switch, a popup that closed) took it, so Space and the arrows keep
+    // working; text entry and the digit dialogs keep it.
+    function keepsKeyboard(item) {
+        return item !== null && (item.cursorPosition !== undefined || item.keepsKeyboard === true)
+    }
+    Connections {
+        target: page.Window.window
+        function onActiveFocusItemChanged() {
+            const item = page.Window.window ? page.Window.window.activeFocusItem : null
+            if (!page.visible || page.activeFocus || page.keepsKeyboard(item)) {
+                return
+            }
+            Qt.callLater(() => {
+                const now = page.Window.window ? page.Window.window.activeFocusItem : null
+                if (page.visible && !page.activeFocus && !page.keepsKeyboard(now)) {
+                    page.forceActiveFocus()
+                }
+            })
+        }
+    }
     background: Rectangle { color: Theme.background }
 
     // Layout adapts from the 12.9" iPad Pro (1366x1024 pt) down to 1024x768
