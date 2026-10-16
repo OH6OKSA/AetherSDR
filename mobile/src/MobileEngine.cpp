@@ -1631,18 +1631,22 @@ void MobileEngine::setPtt(bool down, const QString& reason)
         qCInfo(lcMobile) << "PTT press ignored:" << transmitUnavailableReason();
         return;
     }
+    // The microphone opens first, so its audio is flowing when the radio
+    // keys: opened after keying, the first ~0.6 s went out as silence or the
+    // capture's start-up noise.
+    m_txSendStats->reset();
+    startDeviceMicrophoneCapture();
     m_pttInput = m_session.radioModel().localTxController()->capture(TxController::Activity::Mox);
     m_pttHeld = true;
     if (!m_pttInput.start()) {
         m_pttHeld = false;
         m_pttInput.stop();
+        stopDeviceMicrophoneCapture();
         qCWarning(lcMobile) << "PTT start refused by the TX controller";
         setLastError(tr("The radio did not accept the transmit request."));
         return;
     }
     qCInfo(lcMobile) << "PTT keyed";
-    m_txSendStats->reset();
-    startDeviceMicrophoneCapture();
 }
 
 void MobileEngine::releasePtt(const QString& reason)

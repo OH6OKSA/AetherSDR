@@ -1322,6 +1322,8 @@ private:
     // App-side voice keyer state (audio thread).
     bool       m_txClipRecording{false};
     std::atomic<qint64> m_txMicFrames{0};
+    // Frames of the stream so far, for the start-up fade (audio thread).
+    qint64 m_txFadeFrames{0};
     std::atomic<qint64> m_txMicFirstMs{0};
     std::atomic<qint64> m_txMicLastMs{0};
     int        m_txClipMaxFrames{0};

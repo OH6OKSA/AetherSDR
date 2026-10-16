@@ -8859,6 +8859,7 @@ bool AudioEngine::startTxStream(const QHostAddress& radioAddress, quint16 radioP
     m_txMicFrames = 0;
     m_txMicFirstMs = 0;
     m_txMicLastMs = 0;
+    m_txFadeFrames = 0;
     if (m_audioSource) return true;  // already running
 
     // WASAPI silent-open recovery (#2929). If the previous open was driven by
@@ -9699,6 +9700,31 @@ void AudioEngine::onTxAudioReady()
         return;
     }
     logTxInputChannelDiagnostics(channelDiagnostics, "TX mic");
+    {
+        // Soft start: a microphone's first ~60 ms after opening carry its
+        // start-up noise (heard as a short whoosh at the far end); send them
+        // as silence, then ramp in over 40 ms.
+        const int frames = data.size() / static_cast<int>(2 * (capturedFloat32 ? sizeof(float) : sizeof(int16_t)));
+        const qint64 muteFrames = static_cast<qint64>(m_txInputRate) * 60 / 1000;
+        const qint64 rampFrames = static_cast<qint64>(m_txInputRate) * 40 / 1000;
+        if (m_txFadeFrames < muteFrames + rampFrames) {
+            for (int i = 0; i < frames; ++i) {
+                const qint64 n = m_txFadeFrames + i;
+                const float g = n < muteFrames ? 0.0f
+                    : n < muteFrames + rampFrames ? static_cast<float>(n - muteFrames) / rampFrames : 1.0f;
+                if (capturedFloat32) {
+                    auto* f = reinterpret_cast<float*>(data.data());
+                    f[i * 2] *= g;
+                    f[i * 2 + 1] *= g;
+                } else {
+                    auto* s = reinterpret_cast<int16_t*>(data.data());
+                    s[i * 2] = static_cast<int16_t>(s[i * 2] * g);
+                    s[i * 2 + 1] = static_cast<int16_t>(s[i * 2 + 1] * g);
+                }
+            }
+        }
+        m_txFadeFrames += frames;
+    }
     {
         // Real delivered capture rate (frames over wall time), for diagnosis.
         const qint64 nowMs = TxCoordinator::monotonicMs();

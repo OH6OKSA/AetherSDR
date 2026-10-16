@@ -61,7 +61,13 @@ void activate()
 
 void configureAudioSession()
 {
-    activate();
+    // Already active as play-and-record: leave it. Re-activating on every PTT
+    // press took ~0.6 s before the microphone opened and could be heard as a
+    // whoosh while the route was rebuilt.
+    AVAudioSession* session = [AVAudioSession sharedInstance];
+    if (!g_active || ![session.category isEqualToString:AVAudioSessionCategoryPlayAndRecord]) {
+        activate();
+    }
     static bool observing = false;
     if (observing) {
         return;
@@ -78,7 +84,9 @@ void configureAudioSession()
                         [note.userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue]);
                     qCInfo(lcAudioSession) << "interruption"
                                            << (type == AVAudioSessionInterruptionTypeBegan ? "began" : "ended");
-                    if (type == AVAudioSessionInterruptionTypeEnded) {
+                    if (type == AVAudioSessionInterruptionTypeBegan) {
+                        g_active = false;
+                    } else if (type == AVAudioSessionInterruptionTypeEnded) {
                         activate();
                     }
                 }];
