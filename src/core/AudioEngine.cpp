@@ -8985,13 +8985,23 @@ bool AudioEngine::startTxStream(const QHostAddress& radioAddress, quint16 radioP
         txPreferredOverride = *nativeRate;
     }
 #endif
+#ifdef Q_OS_IOS
+    // iOS: open the microphone as the session runs it — 48 kHz (the app asks
+    // the session for it) and mono (iPhone/iPad microphones are mono). Opened
+    // as 44.1 kHz stereo, a tester's iPhone delivered only ~30.9 kFrames/s of
+    // the nominal 44.1 k (70 % of real time), so speech went out broken.
+    txPreferredOverride = 48000;
+    const std::initializer_list<int> txChannelOrder{1, 2};
+#else
+    const std::initializer_list<int> txChannelOrder{2, 1};
+#endif
     const QList<QAudioFormat> txLadder = AudioDeviceNegotiator::formatLadder(
         dev, AudioFormatNegotiator::Direction::Input,
         AudioFormatNegotiator::ResamplerPolicy::PreservePan,
         AudioFormatNegotiator::hostTargetOs(), DEFAULT_SAMPLE_RATE,
         txBluetoothHfp, txPreferredOverride);
     const int preferredTxRate = txLadder.isEmpty() ? 48000 : txLadder.first().sampleRate();
-    for (int channels : {2, 1}) {
+    for (int channels : txChannelOrder) {
         for (const QAudioFormat& cand : txLadder) {
             // Honour the rung's sample format instead of forcing Int16. The
             // ladder already ranks Float32 first for the TX voice strip on the
