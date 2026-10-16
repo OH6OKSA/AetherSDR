@@ -83,6 +83,7 @@ qt_add_qml_module(aether-mobile
         qml/MemoryControls.qml
         qml/PhoneOperatePage.qml
         qml/StationsDialog.qml
+        qml/StepButton.qml
 )
 
 # The generated QML type registrations include the headers by bare name.

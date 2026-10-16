@@ -2756,8 +2756,18 @@ void MobileEngine::setStepHz(int hz)
     // step; backends without a command plane keep it on the client.
     RadioModel& rm = m_session.radioModel();
     if (!rm.applyClientOwnedSliceStep(m_slice->sliceId(), hz)) {
-        rm.sendCommand(QStringLiteral("slice set %1 step=%2").arg(m_slice->sliceId()).arg(hz));
+        // The radio's answer goes to the log: a step that does not take shows why.
+        const QString cmd = QStringLiteral("slice set %1 step=%2").arg(m_slice->sliceId()).arg(hz);
+        rm.sendCmdPublic(cmd, [cmd](int code, const QString& body) {
+            if (code != 0) {
+                qCWarning(lcMobile).noquote() << QStringLiteral("tuning step refused: %1 -> 0x%2 %3")
+                                                     .arg(cmd).arg(code, 8, 16, QLatin1Char('0')).arg(body);
+            }
+        });
     }
+    // The radio takes the step (answer 0) but sends no slice status for it,
+    // so the app shows it at once, as the desktop's STEP control does.
+    m_slice->applyRecalledStepHz(hz);
     qCInfo(lcMobile) << "tuning step" << hz << "Hz";
 }
 

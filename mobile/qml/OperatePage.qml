@@ -221,19 +221,28 @@ Page {
                     // Tap for direct entry.
                     TapHandler { onTapped: freqDialog.open() }
                 }
-                ModeButton {
-                    fontSize: page.compact ? 24 : 32
+                // Mode, and the tuning step under it.
+                ColumnLayout {
+                    spacing: 0
+                    ModeButton {
+                        fontSize: page.compact ? 24 : 32
+                    }
+                    StepButton {
+                        fontSize: page.compact ? 13 : 16
+                    }
                 }
                 // The slice at a glance and in reach: antennas, width,
                 // speaker, lock, DSP, AGC (each opens its choices).
                 InfoPanel {
                     visible: !page.infoUnder
+                    showStep: false
                     Layout.leftMargin: Theme.spacing
                 }
                 Item { Layout.fillWidth: true }
             }
             InfoPanel {
                 visible: page.infoUnder
+                showStep: false
                 singleLine: true
                 Layout.fillWidth: true
             }

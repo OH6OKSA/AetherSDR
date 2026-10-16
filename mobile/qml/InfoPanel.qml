@@ -14,6 +14,8 @@ import AetherMobile
 Item {
     id: info
     property bool singleLine: false
+    // The tablet shows the step under the mode instead (StepButton).
+    property bool showStep: true
 
     readonly property var activeSlice: {
         for (const s of Engine.slices) {
@@ -302,6 +304,7 @@ Item {
             // radio's list. Tap-tune, the arrows and Pencil use it.
             Hit {
                 objectName: "stepHit"
+                visible: info.showStep
                 text: info.stepLabel(Engine.stepHz)
                 color: info.rxColor
                 fontPx: info.fontPx
