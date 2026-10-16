@@ -60,8 +60,28 @@ Page {
     // Keyboard focus returns to the page whenever a control (a slider, a
     // switch, a popup that closed) took it, so Space and the arrows keep
     // working; text entry and the digit dialogs keep it.
+    // An open popup (a ComboBox list, a dialog) keeps it too: taking focus
+    // from a ComboBox's list closed it before a choice could be made.
+    // The controls drawer is a popup as well, but it stays open while
+    // operating: it does not count.
+    function popupOpen() {
+        const kids = page.Overlay.overlay ? page.Overlay.overlay.children : []
+        for (let i = 0; i < kids.length; ++i) {
+            if (!kids[i].visible) continue
+            let drawerItem = false
+            for (let it = controlsDrawer.contentItem; it; it = it.parent) {
+                if (it === kids[i]) {
+                    drawerItem = true
+                    break
+                }
+            }
+            if (!drawerItem) return true
+        }
+        return false
+    }
     function keepsKeyboard(item) {
-        return item !== null && (item.cursorPosition !== undefined || item.keepsKeyboard === true)
+        return page.popupOpen()
+            || (item !== null && (item.cursorPosition !== undefined || item.keepsKeyboard === true))
     }
     Connections {
         target: page.Window.window
