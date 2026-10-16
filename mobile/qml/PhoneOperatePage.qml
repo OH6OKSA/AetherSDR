@@ -103,24 +103,37 @@ Page {
                     TapHandler { onTapped: freqDialog.open() }
                 }
                 ModeButton { fontSize: 18 }
-                // Portrait has room beside the mode for the tuning step;
-                // landscape keeps it on the info panel.
-                StepButton {
-                    visible: !page.landscape
-                    fontSize: 13
-                }
-                // The slice at a glance and in reach (one row); under the
-                // frequency in portrait.
+                // The slice at a glance and in reach (one row) in landscape.
                 InfoPanel {
                     visible: page.landscape
                     singleLine: true
                     Layout.leftMargin: Theme.spacing / 2
                 }
                 Item { Layout.fillWidth: true }
+                // Portrait: the room right of the mode takes the tuning step
+                // and the DSP/AGC line, so the row under the frequency only
+                // carries the slice.
+                ColumnLayout {
+                    visible: !page.landscape
+                    spacing: 0
+                    StepButton {
+                        Layout.alignment: Qt.AlignRight
+                        fontSize: 13
+                        heightScale: 0.65
+                    }
+                    InfoPanel {
+                        Layout.alignment: Qt.AlignRight
+                        singleLine: true
+                        showSliceRow: false
+                        showStep: false
+                        rowScale: 0.65
+                    }
+                }
             }
             InfoPanel {
                 visible: !page.landscape
                 showStep: false
+                showStatusRow: false
                 singleLine: true
                 Layout.fillWidth: true
             }

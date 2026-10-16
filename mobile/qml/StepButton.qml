@@ -9,8 +9,10 @@ Item {
     id: stepButton
     objectName: "stepButton"
     property int fontSize: 16
+    // Target height as a share of a touch target (compact beside the frequency).
+    property real heightScale: 0.8
     implicitWidth: row.implicitWidth + 12
-    implicitHeight: Math.max(row.implicitHeight, Theme.touchTarget * 0.8)
+    implicitHeight: Math.max(row.implicitHeight, Theme.touchTarget * heightScale)
 
     function label(hz) {
         return hz >= 1000 ? (hz / 1000).toFixed(hz % 1000 ? 1 : 0) + " kHz" : hz + " Hz"

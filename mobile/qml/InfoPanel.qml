@@ -16,6 +16,12 @@ Item {
     property bool singleLine: false
     // The tablet shows the step under the mode instead (StepButton).
     property bool showStep: true
+    // Either row can be shown alone (phones in portrait put the status row
+    // beside the frequency and the slice row under it).
+    property bool showSliceRow: true
+    // Row height as a share of the default (a compact beside-the-frequency line).
+    property real rowScale: 1.0
+    property bool showStatusRow: true
 
     readonly property var activeSlice: {
         for (const s of Engine.slices) {
@@ -26,7 +32,7 @@ Item {
     readonly property real fontPx: singleLine ? Math.round(Theme.buttonFont * 0.85)
                                               : Math.round(Theme.buttonFont * 1.15)
     // Height of a row, and so of every target in it.
-    readonly property real rowH: singleLine ? Theme.touchTarget : Math.round(Theme.touchTarget * 0.8)
+    readonly property real rowH: Math.round((singleLine ? Theme.touchTarget : Theme.touchTarget * 0.8) * rowScale)
     readonly property real gap: Math.round(fontPx * 0.45)
     readonly property color dim: "#6b7785"
     readonly property color rxColor: "#3fb6ff"
@@ -103,6 +109,7 @@ Item {
 
         // Slice letter, TX, antennas, filter width, speaker, lock.
         Row {
+            visible: info.showSliceRow
             spacing: 0
             Row {
                 anchors.verticalCenter: parent.verticalCenter
@@ -264,6 +271,7 @@ Item {
 
         // DSP flags, AGC.
         Row {
+            visible: info.showStatusRow
             spacing: 0
             // DSP flags: tap for the filter/DSP chooser.
             Item {
