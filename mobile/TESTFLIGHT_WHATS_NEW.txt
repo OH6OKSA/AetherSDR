@@ -4,13 +4,16 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• Lähetyksen alku: ei enää viivettä eikä kohahdusta PTT:tä painettaessa; puhumaan pääsee heti. Kerro, kuuluuko vastaasemalla vielä alkukohinaa. [TX]
-• Profiilien ja mikrofonin valintalistat aukeavat taas (build 66–68 sulki ne heti).
-• Äänimakrot TX-välilehden alimpana.
-• Edelliseltä: lähetysääni korjattu (mikrofoni 48 kHz), ei enää rämise.
-• CW: 12 muistia, F1–F12 näppäimistöltä, Esc keskeyttää, Live-tila (kirjaimet lähtevät kirjoittaessa). [TX]
-• Äänimakrot (TX → Voice keyer): 12 paikkaa, pitkä painallus tallentaa. Ilman SmartSDR+:aa tallenteet ovat puhelimessa. [TX]
-• Edelliseltä: DSP-tasot, viritysaskel, slicekohtainen ääni, Connected stations, MOX/VOX/DEXP.
+• Viritysaskel toimii: STEP moden alla, kaikki askeleet valittavissa.
+• Bändin vaihdon jälkeen spektri ja 3D pysyvät oikealla asteikolla (esim. 80 m → 160 m).
+• Infopalkissa aina näkyvät asiat (antenni, leveys, AGC) ensin, DSP-valinnat perässä; iPhonen yläosa tiiviimpi.
+• View: FFT average, FFT frames/s ja Waterfall speed (radion omat asetukset).
+• Band-painike (−/+ vieressä) näyttää koko bändin.
+• Uudet bändit WWV ja GEN.
+• SPLIT pitkä painallus: +1, +5 tai +10 kHz.
+• Mittarit pitävät huippuarvon 1,5 s (keltainen neula).
+• VOX ja DEXP näkyvät vain radion omalla mikrofonilla (PC-mikrofonilla PTT riittää).
+• Edelliseltä: lähetyksen alku ilman viivettä ja kohahdusta, äänimakrot, CW 12 muistia. [TX]
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
@@ -60,7 +63,7 @@ LÄHETYS [TX]
 
 CW [TX]
 • CW-modessa PTT-painike on KEY.
-• Muistipaikat M1–M6 (Controls → CW): napautus lähettää, pitkä painallus muokkaa. {CALL} = radion tunnus.
+• 12 muistipaikkaa (Controls → CW), F1–F12: napautus lähettää, pitkä painallus muokkaa. {CALL} = radion tunnus.
 • CWX-teksti, nopeus, pitch ja break-in.
 • CW-dekooderi: teksti näkyy vesiputouksen yläreunassa.
 

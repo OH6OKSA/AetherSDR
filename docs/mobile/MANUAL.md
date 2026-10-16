@@ -57,7 +57,7 @@ From top to bottom:
 |---|---|
 | Top row | Radio name, [network quality](#network-quality), app version, **Controls** (open or hide the controls), **Setup** ([Radio Setup](#9-radio-setup)), **Manual**, **Log**, **Disconnect** (on an iPhone Setup, Manual, Log and Disconnect are behind **⋯**) |
 | Frequency row | Frequency, mode, and the [info panel](#3-frequency-mode-and-the-info-panel) |
-| Band buttons | 160 m … 6 m |
+| Band buttons | 160 m … 6 m, WWV, GEN |
 | Slice row | The two [meters](#4-meters-and-slices) at the ends, the slices in between |
 | Panadapter and waterfall | The [spectrum display](#5-panadapter-and-waterfall) |
 | Step buttons | Tune by −1 kHz … +1 kHz |
@@ -107,7 +107,9 @@ a hardware keyboard), then *Tune*.
 **Band buttons.** Each band returns to the frequency and mode you last used
 there. The radio keeps these in its *band stack*, which is part of the
 radio's global profile, so a different profile can bring a band back
-elsewhere.
+elsewhere. **WWV** holds the time-signal frequencies and **GEN** general
+coverage, each with its own band-stack memory. On a phone the band row
+scrolls sideways.
 
 **Step buttons.** ±1 Hz … ±1 kHz, landing on round frequencies: +10 Hz from
 14.100 002 goes to 14.100 010, not 14.100 012.
@@ -123,7 +125,7 @@ is a touch target with its choices behind it:
 |---|---|---|
 | **A** (blue) | Slice letter | — |
 | **TX** (red) | This slice transmits | — |
-| **SPLIT** | Split on (amber) or off (grey) | Start or end [split](#6-split) |
+| **SPLIT** | Split on (amber) or off (grey) | Start or end [split](#6-split); hold to pick the offset |
 | **ANT1** (blue) | Receive antenna | Choose the RX antenna |
 | **ANT1** (red) | Transmit antenna | Choose the TX antenna |
 | **2.7K** | Receive filter width | Filters and DSP |
@@ -176,6 +178,10 @@ remembered.
 Available: S, Power, SWR, ALC, Mic, Compression, PA temperature, supply
 voltage. Transmit meters read only while transmitting.
 
+**Peak hold.** Each meter keeps its highest reading for 1.5 s — an amber
+needle on the analog meter, an amber tick on the bar — then lets it fall
+back slowly, so a voice peak or a burst of noise can be read.
+
 **Slices.** Each slice is a button between the meters ("A 14.100 USB"); the
 transmit slice carries a red **TX** tag. Two fit side by side, four make
 2 × 2.
@@ -197,6 +203,8 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
   Holding the finger at either edge keeps tuning, faster nearer the edge.
 - **Drag anywhere else** to move the view; the frequency stays.
 - **Pinch**, or **− / +** (bottom left), to zoom around the slice.
+- **Band** (beside − / +) zooms out to the whole band you are on; tap it
+  again to return to the slice.
 - The **frequency scale** runs along the top of the waterfall.
 - The **dBm scale** at the left: drag it up or down to move the trace (the
   reference level). In 3D, as on the desktop, the 3D levels stay automatic:
@@ -225,6 +233,11 @@ stacked trace and sets the levels. They work as on the desktop AetherSDR:
   sets how many dB the colours span, so the same signal looks the same on
   any band and a strong carrier does not darken the rest. During and just
   after a transmission the levels hold.
+- **FFT average**, **FFT frames/s** and **Waterfall speed** are the
+  radio's own panadapter settings (as in SmartSDR): averaging smooths the
+  trace on the radio, frames/s sets how often the trace updates, and the
+  waterfall speed how fast lines scroll. Each is sent when the slider is
+  released and kept by the radio.
 - **3D** — the surface takes a row with each waterfall line and glides
   between them. **3D smoothing**: *Off* draws the rows as live as the 2D
   trace, *Light* (default) blends a little with the previous row so the
@@ -251,6 +264,10 @@ is created on the same panadapter for transmit:
 
 Tap **SPLIT** again — or close either slice — to end split: the transmit
 slice closes and transmit returns to the receive slice.
+
+**Press and hold SPLIT** to choose the offset: **+1 kHz**, **+5 kHz** or
+**+10 kHz** above the receive frequency. While split is on, the same menu
+offers **Off**.
 
 ## 7. Transmitting: PTT, KEY and TUNE
 
