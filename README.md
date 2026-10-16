@@ -28,6 +28,14 @@ email to oh6oksa@gmail.com.
 **[User manual](docs/mobile/MANUAL.md)** — every function, with screenshots
 (also the app's *Manual* button).
 
+## Support
+
+AetherSDR Mobile is free. If it is useful to you and you would like to buy
+me a beer, you can do it through
+**[PayPal](https://www.paypal.me/NikoOksa)**. The desktop project that
+makes all of this possible takes support through
+[Open Collective](https://opencollective.com/aethersdr).
+
 ## Why
 
 The desktop AetherSDR already runs on a Raspberry Pi. An iPad or iPhone has
@@ -237,14 +245,6 @@ the full feature list, see the upstream project:
 Upstream issue [#3128](https://github.com/aethersdr/AetherSDR/issues/3128)
 plans a mobile client (AetherLink). This port is a standalone alternative,
 and its QML client could also become an AetherLink thin client later.
-
-## Support
-
-AetherSDR Mobile is free. If it is useful to you and you would like to buy
-me a beer, you can do it through
-**[PayPal](https://www.paypal.me/NikoOksa)**. The desktop project that
-makes all of this possible takes support through
-[Open Collective](https://opencollective.com/aethersdr).
 
 ## Privacy, license, contact
 
