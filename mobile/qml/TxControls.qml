@@ -179,10 +179,12 @@ ColumnLayout {
         title: qsTr("Carrier")
     }
 
-    // ---- Voice keyer: the radio's DVK, 12 slots of up to 10 s kept in the
-    // radio. Tap plays (transmits), tap again stops; press and hold for
-    // record, listen, rename and clear. F1-F12 on a keyboard play them in
-    // voice modes, Esc stops. ----
+    // ---- Voice keyer: the radio's DVK where it is licensed (12 slots of up
+    // to 10 s kept in the radio), otherwise the app's own voice macros (12
+    // slots of up to 15 s on this device, played into the TX audio). Tap
+    // plays (transmits), tap again stops; press and hold for record, listen
+    // (radio only), rename and clear. F1-F12 on a keyboard play them in voice
+    // modes, Esc stops. ----
     Label {
         visible: !Engine.cwMode && Engine.dvkState !== "unavailable"
         text: Engine.dvkState === "idle" ? qsTr("Voice keyer")
@@ -249,8 +251,11 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 color: Theme.textDim
                 font.pixelSize: 13
-                text: qsTr("Record speaks into this device's microphone; the radio keeps up to 10 s. "
-                           + "Recording and listening do not transmit.")
+                text: Engine.dvkOnRadio
+                      ? qsTr("Record speaks into this device's microphone; the radio keeps up to 10 s. "
+                             + "Recording and listening do not transmit.")
+                      : qsTr("Record speaks into this device's microphone; this device keeps up to 15 s "
+                             + "(the radio's own voice keyer needs SmartSDR+). Recording does not transmit.")
             }
             RowLayout {
                 AppButton {
@@ -259,6 +264,7 @@ ColumnLayout {
                     onClicked: Engine.dvkRecord(dvkMenu.slotId)
                 }
                 AppButton {
+                    visible: Engine.dvkOnRadio
                     text: Engine.dvkState === "preview" ? qsTr("Stop") : qsTr("Listen")
                     Layout.fillWidth: true
                     onClicked: Engine.dvkPreview(dvkMenu.slotId)

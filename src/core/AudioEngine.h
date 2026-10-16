@@ -147,6 +147,14 @@ public:
                                        bool pcAudioEnabled, const QHostAddress& address);
 
     Q_INVOKABLE void stopTxStream();
+    // App-side voice keyer (for radios without a licensed DVK): record the
+    // canonical mic signal into a clip instead of transmitting it, and play
+    // a clip in the mic's place while transmitting, through the same voice
+    // chain. Clips are float mono at the capture rate. Audio thread.
+    Q_INVOKABLE void startTxClipRecording(int maxMs);
+    Q_INVOKABLE void stopTxClipRecording();
+    Q_INVOKABLE void playTxClip(const QByteArray& floatMono, int sampleRate);
+    Q_INVOKABLE void stopTxClip();
 
     // Set the DAX TX stream ID (from radio's response to "stream create type=dax_tx")
     void setTxStreamId(quint32 id) { m_txStreamId = id; }
@@ -821,6 +829,10 @@ signals:
     // Ownership-correct: driven by our local keyer, not any-owner interlock.
     void cwRecordingActiveChanged(bool active);
     void txPacketReady(const QByteArray& vitaPacket, const AetherSDR::TxCoordinator::Context& context);
+    // App-side voice keyer: a recording ended (float mono, its rate), or a
+    // clip finished playing.
+    void txClipRecorded(const QByteArray& floatMono, int sampleRate);
+    void txClipFinished();
     // Sidetone-tapped audio for the TX-side CW decoder (#2417).  Emitted
     // from the audio thread; receivers should connect via Qt::AutoConnection
     // (which becomes queued across threads) so feedAudio() lands on the
@@ -1300,6 +1312,13 @@ private:
     bool  m_txInputMono{false};          // TX: legacy convenience mirror of m_txInputChannels == 1
     int   m_txInputChannels{2};          // TX: actual negotiated input channel count
     int   m_txInputRate{24000};          // TX: actual input sample rate
+    // App-side voice keyer state (audio thread).
+    bool       m_txClipRecording{false};
+    int        m_txClipMaxFrames{0};
+    QByteArray m_txClipRecorded;          // float mono at m_txInputRate
+    QByteArray m_txClipPlaying;           // float mono
+    int        m_txClipRate{0};
+    double     m_txClipPos{0.0};          // in clip frames
     // TX: actual negotiated input sample format. Float32 now leads the mic
     // ladder on Windows and Linux, so the 48 kHz float voice strip is fed
     // without an Int16 round trip; Int16 remains the next rung there, and stays

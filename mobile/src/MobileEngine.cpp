@@ -1,4 +1,8 @@
 #include "MobileEngine.h"
+#include <QFile>
+#include <QDir>
+#include <QFileInfo>
+#include <QStandardPaths>
 
 #include <QCoreApplication>
 
@@ -104,6 +108,8 @@ MobileEngine::MobileEngine(QObject* parent)
     m_audioThread->setObjectName(QStringLiteral("AudioEngine"));
     m_audio = new AudioEngine;
     m_audio->moveToThread(m_audioThread);
+    connect(m_audio, &AudioEngine::txClipRecorded, this, &MobileEngine::onVoiceClipRecorded);
+    connect(m_audio, &AudioEngine::txClipFinished, this, &MobileEngine::onVoiceClipFinished);
     // Receive audio: the chosen buffer, and a line in the log whenever the
     // playback buffer ran dry in the last 10 s (with what the link did), so
     // stutter can be told apart: late packets or too short a buffer.
@@ -1140,24 +1146,69 @@ QString MobileEngine::dvkStateName(int status)
     }
 }
 
+bool MobileEngine::radioFeatureLicensed(const QString& feature) const
+{
+    // SmartSDR+ features: the radio's `license feature` status says which it
+    // has. Until it has said, assume present (older firmware never says).
+    const RadioModel& rm = m_session.radioModel();
+    for (const QString& name : {feature.toLower(), feature.toUpper()}) {
+        if (rm.licenseFeatureSeen(name)) {
+            return rm.licenseFeatureEnabled(name);
+        }
+    }
+    return true;
+}
+
+bool MobileEngine::dvkOnRadio() const
+{
+    // The radio's DVK needs SmartSDR+; without it the app keeps its own.
+    const RadioModel& rm = m_session.radioModel();
+    return m_connected && !rm.dvkLicenseRefused() && radioFeatureLicensed(QString(DvkModel::kLicenseFeature));
+}
+
+namespace {
+QString voiceClipPath(int id)
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/voice/F%1.f32").arg(id);
+}
+QString voiceNameKey(int id) { return QStringLiteral("MobileVoiceName%1").arg(id); }
+QString voiceRateKey(int id) { return QStringLiteral("MobileVoiceRate%1").arg(id); }
+constexpr int kVoiceClipMaxMs = 15000;
+} // namespace
+
 QVariantList MobileEngine::dvkSlots() const
 {
-    // RadioModel has no const DvkModel accessor; only const DvkModel calls follow.
-    const DvkModel& dvk = const_cast<RadioModel&>(m_session.radioModel()).dvkModel();
     QVariantList list;
-    for (int id = 1; id <= DvkModel::kSlotCount; ++id) {
-        QString name;
-        int ms = 0;
-        for (const DvkRecording& r : dvk.recordings()) {
-            if (r.id == id) {
-                name = r.name;
-                ms = r.durationMs;
+    if (dvkOnRadio()) {
+        // RadioModel has no const DvkModel accessor; only const DvkModel calls follow.
+        const DvkModel& dvk = const_cast<RadioModel&>(m_session.radioModel()).dvkModel();
+        for (int id = 1; id <= DvkModel::kSlotCount; ++id) {
+            QString name;
+            int ms = 0;
+            for (const DvkRecording& r : dvk.recordings()) {
+                if (r.id == id) {
+                    name = r.name;
+                    ms = r.durationMs;
+                }
             }
+            list.append(QVariantMap{
+                {QStringLiteral("id"), id},
+                {QStringLiteral("name"), name.isEmpty() ? DvkModel::defaultName(id) : name},
+                {QStringLiteral("seconds"), ms / 1000.0},
+            });
         }
+        return list;
+    }
+    // The app's own clips, on this device.
+    for (int id = 1; id <= DvkModel::kSlotCount; ++id) {
+        const int rate = AppSettings::instance().value(voiceRateKey(id), 0).toInt();
+        const qint64 bytes = QFileInfo(voiceClipPath(id)).size();
+        const QString name = AppSettings::instance().value(voiceNameKey(id)).toString();
         list.append(QVariantMap{
             {QStringLiteral("id"), id},
-            {QStringLiteral("name"), name.isEmpty() ? DvkModel::defaultName(id) : name},
-            {QStringLiteral("seconds"), ms / 1000.0},
+            {QStringLiteral("name"), name.isEmpty() ? tr("Voice %1").arg(id) : name},
+            {QStringLiteral("seconds"), rate > 0 ? bytes / static_cast<double>(sizeof(float)) / rate : 0.0},
         });
     }
     return list;
@@ -1165,26 +1216,56 @@ QVariantList MobileEngine::dvkSlots() const
 
 QString MobileEngine::dvkState() const
 {
-    const RadioModel& rm = m_session.radioModel();
-    // The voice keyer needs a SmartSDR+ subscription: the radio's license
-    // status says so at connect (DIGITAL_VOICE_KEYER enabled=0 reason=PLUS),
-    // a refused command latches it too.
-    const QString feature = QString(DvkModel::kLicenseFeature);
-    const bool unlicensed = (rm.licenseFeatureSeen(feature) && !rm.licenseFeatureEnabled(feature))
-        || (rm.licenseFeatureSeen(feature.toUpper()) && !rm.licenseFeatureEnabled(feature.toUpper()));
-    if (!m_connected || rm.dvkLicenseRefused() || unlicensed) {
+    if (!m_connected) {
         return QStringLiteral("unavailable");
     }
-    return dvkStateName(const_cast<RadioModel&>(rm).dvkModel().status());
+    if (!dvkOnRadio()) {
+        return m_voiceState;
+    }
+    return dvkStateName(const_cast<RadioModel&>(m_session.radioModel()).dvkModel().status());
 }
 
 int MobileEngine::dvkActiveId() const
 {
+    if (!dvkOnRadio()) {
+        return m_voiceActiveId;
+    }
     return const_cast<RadioModel&>(m_session.radioModel()).dvkModel().activeId();
 }
 
 void MobileEngine::dvkPlay(int id)
 {
+    if (!dvkOnRadio()) {
+        if (m_voiceState == QLatin1String("playback")) {
+            QMetaObject::invokeMethod(m_audio, &AudioEngine::stopTxClip, Qt::QueuedConnection);
+            return;
+        }
+        if (m_voiceState != QLatin1String("idle")) {
+            return;
+        }
+        QFile file(voiceClipPath(id));
+        const int rate = AppSettings::instance().value(voiceRateKey(id), 0).toInt();
+        if (rate <= 0 || !file.open(QIODevice::ReadOnly)) {
+            return;
+        }
+        const QByteArray clip = file.readAll();
+        if (!transmitAvailable()) {
+            setLastError(transmitUnavailableReason());
+            return;
+        }
+        // The clip plays in the microphone's place for one PTT press.
+        setPtt(true);
+        if (!m_pttHeld) {
+            return;
+        }
+        m_voiceState = QStringLiteral("playback");
+        m_voiceActiveId = id;
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, clip, rate] { audio->playTxClip(clip, rate); }, Qt::QueuedConnection);
+        qCInfo(lcMobile) << "voice macro play F" << id << clip.size() / sizeof(float) / double(rate) << "s";
+        emit dvkChanged();
+        return;
+    }
     DvkModel& dvk = m_session.radioModel().dvkModel();
     if (dvk.status() == DvkModel::Playback) {
         dvk.playbackStop();
@@ -1203,6 +1284,25 @@ void MobileEngine::dvkPlay(int id)
 
 void MobileEngine::dvkRecord(int id)
 {
+    if (!dvkOnRadio()) {
+        AudioEngine* audio = m_audio;
+        if (m_voiceState == QLatin1String("recording")) {
+            QMetaObject::invokeMethod(audio, &AudioEngine::stopTxClipRecording, Qt::QueuedConnection);
+            return;
+        }
+        if (m_voiceState != QLatin1String("idle") || m_pttHeld) {
+            return;
+        }
+        // Recording opens the microphone into a clip; nothing is sent.
+        m_voiceState = QStringLiteral("recording");
+        m_voiceActiveId = id;
+        startDeviceMicrophoneCapture();
+        QMetaObject::invokeMethod(audio, [audio] { audio->startTxClipRecording(kVoiceClipMaxMs); },
+                                  Qt::QueuedConnection);
+        qCInfo(lcMobile) << "voice macro record F" << id;
+        emit dvkChanged();
+        return;
+    }
     DvkModel& dvk = m_session.radioModel().dvkModel();
     if (dvk.status() == DvkModel::Recording) {
         dvk.recStop();
@@ -1221,8 +1321,43 @@ void MobileEngine::dvkRecord(int id)
     dvk.recStart(id);
 }
 
+void MobileEngine::onVoiceClipRecorded(const QByteArray& clip, int rate)
+{
+    const int id = m_voiceActiveId;
+    if (!m_pttHeld) {
+        stopDeviceMicrophoneCapture();
+    }
+    m_voiceState = QStringLiteral("idle");
+    if (id >= 1 && id <= DvkModel::kSlotCount && !clip.isEmpty() && rate > 0) {
+        QDir().mkpath(QFileInfo(voiceClipPath(id)).absolutePath());
+        QFile file(voiceClipPath(id));
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            file.write(clip);
+            AppSettings::instance().setValue(voiceRateKey(id), rate);
+            AppSettings::instance().save();
+            qCInfo(lcMobile) << "voice macro saved F" << id << clip.size() / sizeof(float) / double(rate) << "s at"
+                             << rate << "Hz";
+        } else {
+            setLastError(tr("The voice macro could not be saved."));
+        }
+    }
+    emit dvkChanged();
+}
+
+void MobileEngine::onVoiceClipFinished()
+{
+    if (m_voiceState == QLatin1String("playback")) {
+        m_voiceState = QStringLiteral("idle");
+        releasePtt(QStringLiteral("voice macro done"));
+        emit dvkChanged();
+    }
+}
+
 void MobileEngine::dvkPreview(int id)
 {
+    if (!dvkOnRadio()) {
+        return;  // the app's clips play only on the air
+    }
     DvkModel& dvk = m_session.radioModel().dvkModel();
     if (dvk.status() == DvkModel::Preview) {
         dvk.previewStop();
@@ -1235,6 +1370,14 @@ void MobileEngine::dvkPreview(int id)
 
 void MobileEngine::dvkStop()
 {
+    if (!dvkOnRadio()) {
+        if (m_voiceState == QLatin1String("recording")) {
+            QMetaObject::invokeMethod(m_audio, &AudioEngine::stopTxClipRecording, Qt::QueuedConnection);
+        } else if (m_voiceState == QLatin1String("playback")) {
+            QMetaObject::invokeMethod(m_audio, &AudioEngine::stopTxClip, Qt::QueuedConnection);
+        }
+        return;
+    }
     DvkModel& dvk = m_session.radioModel().dvkModel();
     switch (dvk.status()) {
     case DvkModel::Recording: dvk.recStop(); break;
@@ -1246,11 +1389,24 @@ void MobileEngine::dvkStop()
 
 void MobileEngine::dvkClear(int id)
 {
+    if (!dvkOnRadio()) {
+        QFile::remove(voiceClipPath(id));
+        AppSettings::instance().remove(voiceRateKey(id));
+        AppSettings::instance().save();
+        emit dvkChanged();
+        return;
+    }
     m_session.radioModel().dvkModel().clear(id);
 }
 
 void MobileEngine::dvkRename(int id, const QString& name)
 {
+    if (!dvkOnRadio()) {
+        AppSettings::instance().setValue(voiceNameKey(id), name.trimmed().left(40));
+        AppSettings::instance().save();
+        emit dvkChanged();
+        return;
+    }
     m_session.radioModel().dvkModel().setName(id, DvkModel::sanitizeName(name));
 }
 
@@ -1497,6 +1653,12 @@ void MobileEngine::releasePtt(const QString& reason)
     m_pttHeld = false;
     m_pttInput.stop();
     stopDeviceMicrophoneCapture();
+    // A voice macro ends with its PTT press.
+    if (m_voiceState == QLatin1String("playback")) {
+        m_voiceState = QStringLiteral("idle");
+        QMetaObject::invokeMethod(m_audio, &AudioEngine::stopTxClip, Qt::QueuedConnection);
+        emit dvkChanged();
+    }
     qCInfo(lcMobile).noquote() << "PTT released:" << reason;
     // What left for the radio during this press: a steady rate and short
     // gaps mean stutter heard on the air comes from the network (VPN) or the

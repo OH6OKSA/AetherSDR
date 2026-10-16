@@ -250,6 +250,9 @@ class MobileEngine : public QObject {
     // "idle", "recording", "preview", "playback", "unavailable".
     Q_PROPERTY(QString dvkState READ dvkState NOTIFY dvkChanged)
     Q_PROPERTY(int dvkActiveId READ dvkActiveId NOTIFY dvkChanged)
+    // True: the radio's DVK (licensed); false: the app's own voice macros,
+    // recorded and kept on this device and played into the TX audio.
+    Q_PROPERTY(bool dvkOnRadio READ dvkOnRadio NOTIFY dvkChanged)
     Q_PROPERTY(int procLevel READ procLevel WRITE setProcLevel NOTIFY txAudioChanged)
     Q_PROPERTY(int procLevelMax READ procLevelMax NOTIFY txAudioChanged)
     Q_PROPERTY(bool monitor READ monitor WRITE setMonitor NOTIFY txAudioChanged)
@@ -508,6 +511,10 @@ public:
     Q_INVOKABLE void toggleMox();
     QVariantList dvkSlots() const;
     QString dvkState() const;
+    bool dvkOnRadio() const;
+    // A SmartSDR+ feature the radio's license status allows (true until the
+    // radio has reported it).
+    bool radioFeatureLicensed(const QString& feature) const;
     int dvkActiveId() const;
     // Tap again to stop. Play transmits; record and preview do not.
     Q_INVOKABLE void dvkPlay(int id);
@@ -808,6 +815,10 @@ private:
     bool m_dvkRecordingMic{false};
     int m_dvkRecordSlot{0};
     static QString dvkStateName(int status);
+    void onVoiceClipRecorded(const QByteArray& clip, int rate);
+    void onVoiceClipFinished();
+    QString m_voiceState{QStringLiteral("idle")};
+    int m_voiceActiveId{-1};
     bool m_cwKeyHeld{false};
     std::unique_ptr<CwRxModel> m_cwDecoder;
     std::unique_ptr<DecoderAudioModel> m_cwAudio;

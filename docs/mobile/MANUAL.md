@@ -303,6 +303,14 @@ them back into the drawer.
   expander, on/off and level) in voice modes, the AM **carrier** level in
   AM/SAM/DSB, monitor (MON), radio mic level, device mic gain, microphone
   choice and the transmit filter (low and high cut).
+  - **Voice keyer** (voice modes) — twelve voice macros F1–F12. Tap one to
+    transmit it, tap again to stop; press and hold to record (from this
+    device's microphone; recording does not transmit), rename or clear. On a
+    radio with SmartSDR+ these are the radio's own DVK slots (up to 10 s,
+    shared with other programs, with *Listen* to hear one without
+    transmitting); otherwise the app keeps them on this device (up to 15 s)
+    and plays them into the transmit audio as if spoken. Features that need
+    SmartSDR+ appear only when the radio reports the subscription.
 
 | CW | View | Profiles | Memory |
 |---|---|---|---|
@@ -311,9 +319,13 @@ them back into the drawer.
 - **CW**
   - **Callsign** — the callsign `{CALL}` sends; *Set/Change* writes it to
     the radio (the same setting as SmartSDR's Radio Setup).
-  - **Memories M1–M9** — tap to send (through the radio's CWX keyer at the
-    set speed), press and hold to edit. `{CALL}` becomes your callsign.
-  - **CW text** — type and *Send*; *Stop* clears what is still queued.
+  - **Memories M1–M12** — tap to send (through the radio's CWX keyer at the
+    set speed), press and hold to edit, or F1–F12 on a keyboard. `{CALL}`
+    becomes your callsign. They are the app's own; the radio's stored CWX
+    macros are left alone.
+  - **CW text** — type and *Send*; with **Live** on, each letter goes as you
+    type it (Return sends a space). *Stop*, or Esc, clears what is still
+    queued.
   - Speed, pitch, **Break-in** (QSK) and the **Decoder**. Decoded text shows
     here and along the top of the waterfall; what you send shows there too,
     marked `[TX]`.
@@ -377,6 +389,8 @@ With a Magic Keyboard or trackpad:
 | Space | PTT (hold) |
 | + / − | Zoom |
 | F | Frequency entry |
+| F1–F12 | CW memories (CW modes) or voice macros (voice modes) |
+| Esc | Stop CW text or a voice macro |
 | Scroll | Tune; ⌘-scroll zooms |
 
 **Apple Pencil** drags tune ten times finer, for zero-beating.

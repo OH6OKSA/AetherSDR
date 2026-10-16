@@ -9508,6 +9508,41 @@ void AudioEngine::onCwRecordPump()
     emit cwSidetoneRecordPcmReady(pcm);
 }
 
+void AudioEngine::startTxClipRecording(int maxMs)
+{
+    m_txClipPlaying.clear();
+    m_txClipRecorded.clear();
+    m_txClipMaxFrames = std::max(1, static_cast<int>(static_cast<qint64>(m_txInputRate) * maxMs / 1000));
+    m_txClipRecording = true;
+}
+
+void AudioEngine::stopTxClipRecording()
+{
+    if (!m_txClipRecording) {
+        return;
+    }
+    m_txClipRecording = false;
+    const QByteArray clip = m_txClipRecorded;
+    m_txClipRecorded.clear();
+    emit txClipRecorded(clip, m_txInputRate);
+}
+
+void AudioEngine::playTxClip(const QByteArray& floatMono, int sampleRate)
+{
+    m_txClipRecording = false;
+    m_txClipPlaying = floatMono;
+    m_txClipRate = sampleRate;
+    m_txClipPos = 0.0;
+}
+
+void AudioEngine::stopTxClip()
+{
+    if (!m_txClipPlaying.isEmpty()) {
+        m_txClipPlaying.clear();
+        emit txClipFinished();
+    }
+}
+
 void AudioEngine::onTxAudioReady()
 {
     // If a TCI client is actively feeding TX audio (binary frames via
@@ -9651,6 +9686,58 @@ void AudioEngine::onTxAudioReady()
         return;
     }
     logTxInputChannelDiagnostics(channelDiagnostics, "TX mic");
+
+    // App-side voice keyer. Recording keeps the canonical mono signal (left
+    // of the duplicated stereo pair) and sends nothing; playback overwrites
+    // the block with the clip, frame for frame, so the voice chain below
+    // treats it as the microphone.
+    if (m_txClipRecording || !m_txClipPlaying.isEmpty()) {
+        const int frames = data.size() / static_cast<int>(2 * (capturedFloat32 ? sizeof(float) : sizeof(int16_t)));
+        if (m_txClipRecording) {
+            const int room = m_txClipMaxFrames
+                - static_cast<int>(m_txClipRecorded.size() / static_cast<int>(sizeof(float)));
+            const int take = std::clamp(frames, 0, room);
+            const int at = m_txClipRecorded.size();
+            m_txClipRecorded.resize(at + take * static_cast<int>(sizeof(float)));
+            auto* out = reinterpret_cast<float*>(m_txClipRecorded.data() + at);
+            for (int i = 0; i < take; ++i) {
+                out[i] = capturedFloat32 ? reinterpret_cast<const float*>(data.constData())[i * 2]
+                                         : reinterpret_cast<const int16_t*>(data.constData())[i * 2] / 32768.0f;
+            }
+            if (take < frames) {
+                stopTxClipRecording();
+            }
+            return;
+        }
+        const auto* clip = reinterpret_cast<const float*>(m_txClipPlaying.constData());
+        const int clipFrames = m_txClipPlaying.size() / static_cast<int>(sizeof(float));
+        // Linear resampling when the clip was captured at another rate.
+        const double step = m_txInputRate > 0 && m_txClipRate > 0
+            ? static_cast<double>(m_txClipRate) / m_txInputRate : 1.0;
+        bool ended = false;
+        for (int i = 0; i < frames; ++i) {
+            float v = 0.0f;
+            const int i0 = static_cast<int>(m_txClipPos);
+            if (i0 + 1 < clipFrames) {
+                const float t = static_cast<float>(m_txClipPos - i0);
+                v = clip[i0] + (clip[i0 + 1] - clip[i0]) * t;
+                m_txClipPos += step;
+            } else {
+                ended = true;
+            }
+            if (capturedFloat32) {
+                auto* f = reinterpret_cast<float*>(data.data());
+                f[i * 2] = f[i * 2 + 1] = v;
+            } else {
+                auto* s = reinterpret_cast<int16_t*>(data.data());
+                s[i * 2] = s[i * 2 + 1] = static_cast<int16_t>(std::clamp(v * 32768.0f, -32768.0f, 32767.0f));
+            }
+        }
+        if (ended) {
+            m_txClipPlaying.clear();
+            emit txClipFinished();
+        }
+    }
 
     // RADE remains a fixed 24 kHz island. Voice skips this block and enters
     // TxVoiceProcessor at the negotiated device rate. Do not call
