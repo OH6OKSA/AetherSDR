@@ -4,9 +4,14 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• 3D, spektri ja vesiputous kuten desktop-AetherSDR:ssä: 3D liukuu pehmeästi, ei välky, kapeat kantoaallot eivät katoa, sivujen tyhjät kolmiot täyttyvät ja suodatinkaista näkyy 3D-pinnassa. Kerro, onko 3D sujuva ja pysyykö laite viileänä.
-• View: 3D floor ja 3D gain; Range toimii myös Autossa. 3D:n dBm-asteikkoa raahaamalla säädät 3D floorin.
-• Pystyasennossa 3D on vaaka-asennon muotoinen.
+• DSP-tasot: suodatinvalikossa liukusäädin jokaiselle päällä olevalle DSP:lle, uutena WNB.
+• Viritysaskel infopaneelin alarivillä (napauta).
+• Kaiutinvalikko: jokaisen slicen voimakkuus, mute ja pan.
+• Radio Setup → Connected stations: radion muut asemat ja niiden katkaisu.
+• TX: MOX, VOX (taso, viive), DEXP, AM-kantoaalto. [TX]
+• Välilyönti toimii PTT:nä myös napin napautuksen jälkeen. 3D smoothing (View).
+• Lähetyksen pätkiminen: lokiin tulee jokaisen PTT:n jälkeen rivi "TX audio". Jos lähetys pätkii, lähetä loki.
+• Mukana AetherSDR:n uusimmat korjaukset (mm. äänipakettien priorisointi Wi-Fissä).
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
