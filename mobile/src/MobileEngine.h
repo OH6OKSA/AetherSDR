@@ -815,6 +815,9 @@ private:
     bool m_dvkRecordingMic{false};
     int m_dvkRecordSlot{0};
     static QString dvkStateName(int status);
+    void ensurePanDbmRange(const QString& panId);
+    qint64 m_lastDbmRangeSendMs{0};
+    bool m_dbmRangeRetryPending{false};
     void onVoiceClipRecorded(const QByteArray& clip, int rate);
     void onVoiceClipFinished();
     QString m_voiceState{QStringLiteral("idle")};

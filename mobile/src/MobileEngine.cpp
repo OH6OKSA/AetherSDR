@@ -3272,6 +3272,10 @@ void MobileEngine::bindPan(PanadapterModel* pan)
         m_panConnections.append(connect(pan, &PanadapterModel::infoChanged, this, &MobileEngine::panGeometryChanged));
         m_panConnections.append(connect(pan, &PanadapterModel::rfGainChanged, this, &MobileEngine::rfGainChanged));
         m_panConnections.append(connect(pan, &PanadapterModel::wnbChanged, this, &MobileEngine::dspChanged));
+        // A band change restores the band's stored dBm scale: put ours back.
+        m_panConnections.append(connect(pan, &PanadapterModel::levelChanged, this, [this, id = pan->panId()] {
+            QTimer::singleShot(300, this, [this, id] { ensurePanDbmRange(id); });
+        }));
         m_panConnections.append(connect(pan, &PanadapterModel::rfGainInfoChanged, this, &MobileEngine::rfGainChanged));
         sendPanDimensions(pan->panId());
     }
@@ -3312,14 +3316,41 @@ void MobileEngine::sendPanDimensions(const QString& panId)
         rm.sendCommand(QStringLiteral("display pan set %1 xpixels=%2 ypixels=%3")
                            .arg(panId).arg(m_panWidth).arg(yPixels));
     }
+    ensurePanDbmRange(panId);
+}
+
+void MobileEngine::ensurePanDbmRange(const QString& panId)
+{
+    // The radio keeps a dBm scale per band and restores it on a band change
+    // (160 m came back at -112..-17 dBm, pinning 96 % of the bins flat), so
+    // the app's wide scale goes back whenever the pan reports another one.
+    // At most every 2 s, so a client that insists cannot start a tug of war.
+    RadioModel& rm = m_session.radioModel();
     const PanadapterModel* pan = rm.panadapter(panId);
-    if (rm.hasCommandPlane()
-        && (std::abs(pan->minDbm() - kPanMinDbm) > 0.5f || std::abs(pan->maxDbm() - kPanMaxDbm) > 0.5f)) {
-        rm.sendCommand(QStringLiteral("display pan set %1 min_dbm=%2 max_dbm=%3")
-                           .arg(panId)
-                           .arg(static_cast<double>(kPanMinDbm), 0, 'f', 2)
-                           .arg(static_cast<double>(kPanMaxDbm), 0, 'f', 2));
+    if (!pan || !rm.hasCommandPlane()
+        || (std::abs(pan->minDbm() - kPanMinDbm) <= 0.5f && std::abs(pan->maxDbm() - kPanMaxDbm) <= 0.5f)) {
+        return;
     }
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (now - m_lastDbmRangeSendMs < 2000) {
+        // Too soon after the last write: look again once the 2 s have passed.
+        if (!m_dbmRangeRetryPending) {
+            m_dbmRangeRetryPending = true;
+            QTimer::singleShot(2050 - (now - m_lastDbmRangeSendMs), this, [this, panId] {
+                m_dbmRangeRetryPending = false;
+                ensurePanDbmRange(panId);
+            });
+        }
+        return;
+    }
+    m_lastDbmRangeSendMs = now;
+    qCInfo(lcMobile).noquote() << QStringLiteral("pan dBm scale %1..%2 -> %3..%4")
+                                      .arg(pan->minDbm(), 0, 'f', 0).arg(pan->maxDbm(), 0, 'f', 0)
+                                      .arg(kPanMinDbm, 0, 'f', 0).arg(kPanMaxDbm, 0, 'f', 0);
+    rm.sendCommand(QStringLiteral("display pan set %1 min_dbm=%2 max_dbm=%3")
+                       .arg(panId)
+                       .arg(static_cast<double>(kPanMinDbm), 0, 'f', 2)
+                       .arg(static_cast<double>(kPanMaxDbm), 0, 'f', 2));
 }
 
 double MobileEngine::frequencyMhz() const
