@@ -102,6 +102,9 @@ a hardware keyboard), then *Tune*.
 
 **Mode.** Tap the mode (e.g. *USB ▼*) and choose another.
 
+**STEP** (under the mode, e.g. *STEP 100 Hz*) is the tuning step: tap it to
+choose from the radio's list. Tap-tune, arrow keys and the Pencil use it.
+
 ![Mode chooser](manual/mode.jpg)
 
 **Band buttons.** Each band returns to the frequency and mode you last used
@@ -125,17 +128,18 @@ is a touch target with its choices behind it:
 |---|---|---|
 | **A** (blue) | Slice letter | — |
 | **TX** (red) | This slice transmits | — |
-| **SPLIT** | Split on (amber) or off (grey) | Start or end [split](#6-split); hold to pick the offset |
 | **ANT1** (blue) | Receive antenna | Choose the RX antenna |
 | **ANT1** (red) | Transmit antenna | Choose the TX antenna |
 | **2.7K** | Receive filter width | Filters and DSP |
+| **AGC-M** | AGC mode | AGC mode, AGC threshold and RF gain |
 | Speaker | Audio on (blue) / muted (red) | Every slice's volume (AF gain), Mute and pan (left–right; double-tap centres) |
 | Lock | Tuning lock open / locked | Lock or unlock tuning (flashes when a tune is refused) |
+| **SPLIT** | Split on (amber) or off (grey) | Start or end [split](#6-split); hold to pick the offset |
 | **NB NR ANF NRL …** | Every DSP the radio offers, bright when on (on an iPhone the rarer ones only while on) | Filters and DSP |
-| **AGC-M** | AGC mode | AGC mode, AGC threshold and RF gain |
-| **100 Hz** | Tuning step | Choose the step from the radio's list (tap-tune, arrow keys and Pencil use it) |
 
-On an iPhone the panel is one row (under the frequency in portrait).
+The settings that are always there come first; split and the DSP flags
+follow on a second row. On an iPhone in portrait STEP and the antennas, width and AGC sit beside the
+frequency and the rest under it; in landscape it is one row, STEP first.
 
 **Filters and DSP** — the mode's eight filter widths (the active one dark;
 choosing one closes the window) and the radio's DSP: NR, NB, ANF, APF (CW),
