@@ -22,8 +22,7 @@ SmartLink (or your own VPN), it is a complete station control surface.
   <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="AetherSDR Mobile on iPhone in portrait"/>
 </p>
 
-**[Join the TestFlight test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)**: what you need and what to
-email to oh6oksa@gmail.com.
+**[Join the TestFlight test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)**: what you need and how to join.
 
 **[User manual](docs/mobile/MANUAL.md)** — every function, with screenshots
 (also the app's *Manual* button).
