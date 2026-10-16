@@ -758,6 +758,27 @@ private:
     QList<QMetaObject::Connection> m_sliceConnections;
     QList<QMetaObject::Connection> m_panConnections;
     QMetaObject::Connection m_txSinkConnection;
+    // Transmit audio as it leaves for the radio, per PTT press: packets,
+    // bytes, the longest gap between sends and packets the dispatch fence
+    // stopped. Written on the network thread, read when PTT is released.
+    struct TxSendStats {
+        std::atomic<int> packets{0};
+        std::atomic<int> fenced{0};
+        std::atomic<qint64> bytes{0};
+        std::atomic<qint64> firstMs{0};
+        std::atomic<qint64> lastMs{0};
+        std::atomic<qint64> maxGapMs{0};
+        void reset()
+        {
+            packets = 0;
+            fenced = 0;
+            bytes = 0;
+            firstMs = 0;
+            lastMs = 0;
+            maxGapMs = 0;
+        }
+    };
+    std::shared_ptr<TxSendStats> m_txSendStats{std::make_shared<TxSendStats>()};
     TxCoordinator::Producer m_microphoneProducer;
     TxController::Input m_pttInput;
     TxController::Input m_tuneInput;

@@ -9,6 +9,7 @@
 
 #include <QCommandLineParser>
 #include <QGuiApplication>
+#include <QSysInfo>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -93,6 +94,13 @@ int main(int argc, char* argv[])
     // Settings load before any model or the AudioEngine is constructed.
     AetherSDR::AppSettings::instance().load();
     static_cast<void>(AetherSDR::Nr2SettingsModel::instance());
+    // The radio shows a station name in every client's station list. iOS
+    // gives apps no device name (the host name reads "localhost"), so name
+    // the station after the app unless one was set.
+    if (AetherSDR::AppSettings::instance().value(QStringLiteral("StationName")).toString().isEmpty()
+        && QSysInfo::machineHostName() == QLatin1String("localhost")) {
+        AetherSDR::AppSettings::instance().setValue(QStringLiteral("StationName"), QStringLiteral("AetherSDR-Mobile"));
+    }
     AetherSDR::AppSettings::instance().initializeGuiClientIdentity();
 
     QQuickStyle::setStyle(QStringLiteral("Basic"));

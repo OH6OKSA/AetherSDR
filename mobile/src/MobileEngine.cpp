@@ -805,10 +805,24 @@ void MobileEngine::wireTxPacketSink()
     // Every TX packet passes the coordinator's dispatch fence before it
     // reaches the radio; a stale or revoked context sends nothing.
     m_txSinkConnection = connect(m_audio, &AudioEngine::txPacketReady, ps,
-        [ps](const QByteArray& packet, const TxCoordinator::Context& context) {
-            const TxCoordinator::Dispatch dispatch = context.beginDispatch(TxCoordinator::monotonicMs());
+        [ps, stats = m_txSendStats](const QByteArray& packet, const TxCoordinator::Context& context) {
+            const qint64 now = TxCoordinator::monotonicMs();
+            const TxCoordinator::Dispatch dispatch = context.beginDispatch(now);
             if (dispatch) {
                 ps->sendToRadio(packet);
+                const qint64 last = stats->lastMs.exchange(now);
+                if (last > 0) {
+                    const qint64 gap = now - last;
+                    if (gap > stats->maxGapMs) {
+                        stats->maxGapMs = gap;
+                    }
+                } else {
+                    stats->firstMs = now;
+                }
+                ++stats->packets;
+                stats->bytes += packet.size();
+            } else {
+                ++stats->fenced;
             }
         });
 }
@@ -1321,6 +1335,7 @@ void MobileEngine::setPtt(bool down, const QString& reason)
         return;
     }
     qCInfo(lcMobile) << "PTT keyed";
+    m_txSendStats->reset();
     startDeviceMicrophoneCapture();
 }
 
@@ -1333,6 +1348,20 @@ void MobileEngine::releasePtt(const QString& reason)
     m_pttInput.stop();
     stopDeviceMicrophoneCapture();
     qCInfo(lcMobile).noquote() << "PTT released:" << reason;
+    // What left for the radio during this press: a steady rate and short
+    // gaps mean stutter heard on the air comes from the network (VPN) or the
+    // radio, long gaps that the phone sent unevenly.
+    const TxSendStats& st = *m_txSendStats;
+    const int packets = st.packets;
+    const qint64 spanMs = packets > 1 ? st.lastMs - st.firstMs : 0;
+    qCInfo(lcMobile).noquote()
+        << QStringLiteral("TX audio: %1 packets in %2 s (%3/s), %4 bytes each, send gap max %5 ms, %6 stopped by the fence")
+               .arg(packets)
+               .arg(spanMs / 1000.0, 0, 'f', 1)
+               .arg(spanMs > 0 ? qRound(packets * 1000.0 / spanMs) : 0)
+               .arg(packets > 0 ? qRound(static_cast<double>(st.bytes) / packets) : 0)
+               .arg(static_cast<qint64>(st.maxGapMs))
+               .arg(static_cast<int>(st.fenced));
 }
 
 // ---- tuning, bands, filters ------------------------------------------------
