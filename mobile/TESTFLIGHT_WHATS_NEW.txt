@@ -4,14 +4,10 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
-• DSP-tasot: suodatinvalikossa liukusäädin jokaiselle päällä olevalle DSP:lle, uutena WNB.
-• Viritysaskel infopaneelin alarivillä (napauta).
-• Kaiutinvalikko: jokaisen slicen voimakkuus, mute ja pan.
-• Radio Setup → Connected stations: radion muut asemat ja niiden katkaisu.
-• TX: MOX, VOX (taso, viive), DEXP, AM-kantoaalto. [TX]
-• Välilyönti toimii PTT:nä myös napin napautuksen jälkeen. 3D smoothing (View).
-• Lähetyksen pätkiminen: lokiin tulee jokaisen PTT:n jälkeen rivi "TX audio". Jos lähetys pätkii, lähetä loki.
-• Mukana AetherSDR:n uusimmat korjaukset (mm. äänipakettien priorisointi Wi-Fissä).
+• Lähetysääni: korjaus rämisevään/pätkivään lähetykseen joillain iPhoneilla. Lähetä loki muutaman PTT:n jälkeen ("TX audio" -rivit). [TX]
+• CW: 12 muistia, F1–F12 näppäimistöltä, Esc keskeyttää, Live-tila (kirjaimet lähtevät kirjoittaessa). [TX]
+• Äänimakrot (TX → Voice keyer): 12 paikkaa, pitkä painallus tallentaa. Ilman SmartSDR+:aa tallenteet ovat puhelimessa. [TX]
+• Edelliseltä: DSP-tasot, viritysaskel, slicekohtainen ääni, Connected stations, MOX/VOX/DEXP.
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.
