@@ -1,6 +1,6 @@
-# Joining the AetherSDR Mobile test group
+# Joining the OksaSDR test group
 
-AetherSDR Mobile is tested through Apple's **TestFlight** by a small group of
+OksaSDR is tested through Apple's **TestFlight** by a small group of
 amateur radio operators. This page explains what you need, what to send, and
 what happens after you join.
 
@@ -19,7 +19,7 @@ what happens after you join.
 ## How to join
 
 Send an email to **oh6oksa@gmail.com** with the subject
-**"AetherSDR Mobile tester"** and these details:
+**"OksaSDR tester"** and these details:
 
 1. **Your name and callsign.**
 2. **The email address for the TestFlight invitation.** You can accept it
@@ -36,7 +36,7 @@ Send an email to **oh6oksa@gmail.com** with the subject
 Template to copy:
 
 ```text
-Subject: AetherSDR Mobile tester
+Subject: OksaSDR tester
 
 Name and callsign:
 Email for the TestFlight invitation:
@@ -81,8 +81,8 @@ to send through TestFlight.
 
 ## Leaving the test group
 
-Delete the app, or open TestFlight → AetherSDR Mobile → **Stop Testing**.
+Delete the app, or open TestFlight → OksaSDR → **Stop Testing**.
 Send an email if you would like your address removed from the tester list.
 
-This is an unofficial community build, not affiliated with FlexRadio and not
-an official AetherSDR release. 73!
+OksaSDR is built on the AetherSDR engine. It is not affiliated with FlexRadio
+and is not an official AetherSDR app. 73!

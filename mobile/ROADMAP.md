@@ -1,4 +1,4 @@
-# AetherSDR Mobile — status and roadmap
+# OksaSDR — status and roadmap
 
 Updated with every build. The newest TestFlight build is at the top; what is
 queued, waiting on someone, or still to verify follows.

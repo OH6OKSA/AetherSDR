@@ -1,9 +1,10 @@
-AetherSDR Mobile – testattavaa
+OksaSDR – testattavaa
 
 Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti sekä laitteen malli osoitteeseen oh6oksa@gmail.com.
 [TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
 
 UUTTA TÄSSÄ BUILDISSA
+• Uusi nimi: OksaSDR (ennen AetherSDR Mobile). Asetukset ja äänimakrot säilyvät.
 • Viritysaskel toimii: STEP moden alla, kaikki askeleet valittavissa.
 • Bändin vaihdon jälkeen spektri ja 3D pysyvät oikealla asteikolla (esim. 80 m → 160 m).
 • Infopalkissa aina näkyvät asiat (antenni, leveys, AGC) ensin, DSP-valinnat perässä; iPhonen yläosa tiiviimpi.
@@ -13,7 +14,6 @@ UUTTA TÄSSÄ BUILDISSA
 • SPLIT pitkä painallus: +1, +5 tai +10 kHz.
 • Mittarit pitävät huippuarvon 1,5 s (keltainen neula).
 • VOX ja DEXP näkyvät vain radion omalla mikrofonilla (PC-mikrofonilla PTT riittää).
-• Edelliseltä: lähetyksen alku ilman viivettä ja kohahdusta, äänimakrot, CW 12 muistia. [TX]
 
 YHTEYS
 • Suora yhteys omalla IP-osoitteella.

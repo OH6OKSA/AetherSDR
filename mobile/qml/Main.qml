@@ -7,7 +7,7 @@ ApplicationWindow {
     width: 1366
     height: 1024
     visible: true
-    title: qsTr("AetherSDR")
+    title: qsTr("OksaSDR")
     color: Theme.background
 
     // Phone-sized windows (iPhone, folded iPhone Duo, narrow Split View)

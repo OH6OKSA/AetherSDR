@@ -108,7 +108,7 @@ void LogBuffer::append(const QString& line)
 
 QString LogBuffer::report() const
 {
-    return QStringLiteral("AetherSDR Mobile %1 (build %2) — %3\n\n%4")
+    return QStringLiteral("OksaSDR %1 (build %2) — %3\n\n%4")
         .arg(QGuiApplication::applicationVersion(), QStringLiteral(AETHER_MOBILE_BUILD_NUMBER),
              QSysInfo::prettyProductName(), text());
 }
@@ -120,7 +120,7 @@ void LogBuffer::copyToClipboard() const
 
 bool LogBuffer::share() const
 {
-    return shareText(QStringLiteral("AetherSDR Mobile log"), report());
+    return shareText(QStringLiteral("OksaSDR log"), report());
 }
 
 void LogBuffer::clear()

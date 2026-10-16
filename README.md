@@ -1,25 +1,27 @@
-# AetherSDR Mobile
+# OksaSDR
 
-**An unofficial iPad and iPhone port of [AetherSDR](https://github.com/aethersdr/AetherSDR), the open-source FlexRadio client.**
+**A FlexRadio client for iPad and iPhone, built on the [AetherSDR](https://github.com/aethersdr/AetherSDR) engine.**
 
 [![Mobile iOS build](https://github.com/OH6OKSA/AetherSDR/actions/workflows/mobile-ios.yml/badge.svg?branch=mobile/aether-mobile-core)](https://github.com/OH6OKSA/AetherSDR/actions/workflows/mobile-ios.yml)
 ![Platform](https://img.shields.io/badge/platform-iPadOS%20%7C%20iOS%2018%2B-blue)
 ![Status](https://img.shields.io/badge/status-TestFlight%20beta-orange)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-AetherSDR Mobile runs the AetherSDR engine (`libaethercore`) on the iPad or
+OksaSDR runs the AetherSDR engine (`libaethercore`) on the iPad or
 iPhone and talks to the radio directly. There is no PC, server, `aetherd` or
 SmartSDR in between: at home on the same network, or from anywhere over
 SmartLink (or your own VPN), it is a complete station control surface.
 
-> This fork is maintained by Niko Oksa, OH6OKSA. It is **not** an official
-> AetherSDR release. The aim is to offer the work upstream; see
+> OksaSDR is maintained by Niko Oksa, OH6OKSA, and was called *AetherSDR
+> Mobile* until build 70. It is **not** an official AetherSDR app: the
+> AetherSDR project plans its own mobile app. Engine work is offered
+> upstream; see
 > [discussion #6409](https://github.com/aethersdr/AetherSDR/discussions/6409).
 
 <p align="center">
-  <img src="docs/mobile/ipad-landscape.jpg" width="70%" alt="AetherSDR Mobile on a 12.9-inch iPad: panadapter, waterfall and controls"/>
+  <img src="docs/mobile/ipad-landscape.jpg" width="70%" alt="OksaSDR on a 12.9-inch iPad: panadapter, waterfall and controls"/>
   &nbsp;
-  <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="AetherSDR Mobile on iPhone in portrait"/>
+  <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="OksaSDR on iPhone in portrait"/>
 </p>
 
 **[Join the TestFlight test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)**: what you need and how to join.
@@ -29,7 +31,7 @@ SmartLink (or your own VPN), it is a complete station control surface.
 
 ## Support
 
-AetherSDR Mobile is free. If it is useful to you and you would like to buy
+OksaSDR is free. If it is useful to you and you would like to buy
 me a beer, you can do it through
 **[PayPal](https://www.paypal.me/NikoOksa)**. The desktop project that
 makes all of this possible takes support through

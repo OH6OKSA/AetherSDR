@@ -48,7 +48,7 @@ Page {
             RowLayout {
                 Layout.fillWidth: true
                 Label {
-                    text: qsTr("AetherSDR")
+                    text: qsTr("OksaSDR")
                     color: Theme.text
                     font.pixelSize: 34
                     font.bold: true

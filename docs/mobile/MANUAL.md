@@ -1,6 +1,6 @@
-# AetherSDR Mobile — User Manual
+# OksaSDR — User Manual
 
-AetherSDR Mobile turns an iPad or iPhone into a complete FlexRadio client:
+OksaSDR turns an iPad or iPhone into a complete FlexRadio client:
 panadapter and waterfall, all receive controls, transmit (voice, CW, tune)
 and SmartLink remote operation, with no computer alongside.
 

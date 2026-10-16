@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Developer-link receiver for AetherSDR Mobile.
+"""Developer-link receiver for OksaSDR.
 
   devlink.py serve --out DIR      listen on 0.0.0.0:47100 for the app; write
                                   DIR/devlink.log and DIR/shot-*.jpg

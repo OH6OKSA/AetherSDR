@@ -1,7 +1,7 @@
-# AetherSDR Mobile: privacy policy
+# OksaSDR: privacy policy
 
-AetherSDR Mobile is an unofficial community build of
-[AetherSDR](https://github.com/aethersdr/AetherSDR) for iPad and iPhone. It is
+OksaSDR is a FlexRadio client for iPad and iPhone, built on the
+[AetherSDR](https://github.com/aethersdr/AetherSDR) engine. It is
 maintained by Niko Oksa (OH6OKSA). This policy covers the app distributed
 through TestFlight from
 [this source](https://github.com/OH6OKSA/AetherSDR/tree/mobile/aether-mobile-core).

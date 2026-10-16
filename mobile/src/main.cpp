@@ -26,10 +26,12 @@ int main(int argc, char* argv[])
     AetherSDR::mobile::configureAudioSession();
     // Settings and config paths derive from these names; the mobile client
     // keeps its own settings, apart from a desktop install on the same host.
+    // They stay as they are after the rename to OksaSDR, so settings and
+    // voice macros carry over.
     QGuiApplication::setApplicationName(QStringLiteral("AetherSDR-Mobile"));
     QGuiApplication::setOrganizationName(QStringLiteral("AetherSDR"));
     QGuiApplication::setApplicationVersion(QStringLiteral(AETHERSDR_VERSION));
-    qInfo().noquote() << QStringLiteral("AetherSDR Mobile %1 (build %2)")
+    qInfo().noquote() << QStringLiteral("OksaSDR %1 (build %2)")
                              .arg(QStringLiteral(AETHERSDR_VERSION), QStringLiteral(AETHER_MOBILE_BUILD_NUMBER));
 
     QCommandLineParser parser;
@@ -100,10 +102,15 @@ int main(int argc, char* argv[])
     static_cast<void>(AetherSDR::Nr2SettingsModel::instance());
     // The radio shows a station name in every client's station list. iOS
     // gives apps no device name (the host name reads "localhost"), so name
-    // the station after the app unless one was set.
-    if (AetherSDR::AppSettings::instance().value(QStringLiteral("StationName")).toString().isEmpty()
-        && QSysInfo::machineHostName() == QLatin1String("localhost")) {
-        AetherSDR::AppSettings::instance().setValue(QStringLiteral("StationName"), QStringLiteral("AetherSDR-Mobile"));
+    // the station after the app unless the user set one (the app's former
+    // default counts as unset).
+    {
+        const QString station =
+            AetherSDR::AppSettings::instance().value(QStringLiteral("StationName")).toString();
+        if ((station.isEmpty() || station == QLatin1String("AetherSDR-Mobile"))
+            && QSysInfo::machineHostName() == QLatin1String("localhost")) {
+            AetherSDR::AppSettings::instance().setValue(QStringLiteral("StationName"), QStringLiteral("OksaSDR"));
+        }
     }
     AetherSDR::AppSettings::instance().initializeGuiClientIdentity();
 
