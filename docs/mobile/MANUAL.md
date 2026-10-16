@@ -300,7 +300,9 @@ them back into the drawer.
 - **TX** — TUNE, **MOX** (transmit latched on until tapped again) and the
   ATU (tune, bypass, memories), tune power, RF power, speech processor (PROC
   NOR/DX/DX+), **VOX** (on/off, level and delay) and **DEXP** (the downward
-  expander, on/off and level) in voice modes, the AM **carrier** level in
+  expander, on/off and level) in voice modes — shown only when the radio's
+  own microphone input is selected, as they do nothing with this device's
+  microphone — the AM **carrier** level in
   AM/SAM/DSB, monitor (MON), radio mic level, device mic gain, microphone
   choice and the transmit filter (low and high cut).
   - **Voice keyer** (voice modes) — twelve voice macros F1–F12. Tap one to

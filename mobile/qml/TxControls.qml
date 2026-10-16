@@ -170,9 +170,13 @@ ColumnLayout {
             horizontalAlignment: Text.AlignRight
         }
     }
-    PhoneLevel { visible: !Engine.cwMode; key: "voxLevel"; toggleKey: "voxOn"; title: qsTr("VOX") }
-    PhoneLevel { visible: !Engine.cwMode; key: "voxDelay"; title: qsTr("Delay") }
-    PhoneLevel { visible: !Engine.cwMode; key: "dexpLevel"; toggleKey: "dexpOn"; title: qsTr("DEXP") }
+    // VOX and DEXP act on the radio's own microphone input only: with this
+    // device's microphone (mic input PC, which opens only while PTT is held)
+    // neither can do anything, so they show only when a radio input is
+    // selected (canUseDeviceMicrophone: the radio's mic, PC available).
+    PhoneLevel { visible: !Engine.cwMode && Engine.canUseDeviceMicrophone; key: "voxLevel"; toggleKey: "voxOn"; title: qsTr("VOX") }
+    PhoneLevel { visible: !Engine.cwMode && Engine.canUseDeviceMicrophone; key: "voxDelay"; title: qsTr("Delay") }
+    PhoneLevel { visible: !Engine.cwMode && Engine.canUseDeviceMicrophone; key: "dexpLevel"; toggleKey: "dexpOn"; title: qsTr("DEXP") }
     PhoneLevel {
         visible: ["AM", "SAM", "DSB"].indexOf(Engine.mode) >= 0
         key: "amCarrier"
