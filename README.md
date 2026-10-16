@@ -9,8 +9,8 @@
 
 AetherSDR Mobile runs the AetherSDR engine (`libaethercore`) on the iPad or
 iPhone and talks to the radio directly. There is no PC, server, `aetherd` or
-SmartSDR in between: if the device can reach the radio on the network, it is
-a complete station control surface.
+SmartSDR in between: at home on the same network, or from anywhere over
+SmartLink (or your own VPN), it is a complete station control surface.
 
 > This fork is maintained by Niko Oksa, OH6OKSA. It is **not** an official
 > AetherSDR release. The aim is to offer the work upstream; see
@@ -174,20 +174,21 @@ refreshed with every user-interface change.</sub>
 | iPad and iPhone builds, signing, TestFlight delivery | ✅ Automated in GitHub Actions |
 | RX audio on device | ✅ In daily use by testers, also with Bluetooth headsets |
 | Voice transmit on air (device mic, Bluetooth headset) | ✅ Used on air by testers. Test at low power or into a dummy load first. |
-| Remote over a VPN (connect by IP) | 🧪 In testing (OpenVPN, WireGuard) |
-| SmartLink remote, extra slices/panadapters | 🧪 In testing |
+| SmartLink remote (sign in, connect from anywhere, Opus audio) | ✅ Supported |
+| Remote over your own VPN (connect by IP) | ✅ In use by testers (OpenVPN, WireGuard) |
+| Several slices and panadapters, multiFLEX | ✅ Supported |
 | CW keying, CWX and decoder on air | ⏳ Not yet verified |
 | LAN discovery on iOS | ⏳ Needs Apple's multicast entitlement. Connect by IP for now. |
 
-**Next:** CW and SmartLink on air, and offering the engine-side work
+**Next:** CW on air, and offering the engine-side work
 (beat cancel, packet-loss tracking, TX hand-over) upstream; see
 [discussion #6409](https://github.com/aethersdr/AetherSDR/discussions/6409).
 
 ## Try it
 
 - **TestFlight beta.** Ask for an invitation at oh6oksa@gmail.com. You need
-  iPadOS or iOS 18 or newer and a FlexRadio your device can reach (same
-  network or VPN).
+  iPadOS or iOS 18 or newer and a FlexRadio: on the same network, through
+  SmartLink from anywhere, or over your own VPN.
 - **Build it yourself.** Linux or macOS works for development with the
   built-in demo radio; see [`mobile/README.md`](mobile/README.md):
 
