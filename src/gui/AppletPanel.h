@@ -38,7 +38,6 @@ class SpeApplet;
 class VkampApplet;
 class Kpa1500Applet;
 class LpMeterApplet;
-class Ctr2ProxyApplet;
 class TxApplet;
 class PhoneCwApplet;
 enum class MicMeterSessionState;
@@ -112,7 +111,6 @@ public:
     VkampApplet*  vkampApplet()   { return m_vkampApplet; }
     Kpa1500Applet* kpa1500Applet() { return m_kpa1500Applet; }
     LpMeterApplet* lpMeterApplet() { return m_lpMeterApplet; }
-    Ctr2ProxyApplet* ctr2ProxyApplet() { return m_ctr2ProxyApplet; }
     TxApplet*       txApplet()       { return m_txApplet; }
     PhoneCwApplet*  phoneCwApplet()  { return m_phoneCwApplet; }
     PhoneApplet*    phoneApplet()    { return m_phoneApplet; }
@@ -235,7 +233,7 @@ public:
     // connected radio produces per-slice audio / per-pan IQ streams
     // (RadioCapabilities::hasDaxStreams). Same not-markHardwareConditional
     // reasoning as setProfilesVisible above.
-    void setDaxStreamsVisible(bool visible);
+    void setDaxStreamsVisible(bool visible, bool nativeReceive = false);
 
     // Show/hide the EQ button and applet — the radio's own 8-band hardware
     // equalizer (RadioCapabilities::hasRadioSideDsp). Deliberately does NOT
@@ -420,7 +418,6 @@ private:
     Kpa1500Applet* m_kpa1500Applet{nullptr};
     QPushButton* m_kpa1500Btn{nullptr};
     LpMeterApplet* m_lpMeterApplet{nullptr};
-    Ctr2ProxyApplet* m_ctr2ProxyApplet{nullptr};
     QPushButton* m_vkampBtn{nullptr};
     TxApplet*      m_txApplet{nullptr};
     PhoneCwApplet* m_phoneCwApplet{nullptr};

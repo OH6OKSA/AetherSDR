@@ -21,6 +21,7 @@
 #include "AppletPanel.h"
 #include "DaxApplet.h"
 #include "DocsLinks.h"
+#include "ControlAvailabilityRegistry.h"
 #include "PanadapterApplet.h"
 #include "PanadapterStack.h"
 #include "RadioSetupDialog.h"
@@ -197,7 +198,7 @@ void populateWindowMenu(QMenu* menu, QWidget* primaryWindow,
         }
     });
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     const QString maximizeLabel = QObject::tr("Zoom");
 #else
     const QString maximizeLabel = target && target->isMaximized()
@@ -349,7 +350,18 @@ void MainWindow::buildMenuBar()
         openRadioSetupPage();
     });
 
-    auto* flexControlAction = settingsMenu->addAction("AetherControl...");
+    // Every controller's settings in one submenu, so the Settings menu does
+    // not grow by one entry per supported device.
+    auto* controllersMenu = settingsMenu->addMenu("Controllers");
+    controllersMenu->setToolTipsVisible(true);
+
+    auto* ctr2Action = controllersMenu->addAction("CTR2...");
+    ctr2Action->setMenuRole(QAction::NoRole);
+    ctr2Action->setToolTip(tr("Relay a CTR2-Max or AetherKnob to the radio, and install "
+                              "AetherCTR2 on a CTR2-Max"));
+    connect(ctr2Action, &QAction::triggered, this, &MainWindow::showCtr2Window);
+
+    auto* flexControlAction = controllersMenu->addAction("AetherControl...");
     m_aetherControlAction = flexControlAction;
     flexControlAction->setVisible(true); // host controller, independent of radio capabilities
     flexControlAction->setMenuRole(QAction::NoRole);
@@ -364,7 +376,7 @@ void MainWindow::buildMenuBar()
     // (RadioSetupDialog.cpp) and the AetherControl "Settings…" button
     // (MainWindow_Controllers.cpp) that offers the same deep-link from
     // inside the controller window.
-    auto* flexControlKnobAction = settingsMenu->addAction("FlexControl Knob & Buttons...");
+    auto* flexControlKnobAction = controllersMenu->addAction("FlexControl Knob & Buttons...");
     m_flexControlKnobAction = flexControlKnobAction;
     flexControlKnobAction->setVisible(true); // host serial device, never gated (#5778)
     flexControlKnobAction->setMenuRole(QAction::NoRole);
@@ -551,13 +563,13 @@ void MainWindow::buildMenuBar()
         showNetSchedulerDialog();
     });
 #ifdef HAVE_MIDI
-    auto* midiAction = settingsMenu->addAction("MIDI Mapping...");
+    auto* midiAction = controllersMenu->addAction("MIDI Mapping...");
     connect(midiAction, &QAction::triggered, this, [this] {
         showOrRaisePersistent(m_midiDialog, m_midiControl);
     });
 #endif
 #ifdef HAVE_HIDAPI
-    auto* rc28Action = settingsMenu->addAction("Icom RC-28 Remote Encoder...");
+    auto* rc28Action = controllersMenu->addAction("Icom RC-28 Remote Encoder...");
     connect(rc28Action, &QAction::triggered, this, [this] {
         const bool fresh = !m_rc28MappingDialog;
         showOrRaisePersistent(m_rc28MappingDialog, m_hidEncoder);
@@ -580,7 +592,7 @@ void MainWindow::buildMenuBar()
             });
     });
 #endif
-    auto* ulanziAction = settingsMenu->addAction("Ulanzi Dial Mapping...");
+    auto* ulanziAction = controllersMenu->addAction("Ulanzi Dial Mapping...");
     connect(ulanziAction, &QAction::triggered, this, [this] {
 #ifdef HAVE_MIDI
         MidiControlManager* midi = m_midiControl;
@@ -620,13 +632,23 @@ void MainWindow::buildMenuBar()
 
     auto* spotsAction = settingsMenu->addAction("SpotHub...");
     connect(spotsAction, &QAction::triggered, this, [this] {
+        // A canon workspace window: created directly rather than through
+        // showOrRaisePersistent(), which would apply View → Frameless Window.
         const bool wasFresh = !m_spotHubDialog;
-        showOrRaisePersistent(m_spotHubDialog, m_dxCluster, m_rbnClient, m_wsjtxClient,
-                              m_spotCollectorClient, m_potaClient, m_eibiClient, m_n1mmSpotClient,
+        if (wasFresh) {
+            auto* hub = new DxClusterDialog(m_dxCluster, m_rbnClient, m_wsjtxClient,
+                                            m_spotCollectorClient, m_potaClient, m_eibiClient,
+                                            m_n1mmSpotClient,
 #ifdef HAVE_WEBSOCKETS
-                              m_freedvClient,
+                                            m_freedvClient,
 #endif
-                              &m_radioModel, &m_dxccProvider);
+                                            &m_radioModel, &m_dxccProvider, this);
+            hub->setAttribute(Qt::WA_DeleteOnClose);
+            m_spotHubDialog = hub;
+        }
+        m_spotHubDialog->show();
+        m_spotHubDialog->raise();
+        m_spotHubDialog->activateWindow();
 #ifdef HAVE_WEBSOCKETS
         // Every open, not just the first: this dialog is a persistent
         // singleton, so without this the field would only ever show
@@ -973,7 +995,7 @@ void MainWindow::buildMenuBar()
 #endif
     });
 
-#if !defined(Q_OS_MAC) && !defined(HAVE_PIPEWIRE)
+#if !defined(Q_OS_MACOS) && !defined(HAVE_PIPEWIRE)
     // DAX audio bridge requires macOS CoreAudio or Linux with PipeWire.
     // Force off and omit the menu entry on platforms without a bridge (#1556).
     {
@@ -985,8 +1007,16 @@ void MainWindow::buildMenuBar()
     }
 #else
     auto* autoDaxAction = settingsMenu->addAction("Autostart DAX with AetherSDR");
-    m_autoDaxAction = autoDaxAction;   // hidden by applyCapabilitiesToUi() on a
-                                       // radio that reports no DAX streams
+    m_autoDaxAction = autoDaxAction;
+    auto* daxAvailability = new ControlAvailabilityRegistry(m_radioModel, this);
+    daxAvailability->registerAction(autoDaxAction, tr("DAX audio export is unavailable for this receiver in this build."),
+        [](bool connected, const RadioCapabilities& caps) {
+            bool nativeReceive = false;
+#ifdef HAVE_WEBSOCKETS
+            nativeReceive = caps.receiveAudioExport.has_value();
+#endif
+            return !connected || caps.hasDaxStreams || nativeReceive;
+        });
     autoDaxAction->setCheckable(true);
     autoDaxAction->setChecked(
         AppSettings::instance().value("AutoStartDAX", "False").toString() == "True");
@@ -1608,7 +1638,7 @@ void MainWindow::buildMenuBar()
         dlg->raise();
         dlg->activateWindow();
     });
-    auto* gpsDashboardAction = toolsMenu->addAction("GPS Dashboard...", this, [this] {
+    auto* gpsDashboardAction = toolsMenu->addAction("AetherGPS...", this, [this] {
         showGpsLocationDialog();
     });
     toolsMenu->addAction(networkAction);

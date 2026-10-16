@@ -102,6 +102,14 @@ confirmation.
 
 Hover the Level, Compression or ALC gauge for its exact value. In CW modes the
 applet switches to keyer controls, including the APF toggle and level.
+**Pitch** sits directly below **Speed**: use its slider or enter a frequency
+in Hz in the value field. Pitch follows the radio's supported range and step.
+**Breakin**, **Iambic**, and **Hold Delay** share a separate row.
+**Hold Delay** re-sends your break-in delay after CW speed changes made here;
+it does not cover speed changes made at the radio or by another client.
+In CW modes, the RX Controls header shows the receive filter width beside the
+read-only **QSK** indicator. QSK follows the radio's break-in state, including
+changes made at the radio or by another client; **Breakin** requests a change.
 
 ## Using the Phone applet
 
@@ -138,12 +146,34 @@ CW is excluded, and the card is not available on the Hermes-Lite 2.
 
 - Press **MOX** (or use PTT) to transmit
 - The VFO marker turns orange/red during TX
-- The waterfall switches to FFT-derived rows during TX, scrolling at the same
-  rate as on receive, masks the TX passband on every overlapping panadapter,
-  and holds its dBm range until you return to receive
+- With **Show TX in Waterfall** enabled in **Settings → Radio Setup... → Transmit**,
+  the waterfall draws FFT-derived rows during TX at the receive scroll rate
+  and masks the TX passband on every overlapping panadapter. With it disabled,
+  those panes hold their waterfall rows until receive resumes. The dBm range
+  stays fixed during TX. On a Hermes-Lite 2, AetherSDR remembers the choice per
+  radio; on a FlexRadio, the radio owns and reports it
 - Interlock problems that block transmit (amplifier warming up, ATU busy, band
   not allowed) appear as notifications, only when transmit is actually
   blocked
+
+### Hardware PTT and the TX source
+
+**(FlexRadio)** A hardware PTT is a footswitch or keying line on the RCA PTT
+jack, the ACC connector or a supported mic-jack PTT input. On firmware before
+SmartSDR v4.3, a hardware PTT always transmits the analog microphone. **From
+v4.3, a hardware PTT transmits whatever TX source is selected**, just as MOX
+does. If DAX is on for a digital-mode program, or the mic source is PC, a
+footswitch press puts that audio on the air, not your microphone.
+
+To restore the old behavior, turn on **PTT Mic Override** in the
+**Interlocks - TX REQ** group of **Settings → Radio Setup... → Transmit**.
+With it on, a hardware PTT transmits the analog mic input you last used, even
+while DAX or PC audio is selected. It changes nothing when an analog input
+(MIC, BAL, LINE or ACC) is already selected. The radio stores the setting and
+shares it with every client connected to it. With several clients connected
+(Multi-Flex), FlexRadio says the override applies when the client whose
+hardware PTT is pressed is also the transmitting client. On firmware before
+v4.3 the control is grayed out.
 
 ### Transmit timer
 

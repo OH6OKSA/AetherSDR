@@ -1,4 +1,7 @@
 #pragma once
+#include "core/backends/ModelControlRequest.h"
+#include <array>
+#include <QPointer>
 
 #include <QObject>
 #include <QHash>
@@ -41,6 +44,10 @@ class TransmitModel : public QObject {
     Q_OBJECT
 
 public:
+    void invalidateControlIntents()
+    {
+        for (quint64& revision : m_controlIntentRevisions) { ++revision; }
+    }
     explicit TransmitModel(QObject* parent = nullptr);
     ~TransmitModel() override;
 
@@ -83,6 +90,14 @@ public:
         m_haveTransmitStatus = false;
         m_haveMaxPowerLevel = false;
         m_rfPowerFromRadio = false;
+    }
+    // The radio-reported PTT mic override belongs to the radio that reported it,
+    // so a family switch clears it too (#6442). Non-emitting, like
+    // resetPowerProvenance() and for the same caller (teardownBackend(), from
+    // ~RadioModel()); RadioModel::backendRebuilt tells an open view.
+    void    resetPttMicOverrideReport() {
+        m_pttMicOverride = false;
+        m_havePttMicOverride = false;
     }
     int     tunePower()     const { return m_tunePower; }
     bool    isTuning()      const { return m_tune; }
@@ -168,6 +183,11 @@ public:
     int     interlockTimeout() const { return m_interlockTimeout; }
     int     accTxReqPolarity() const { return m_accTxReqPolarity; }
     int     rcaTxReqPolarity() const { return m_rcaTxReqPolarity; }
+    // Hardware PTT (RCA/ACC/mic jack) forces the analog mic even while DAX or
+    // remote audio is the TX source. Radio-wide; firmware v4.3+ only, so
+    // havePttMicOverride() says whether this radio has reported it (#6442).
+    bool    pttMicOverride() const { return m_pttMicOverride; }
+    bool    havePttMicOverride() const { return m_havePttMicOverride; }
     int     maxPowerLevel()  const { return m_maxPowerLevel; }
     // Latches haveMaxPowerLevel() on PRESENCE, not on change: a radio reporting
     // 100 into a model already at the 100 default must still count as reported,
@@ -250,7 +270,7 @@ public:
     PttSource activePttSource() const { return m_activePttSource; }
     void      noteActivePttSource(PttSource source) { m_activePttSource = source; }
 
-    // ── Command methods (emit commandReady) ─────────────────────────────────
+    // ── Command methods (emit typed controlRequested) ──────────────────────
     void setRfPower(int power);
 
     // The host modulates, so the microphone is a PC input and nothing else.
@@ -364,14 +384,14 @@ public:
     void setSpeechProcessorLevelMaximum(int maximum);
     // Adopt speech-processor state not originated here (the client-side
     // compressor on a host-modulating backend, also reachable via the Aetherial
-    // strip). Notifies the UI without emitting commandReady: the setters above are
+    // strip). Notifies the UI without emitting controlRequested: the setters above are
     // operator intent, and mirroring engine state through them would echo and
     // oscillate with the strip. Returns true when something changed.
     bool applySpeechProcessorState(bool on, int level);
     // Adopt a mic selection the OPERATOR did not choose — a radio whose input
     // this client cannot select forces the source, and the model must agree
     // with what the UI is showing. Like applySpeechProcessorState this updates
-    // state WITHOUT emitting commandReady, because pushing a forced value back
+    // state WITHOUT emitting controlRequested, because pushing a forced value back
     // out as operator intent is how a capability turns into a command nobody
     // issued. Returns true when something changed.
     bool applyMicSelectionState(const QString& input);
@@ -386,6 +406,7 @@ public:
     void setVoxDelay(int delay);
     void setMicBoost(bool on);
     void setMicBias(bool on);
+    void setPttMicOverride(bool on);
     void setAmCarrierLevel(int level);
     void setDexp(bool on);
     void setDexpLevel(int level);
@@ -451,16 +472,11 @@ signals:
     // instead of phoneStateChanged for slot work that should NOT run on
     // every VOX/CW/dexp/mic-boost/etc. status update.
     void txFilterCutoffChanged(int lowHz, int highHz);
-    // The operator asked for a TX passband. OPERATOR INTENT ONLY — applyStatus()
-    // never emits this — so a backend that modulates on this host can bind to it
-    // and drive its own modulator without echoing radio state back as a command
-    // (Principle II). Distinct from txFilterCutoffChanged, which also fires when
-    // a Flex's own status moves the value.
+    // Compatibility notification for test observers of a TX passband request.
+    // Backend dispatch uses controlRequested. Unlike txFilterCutoffChanged,
+    // neither intent signal is emitted by radio status (Principle II).
     void txFilterCommandIssued(int lowHz, int highHz);
-    // The operator moved the MIC slider. OPERATOR INTENT ONLY, for exactly the
-    // reason txFilterCommandIssued carries above: applyStatus() must never emit
-    // this, or a Flex's own `transmit set miclevel=` echo would be handed
-    // straight back to the seam as a fresh command.
+    // Test notification of MIC-slider intent; radio observations never emit it.
     void micLevelCommandIssued(int level);
     // The operator moved PROC or its NOR/DX/DX+ level. OPERATOR INTENT ONLY,
     // for the same reason as txFilterCommandIssued — and here the distinction is
@@ -471,23 +487,21 @@ signals:
     // transition and overwrite the settings the operator had just dialled in
     // there. applySpeechProcessorState() never emits this.
     void speechProcessorCommandIssued(bool on, int level);
-    // VOX and the ATU, for the same reason the speech processor has one: the
-    // wire text above IS the command on a Flex and reaches nothing anywhere
-    // else, so a non-Flex backend needs the intent as a signal. Emitted from
-    // the set* / atu* methods only, never from applyStatus() — echoing a status
-    // back at the radio as a command is how a control starts fighting itself.
+    // Compatibility setting-intent notifications for test observers. Backend
+    // dispatch uses controlRequested exclusively. Radio status never emits them.
     void voxCommandIssued(bool on, int level, int delayMs);
     void monitorCommandIssued(bool on, int level);
     void rfPowerCommandIssued(int percent);
     void tunePowerCommandIssued(int percent);
+    // Production ATU start/stop uses this separate operation-fenced route.
     void atuCommandIssued(bool start);
     // Fires only when cwPitch actually changes. Use this instead of
     // phoneStateChanged for slot work that should NOT run on every
     // VOX/CW/dexp/mic-boost/etc. status update (e.g. #4423 KiwiSDR BFO sync).
     void cwPitchChanged(int hz);
     void cwSpeedChanged(int wpm);
-    // Operator intent only. Radio status applied through applyStatus() never
-    // emits these, so a CI-V readback cannot loop straight back into a write.
+    // Compatibility CW-intent notifications for test observers; radio
+    // observations never emit them. Backend dispatch uses controlRequested.
     void cwPitchCommandIssued(int hz);
     void cwSpeedCommandIssued(int wpm);
     void cwBreakInCommandIssued(bool on);
@@ -518,7 +532,10 @@ signals:
     // Emitted when the radio reports the TX slice mode (e.g. "FDVU", "FDVL", "USB").
     // Value is empty string until the first transmit status is received.
     void txSliceModeChanged(const QString& mode);
+    // Retained for source compatibility and no-raw-command regression probes;
+    // model setters no longer emit wire text.
     void commandReady(const QString& cmd);
+    void controlRequested(const AetherSDR::TransmitControlRequest& request);
     void pttBlocked(const QString& message);
     void atuTuneFailed(AetherSDR::ATUStatus status, const QString& message);
     // Quindar active-phase signal (#2262).  Emitted on the GUI thread
@@ -529,6 +546,17 @@ signals:
     void quindarActiveChanged(bool active);
 
 private:
+    friend class RadioModel;
+    auto captureControlIntent(TransmitControlRequest::Field field)
+    {
+        const QPointer<TransmitModel> alive(this);
+        const quint64 revision = ++m_controlIntentRevisions[static_cast<size_t>(field)];
+        return [alive, field, revision] {
+            return alive && alive->m_controlIntentRevisions[static_cast<size_t>(field)] == revision;
+        };
+    }
+    bool refuseControlOffThread() const;
+    std::array<quint64, static_cast<size_t>(TransmitControlRequest::Field::Count)> m_controlIntentRevisions{};
     static ATUStatus parseAtuTuneStatus(const QString& s);
     bool isPhoneModeForQuindar() const;
     bool runPttPreflight(PttSource source, bool resyncMoxOnBlock = true);
@@ -632,6 +660,8 @@ private:
     int     m_interlockTimeout{0};
     int     m_accTxReqPolarity{0};
     int     m_rcaTxReqPolarity{0};
+    bool    m_pttMicOverride{false};      // v4.3 firmware default
+    bool    m_havePttMicOverride{false};
     int     m_maxPowerLevel{100};
     QString m_tuneMode{"single_tone"};
     bool m_tuneAvailable = true;

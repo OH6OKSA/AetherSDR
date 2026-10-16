@@ -7,7 +7,7 @@ if(POLICY CMP0156)
     cmake_policy(SET CMP0156 NEW)
 endif()
 
-project(AetherSDR VERSION 26.10.1 LANGUAGES C CXX)
+project(AetherSDR VERSION 26.10.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -188,6 +188,7 @@ else()
     set(_aether_core_library_type STATIC)
 endif()
 option(ENABLE_RTL "Enable the experimental receive-only RTL-SDR backend" ${_aether_desktop_feature_default})
+option(REQUIRE_RTL "Fail configuration unless the RTL backend and float FFTW are available" OFF)
 # Which SSB modulator the Hermes-Lite 2 transmit path is BUILT with. There is
 # no runtime switch and there must not be one: two silent transmit paths are
 # worse than one, and Hl2TxDsp.cpp records that the prior TXA attempt failed
@@ -258,6 +259,13 @@ option(ENABLE_RTL "Enable the experimental receive-only RTL-SDR backend" ${_aeth
 option(AETHER_HL2_TX_TXA
        "Hermes-Lite 2 SSB transmit modulator: ON (default) uses WDSP's TXA chain, OFF the in-tree phasing modulator"
        ON)
+# Lets AETHER_FIRMWARE_CATALOG and AETHER_FIRMWARE_TRUST_KEYS replace the
+# firmware catalog and add firmware-signing keys, for testing a publisher's own
+# builds. Off by default and never for release: a release build installs only
+# firmware from aethersdr.com signed by a key built into it.
+option(AETHER_FIRMWARE_DEV_OVERRIDES
+       "Honor the AETHER_FIRMWARE_CATALOG and AETHER_FIRMWARE_TRUST_KEYS environment overrides (testing only)"
+       OFF)
 option(MQTT_TLS "Enable MQTT TLS via OpenSSL (disable for AppImage)" ON)
 option(LOWER_CASE_BINARY_NAME "Make the output binary lower case. Only affects Linux" OFF)
 if(WIN32)
@@ -494,6 +502,10 @@ else()
     # Mobile clients play the sidetone through QAudioSink.
     if(PkgConfig_FOUND AND NOT AETHER_MOBILE)
         pkg_check_modules(PORTAUDIO portaudio-2.0)
+        if(PORTAUDIO_FOUND)
+            # Preserve the resolved prefix; bare -l names can select Homebrew first.
+            set(PORTAUDIO_LIBRARIES ${PORTAUDIO_LINK_LIBRARIES})
+        endif()
     endif()
 endif()
 
@@ -512,6 +524,10 @@ if(WIN32)
 else()
     if(PkgConfig_FOUND)
         pkg_check_modules(FFTW3 fftw3)
+        if(FFTW3_FOUND)
+            # Preserve the resolved prefix; bare -l names can select Homebrew first.
+            set(FFTW3_LIBRARIES ${FFTW3_LINK_LIBRARIES})
+        endif()
     endif()
     if(NOT FFTW3_FOUND)
         find_library(FFTW3_LIB fftw3)
@@ -911,11 +927,13 @@ set(CORE_SOURCES
     src/core/backends/LocalRadioDiscoverySource.cpp  # native discovery below the vendor seam
     src/core/backends/MemoryWireCodec.cpp    # memory kv-set decode, shared by Flex + local bank
     src/core/backends/flex/FlexBackend.cpp   # aetherd RFC step 2.2 (§5.5)
+    src/core/backends/flex/FlexModelControls.cpp
     src/core/backends/flex/FlexPttStopTracker.cpp # operation-bound LAN PTT evidence
     src/core/backends/flex/FlexPttWireSession.cpp
     src/core/backends/flex/RadioConnection.cpp  # SmartSDR TCP command/reply/status wire
     src/core/backends/flex/CommandParser.cpp    # SmartSDR wire line parse/build
     src/core/backends/flex/PanadapterStream.cpp # SmartSDR VITA-49 UDP receiver (DAX/IQ)
+    src/core/backends/flex/VitaDscpMarker.cpp
     src/core/backends/flex/SmartLinkClient.cpp  # SmartLink WAN auth + radio list
     src/core/backends/flex/WanConnection.cpp    # SmartLink TLS transport (#5554 §2.6)
     src/core/backends/sim/SimBackend.cpp     # demo mode — 2nd IRadioBackend (RFC #4288)
@@ -963,6 +981,7 @@ set(CORE_SOURCES
     src/core/backends/icom/IcomSettings.cpp  # owned config, "Icom" root key (Principle V)
     src/core/backends/icom/IcomCredentials.cpp # password -> keychain, NEVER settings
     src/core/dsp/FftwPlannerLock.cpp # the one process-global FFTW planner lock (#5895)
+    src/core/dsp/SpectralEnvelope.cpp # FFT De-comb (cepstral true envelope)
     src/core/dsp/WdspChannel.cpp
     src/core/backends/rtl/RtlCaptureTransaction.cpp
     src/core/backends/rtl/RtlReceivePipeline.cpp
@@ -1028,6 +1047,7 @@ set(CORE_SOURCES
     src/core/DecoderPcmAdapter.cpp
     src/core/AetherClockSettings.cpp
     src/core/MiniPanSettings.cpp
+    src/core/Ctr2RelaySettings.cpp
     src/core/GreenHeronProtocol.cpp
     src/core/PacketLossConcealment.cpp
     src/core/PerfTelemetry.cpp
@@ -1035,6 +1055,15 @@ set(CORE_SOURCES
     src/core/RigctlProtocol.cpp
     src/core/ByteRelay.cpp
     src/core/TcpByteProxy.cpp
+    src/core/Ctr2FirmwareUpdater.cpp
+    src/core/Ctr2MaxRegistration.cpp
+    src/core/CappedDownload.cpp
+    src/core/Ctr2MaxStockCatalog.cpp
+    src/core/Ctr2MaxStockFirmware.cpp
+    src/core/EspFirmwareCatalog.cpp
+    src/core/EspFirmwareInstaller.cpp
+    src/core/EspFirmwareJob.cpp
+    src/core/EspFirmwareManifest.cpp
     src/core/Ctr2HidFraming.cpp
     src/core/Ctr2HidPort.cpp
     src/core/Ctr2HidThreadPort.cpp
@@ -1071,6 +1100,7 @@ set(CORE_SOURCES
     src/core/TciIoWorker.cpp
     src/core/TciClient.h
     src/core/TciServer.cpp
+    src/models/DaxReceiveModel.cpp
     src/core/TciRxConverter.cpp
     src/core/TciPeerProcess.cpp
     src/core/TciProtocol.cpp
@@ -1205,6 +1235,7 @@ endif()
 
 set(MODEL_SOURCES
     src/models/DecoderAudioModel.cpp
+    src/models/Ax25ReceiveModel.cpp
     src/models/AprsDigipeaterModel.cpp
     src/models/Nr2SettingsModel.cpp
     src/models/Rn2SettingsModel.cpp
@@ -1240,6 +1271,7 @@ set(MODEL_SOURCES
     src/models/GreenHeronModel.cpp
     src/models/AetherClockModel.cpp
     src/models/Ctr2ProxyModel.cpp
+    src/models/FirmwareInstallModel.cpp
 )
 
 # Vendored QGeoView (LGPL-3.0) — slippy-map widget for the common
@@ -1315,6 +1347,7 @@ set(GUI_SOURCES
     src/gui/SmartMtrWidget.cpp
     src/gui/SmartMtrConfig.cpp
     src/gui/MeterViewController.cpp
+    src/gui/FirmwareReleasesDialog.cpp
     src/gui/RadioSetupDialog.cpp
     src/gui/RtlReceiverSettingsWidget.cpp
     src/gui/RadioSetupDialog_Peripherals.cpp
@@ -1368,13 +1401,16 @@ set(GUI_SOURCES
     src/gui/VkampApplet.cpp
     src/gui/Kpa1500Applet.cpp
     src/gui/LpMeterApplet.cpp
-    src/gui/Ctr2ProxyApplet.cpp
+    src/gui/Ctr2ProxyPanel.cpp
+    src/gui/FirmwareInstallDialog.cpp
     src/gui/MeterApplet.cpp
     src/gui/ProfileSwitcherApplet.cpp
     src/gui/RadeApplet.cpp
     src/gui/HealthApplet.cpp
     src/gui/PersistentDialog.cpp
     src/gui/CanonWindow.cpp
+    src/gui/CanonSurface.cpp
+    src/gui/PanadapterHeader.cpp
     src/gui/FramelessMessageBox.cpp
     src/gui/ProfileManagerDialog.cpp
     src/gui/SettingsBrowserDialog.cpp
@@ -1592,6 +1628,78 @@ else()
     set_source_files_properties(${GGMORSE_SOURCES} PROPERTIES COMPILE_FLAGS "-w")
 endif()
 
+# Bundled esp-serial-flasher (Apache-2.0; its flasher stubs Apache-2.0 OR MIT):
+# Espressif's protocol for an ESP32-family chip's ROM bootloader, used to
+# install firmware on ESP32-based controllers in download mode. AetherSDR
+# supplies the serial port (EspFlasher.cpp).
+set(ESP_FLASHER_DIR ${CMAKE_SOURCE_DIR}/third_party/esp-serial-flasher)
+file(GLOB ESP_FLASHER_STUBS ${ESP_FLASHER_DIR}/src/stubs/*.c)
+add_library(aether_esp_flasher STATIC
+    ${ESP_FLASHER_DIR}/src/esp_loader.c
+    ${ESP_FLASHER_DIR}/src/esp_targets.c
+    ${ESP_FLASHER_DIR}/src/md5_hash.c
+    ${ESP_FLASHER_DIR}/src/protocol_serial.c
+    ${ESP_FLASHER_DIR}/src/protocol_uart.c
+    ${ESP_FLASHER_DIR}/src/protocol_spi.c
+    ${ESP_FLASHER_DIR}/src/protocol_sdio.c
+    ${ESP_FLASHER_DIR}/src/slip.c
+    ${ESP_FLASHER_STUBS}
+)
+target_include_directories(aether_esp_flasher
+    PUBLIC ${ESP_FLASHER_DIR}/include
+    PRIVATE ${ESP_FLASHER_DIR}/private_include
+)
+target_compile_definitions(aether_esp_flasher PUBLIC
+    SERIAL_FLASHER_LOG_LEVEL=1
+    SERIAL_FLASHER_WRITE_BLOCK_RETRIES=3
+    SERIAL_FLASHER_RESET_HOLD_TIME_MS=100
+    SERIAL_FLASHER_BOOT_HOLD_TIME_MS=50
+    SERIAL_FLASHER_RESET_INVERT=false
+    SERIAL_FLASHER_BOOT_INVERT=false
+)
+set_target_properties(aether_esp_flasher PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+if(MSVC)
+    target_compile_options(aether_esp_flasher PRIVATE /w)
+else()
+    target_compile_options(aether_esp_flasher PRIVATE -w)
+endif()
+
+# Bundled Monocypher (CC0-1.0 OR BSD-2-Clause): Ed25519 signature checks on
+# downloaded firmware manifests, without depending on OpenSSL being present.
+add_library(aether_monocypher STATIC
+    ${CMAKE_SOURCE_DIR}/third_party/monocypher/monocypher.c
+    ${CMAKE_SOURCE_DIR}/third_party/monocypher/monocypher-ed25519.c
+)
+target_include_directories(aether_monocypher PUBLIC ${CMAKE_SOURCE_DIR}/third_party/monocypher)
+set_target_properties(aether_monocypher PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(aether_monocypher PRIVATE /w)
+else()
+    target_compile_options(aether_monocypher PRIVATE -w)
+endif()
+
+# CTR2-Max registration check: the stock firmware's LittleFS volume, read
+# with littlefs (BSD-3-Clause) built read-only (LFS_READONLY: no write path is
+# compiled). src/core/ctr2max_reg.c is shared with the AetherCTR2 firmware.
+add_library(aether_ctr2max_reg STATIC
+    ${CMAKE_SOURCE_DIR}/src/core/ctr2max_reg.c
+    ${CMAKE_SOURCE_DIR}/third_party/littlefs/lfs.c
+    ${CMAKE_SOURCE_DIR}/third_party/littlefs/lfs_util.c
+)
+target_include_directories(aether_ctr2max_reg
+    PUBLIC ${CMAKE_SOURCE_DIR}/src/core
+    PRIVATE ${CMAKE_SOURCE_DIR}/third_party/littlefs)
+target_compile_definitions(aether_ctr2max_reg PRIVATE
+    LFS_READONLY LFS_NO_MALLOC LFS_NO_DEBUG LFS_NO_WARN LFS_NO_ERROR LFS_NO_ASSERT)
+set_target_properties(aether_ctr2max_reg PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(aether_ctr2max_reg PRIVATE /w)
+else()
+    target_compile_options(aether_ctr2max_reg PRIVATE -w)
+endif()
+
 add_library(aether_libmodem_core STATIC
     third_party/libmodem_core/bitstream.cpp
     third_party/libmodem_core/demodulator.cpp
@@ -1707,6 +1815,10 @@ add_library(aethercore ${_aether_core_library_type}
     ${SPECBLEACH_SOURCES}
 )
 target_link_libraries(aethercore PRIVATE aether::wdsp)
+target_link_libraries(aethercore PRIVATE aether_monocypher)   # core: EspFirmwareCatalog
+target_compile_definitions(aethercore PRIVATE
+    AETHER_FIRMWARE_DEV_OVERRIDES=$<BOOL:${AETHER_FIRMWARE_DEV_OVERRIDES}>)
+target_link_libraries(aethercore PRIVATE aether_ctr2max_reg)  # core: Ctr2MaxRegistration
 
 # Desktop-only implementations kept out of libaethercore. Their public headers
 # remain temporarily in src/core while call sites migrate. A library keeps the
@@ -2534,6 +2646,8 @@ if(Qt6SerialPort_FOUND)
     # #ifdef HAVE_SERIALPORT directly.
     target_compile_definitions(aethercore PUBLIC HAVE_SERIALPORT)
     target_link_libraries(aethercore PUBLIC Qt6::SerialPort)
+    target_sources(aethercore PRIVATE src/core/EspFlasher.cpp)
+    target_link_libraries(aethercore PRIVATE aether_esp_flasher)
 endif()
 
 if(Qt6WebSockets_FOUND)
@@ -2795,6 +2909,9 @@ elseif(NOT AETHER_MOBILE)
         if(NOT HIDAPI_FOUND)
             pkg_check_modules(HIDAPI hidapi)
         endif()
+        if(HIDAPI_FOUND)
+            set(HIDAPI_LIBRARIES ${HIDAPI_LINK_LIBRARIES})
+        endif()
     endif()
 endif()
 
@@ -2808,8 +2925,8 @@ endif()
 # plain header+library probe so the switch below is reachable on every
 # platform, not only the pkg-config ones.
 if(ENABLE_RTL AND NOT RTLSDR_FOUND)
-    find_path(RTLSDR_INCLUDE_DIR rtl-sdr.h)
-    find_library(RTLSDR_LIBRARY NAMES rtlsdr librtlsdr)
+    find_path(RTLSDR_INCLUDE_DIR rtl-sdr.h HINTS "${CMAKE_SOURCE_DIR}/third_party/rtl-deps/include")
+    find_library(RTLSDR_LIBRARY NAMES rtlsdr librtlsdr HINTS "${CMAKE_SOURCE_DIR}/third_party/rtl-deps/lib")
     if(RTLSDR_INCLUDE_DIR AND RTLSDR_LIBRARY)
         add_library(RtlSdr::RtlSdr UNKNOWN IMPORTED)
         set_target_properties(RtlSdr::RtlSdr PROPERTIES
@@ -2823,8 +2940,8 @@ else()
 endif()
 
 if(ENABLE_RTL AND NOT RTL_FFTW3F_FOUND)
-    find_path(RTL_FFTW3F_INCLUDE_DIR fftw3.h)
-    find_library(RTL_FFTW3F_LIBRARY NAMES fftw3f libfftw3f libfftw3f-3)
+    find_path(RTL_FFTW3F_INCLUDE_DIR fftw3.h HINTS "${CMAKE_SOURCE_DIR}/third_party/fftw3/include")
+    find_library(RTL_FFTW3F_LIBRARY NAMES fftw3f libfftw3f libfftw3f-3 HINTS "${CMAKE_SOURCE_DIR}/third_party/fftw3/lib")
     if(RTL_FFTW3F_INCLUDE_DIR AND RTL_FFTW3F_LIBRARY)
         add_library(RtlFftw3f::RtlFftw3f UNKNOWN IMPORTED)
         set_target_properties(RtlFftw3f::RtlFftw3f PROPERTIES
@@ -2855,6 +2972,27 @@ elseif(RTLSDR_FOUND AND NOT RTL_FFTW3F_FOUND)
     message(STATUS "RTL-SDR ... disabled — librtlsdr found but fftw3f missing. Install fftw3f (e.g. libfftw3-dev), or configure with -DENABLE_RTL=OFF.")
 else()
     message(STATUS "RTL-SDR ... disabled — librtlsdr not found")
+endif()
+
+include(cmake/AetherRequireRtl.cmake)
+aether_require_rtl()
+
+# Stage RTL independently of the optional NR4 feature.
+if(WIN32 AND AETHER_BACKEND_RTL)
+    foreach(_rtl_dll
+            "${CMAKE_SOURCE_DIR}/third_party/rtl-deps/bin/rtlsdr.dll"
+            "${CMAKE_SOURCE_DIR}/third_party/rtl-deps/bin/libusb-1.0.dll"
+            "${CMAKE_SOURCE_DIR}/third_party/fftw3/bin/libfftw3f-3.dll")
+        if(EXISTS "${_rtl_dll}")
+            foreach(_rtl_app AetherSDR aetherd)
+                add_custom_command(TARGET ${_rtl_app} POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${_rtl_dll}" "$<TARGET_FILE_DIR:${_rtl_app}>")
+            endforeach()
+        elseif(REQUIRE_RTL)
+            message(FATAL_ERROR "Required RTL runtime missing: ${_rtl_dll}; run scripts/setup/setup-rtl-deps.ps1 and setup-fftw.ps1")
+        endif()
+    endforeach()
 endif()
 
 # Ulanzi Dial backend — one per platform.  All three implementations
@@ -3225,7 +3363,12 @@ if(ENABLE_SPECBLEACH)
             endif()
         endif()
         # libspecbleach uses fftwf (float precision FFTW3)
-        find_library(FFTW3F_LIB fftw3f HINTS /opt/homebrew/lib /usr/local/lib ${CMAKE_SOURCE_DIR}/third_party/fftw3/lib)
+        if(RTL_FFTW3F_TARGET AND TARGET "${RTL_FFTW3F_TARGET}")
+            # NR4 and RTL must use the same float FFTW, including its prefix.
+            set(FFTW3F_LIB "${RTL_FFTW3F_TARGET}")
+        else()
+            find_library(FFTW3F_LIB fftw3f HINTS /opt/homebrew/lib /usr/local/lib ${CMAKE_SOURCE_DIR}/third_party/fftw3/lib)
+        endif()
         if(FFTW3F_LIB)
             target_link_libraries(aethercore PRIVATE ${FFTW3F_LIB})
         else()

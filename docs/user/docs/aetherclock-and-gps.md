@@ -4,12 +4,12 @@ slug: "/aetherclock-and-gps"
 description: "Two tools help you know where you are and what time it is."
 ---
 
-Two tools help you know where you are and what time it is. **AetherClock** decodes the WWV/WWVH and WWVB time signals off the air and shows how far your computer's clock is from them. The **GPS & Station Location** window shows what a GPS-equipped radio knows: position, satellites, frequency reference and time.
+Two tools help you know where you are and what time it is. **AetherClock** decodes the WWV/WWVH and WWVB time signals off the air and shows how far your computer's clock is from them. **AetherGPS** shows what a GPS-equipped radio knows: position, satellites, frequency reference and time.
 
 ## Requirements
 
 - **AetherClock** needs a receiver tuned to WWV, WWVH or WWVB. On a FlexRadio it listens through a DAX channel; on radios without DAX (Hermes-Lite 2 and others) it uses the slice's own audio.
-- **GPS & Station Location** needs a radio that reports GPS hardware, for example a FlexRadio fitted with the GPSDO option, or an IC-705. A radio without GPS shows no GPS window, indicators or controls.
+- **AetherGPS** needs a radio that reports GPS hardware, for example a FlexRadio fitted with the GPSDO option, or an IC-705. A radio without GPS shows no GPS window, indicators or controls.
 
 ## Setup
 
@@ -44,9 +44,11 @@ On a FlexRadio with a DAX channel assigned, AetherClock decodes that slice alone
 
 A debug log in the settings drawer shows the decoder's internal steps, useful when reporting a problem.
 
-## Using the GPS dashboard
+## Using AetherGPS
 
-Open it from **Tools → GPS Dashboard…**, or click the GPS indicator in the status bar.
+Open it from **Tools → AetherGPS…**, or click the GPS indicator in the status bar.
+
+The window has no title bar. Drag any empty part of it to move it, and drag an edge or corner to resize it. Close it with the round **✕** in the top-right corner, **Esc** or **Ctrl+W** (**⌘W** on macOS). It's a window of its own, with its own taskbar entry, so you can minimize it from the taskbar or park it on another monitor. **View → Frameless Window** does not apply to it.
 
 ### Header cards
 
@@ -58,7 +60,7 @@ Position source, **Grid square**, **Latitude**, **Longitude**, the coordinates i
 
 ### Station Map
 
-A map of the radio's position. Use the arrow keys to pan, plus and minus to zoom, and Home to re-centre.
+A map of the radio's position. Use the arrow keys to pan, plus and minus to zoom, and Home to re-center.
 
 ### Satellite Reception and Frequency Reference
 
@@ -66,7 +68,7 @@ Satellites **Tracked** and **Visible**, the tracking ratio, the GPS **Frequency 
 
 ### Satellite Time
 
-UTC, local time and time zone, the radio's GPS UTC, and **Clock agreement** between the radio's GPS time and your computer. The radio's GPS supplies the time of day but not the date, so dates come from your computer. Use Clock agreement as a rough guide when looking at FT8 DT, and keep the computer synchronised with NTP for precise work.
+UTC, local time and time zone, the radio's GPS UTC, and **Clock agreement** between the radio's GPS time and your computer. The radio's GPS supplies the time of day but not the date, so dates come from your computer. Use Clock agreement as a rough guide when looking at FT8 DT, and keep the computer synchronized with NTP for precise work.
 
 ### Radio Clock Synchronization
 

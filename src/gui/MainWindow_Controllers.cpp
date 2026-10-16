@@ -22,6 +22,7 @@
 #include "core/UlanziDialMappings.h"
 #include "AppletPanel.h"
 #include "core/IambicKeyer.h"
+#include "PanadapterApplet.h"
 #include "PanadapterStack.h"
 #include "RC28MappingDialog.h"
 #include "RadioSetupDialog.h"
@@ -31,7 +32,7 @@
 #include "PanadapterMessageOverlay.h"
 #include "TitleBar.h"
 #include "models/SliceModel.h"
-#include "Ctr2ProxyApplet.h"
+#include "FirmwareInstallDialog.h"
 #include "Ctr2AudioSpectrumFeeder.h"
 #include "models/Ctr2ProxyModel.h"
 
@@ -265,8 +266,17 @@ QString flexControlButtonAction(int button, int action)
 void MainWindow::showFlexControlDialog()
 {
     // No capability check: the knob is a host serial device (#5778).
+    // A canon workspace window: created directly rather than through
+    // showOrRaisePersistent(), which would apply View → Frameless Window.
     const bool wasFresh = !m_flexControlDialog;
-    showOrRaisePersistent(m_flexControlDialog);
+    if (wasFresh) {
+        auto* dialog = new FlexControlDialog(this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        m_flexControlDialog = dialog;
+    }
+    m_flexControlDialog->show();
+    m_flexControlDialog->raise();
+    m_flexControlDialog->activateWindow();
     if (wasFresh && m_flexControlDialog) {
         connect(m_flexControlDialog, &FlexControlDialog::virtualWheelSteps,
                 this, &MainWindow::handleVirtualFlexControlWheel);
@@ -2633,7 +2643,7 @@ void MainWindow::setupCtr2Proxy()
     pushRadio();
     // Controllers that negotiate it get the audio spectrum: the TX audio over
     // the TX filter while transmitting, else the RX audio over the active
-    // slice's passband.
+    // slice's passband (in CW, centered on the pitch to show zero beat).
     new Ctr2AudioSpectrumFeeder(m_ctr2ProxyModel, m_audio, [this] {
         Ctr2AudioSpectrumFeeder::Source src;
         const TransmitModel& tx = m_radioModel.transmitModel();
@@ -2644,14 +2654,31 @@ void MainWindow::setupCtr2Proxy()
         } else if (const SliceModel* s = activeSlice()) {
             src.filterLow = s->filterLow();
             src.filterHigh = s->filterHigh();
+            if (isCwMode(s->mode())) {
+                src.cwPitch = tx.cwPitch();
+            }
         }
         return src;
     }, this);
-    if (m_appletPanel) {
-        if (auto* applet = m_appletPanel->ctr2ProxyApplet()) {
-            applet->setModel(m_ctr2ProxyModel);
+    // Controllers that negotiate it get the decoded CW, filtered as the CW
+    // panel filters it (its sensitivity threshold); no panel, nothing shown.
+    connect(&m_cwDecoder, &CwRxModel::textDecoded, m_ctr2ProxyModel,
+            [this](const QString& text, float cost) {
+        if (m_cwDecoderApplet && cost < m_cwDecoderApplet->cwCostThreshold()) {
+            m_ctr2ProxyModel->sendCwText(text, cost);
         }
-    }
+    });
+}
+
+void MainWindow::showCtr2Window()
+{
+    // The relay keeps running when the window closes; reopening shows it as
+    // it is.
+    if (!m_ctr2Window)
+        m_ctr2Window = new FirmwareInstallDialog(m_ctr2ProxyModel, this);
+    m_ctr2Window->show();
+    m_ctr2Window->raise();
+    m_ctr2Window->activateWindow();
 }
 
 void MainWindow::wireExternalControllers()
@@ -3161,7 +3188,7 @@ void MainWindow::wireExternalControllers()
     m_dialBackend = new UlanziDialBackend;
     const auto dialController = TxController::forNativeDevice(&m_radioModel, m_dialBackend);
     fenceDeviceDisconnect(m_dialBackend, &UlanziDialBackend::connectionChanged, this, dialController);
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
     // macOS keeps the backend on the main thread: IOHIDManager schedules
     // its callbacks on a CFRunLoop, and only the main thread has one
     // integrated with Qt's event loop on macOS.  Linux + Windows

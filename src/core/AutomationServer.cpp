@@ -1619,6 +1619,8 @@ QJsonObject sliceSnapshot(const SliceModel* s, int linkedTo,
                                      s->externalReceiveReplacementActive()},
         {QStringLiteral("squelch"),    s->squelchOn()},
         {QStringLiteral("squelchLevel"), s->squelchLevel()},
+        {QStringLiteral("automaticSquelch"), s->automaticSquelch()},
+        {QStringLiteral("automaticSquelchMarginDb"), s->automaticSquelchMarginDb()},
         {QStringLiteral("receiveSquelch"), s->receiveSquelchOn()},
         {QStringLiteral("receiveSquelchLevel"), s->receiveSquelchLevel()},
         {QStringLiteral("flexSquelch"), s->flexSquelchOn()},
@@ -1920,6 +1922,10 @@ QJsonObject transmitSnapshot(const TransmitModel* t,
         snapshot.insert(QStringLiteral("txFilterLow"), t->txFilterLow());
         snapshot.insert(QStringLiteral("txFilterHigh"), t->txFilterHigh());
     }
+    // Absent until the radio reports it: firmware before v4.3 has no such key.
+    if (t->havePttMicOverride()) {
+        snapshot.insert(QStringLiteral("pttMicOverride"), t->pttMicOverride());
+    }
     return snapshot;
 }
 
@@ -2013,7 +2019,7 @@ QJsonObject dspEngineSnapshot(const AudioEngine* a)
                                    false},
 #endif
         {"MNR",  a->mnrEnabled(),
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
                                    true},
 #else
                                    false},
@@ -3594,10 +3600,10 @@ const std::vector<AutomationServer::VerbSpec>& AutomationServer::verbRegistry()
         add("txwaterfall", {}, "txwaterfall <on|off> — show keyed TX in the waterfall",
             parseValueOnly,
             [](AutomationServer& s, A& a, QLocalSocket*) -> QJsonObject {
-                // Radio-authoritative display flag (`transmit set show_tx_in_waterfall`)
-                // that gates whether keyed-up TX renders FFT-derived rows in the
-                // waterfall. Off by default; enabling it lets a test confirm CWX/tune/ATU
-                // energy appears in the waterfall, not just the FFT trace (#3646/#3804).
+                // Whether keyed-up TX renders rows in the waterfall: radio-held on a
+                // Flex (`transmit set show_tx_in_waterfall`), a client flag where the
+                // backend declares one (RadioCapabilities::txWaterfallClientFlag), by
+                // the same route as Radio Setup. Off by default (#3646/#3804).
                 if (!s.m_radioModel)
                     return err(QStringLiteral("no radio model available"));
                 const QString v = a.value.trimmed().toLower();
@@ -3607,6 +3613,14 @@ const std::vector<AutomationServer::VerbSpec>& AutomationServer::verbRegistry()
                                   || v == QLatin1String("false") || v == QLatin1String("disable"));
                 if (!on && !off)
                     return err(QStringLiteral("txwaterfall requires on|off"));
+                if (s.m_radioModel->requestLocalShowTxInWaterfall(on)) {
+                    return QJsonObject{
+                        {QStringLiteral("ok"), true},
+                        {QStringLiteral("txwaterfall"), on},
+                        {QStringLiteral("note"),
+                         QStringLiteral("client-side flag on this radio, applied now; "
+                                        "get transmit showTxInWaterfall reads it")}};
+                }
                 s.m_radioModel->sendCommand(
                     QStringLiteral("transmit set show_tx_in_waterfall=%1").arg(on ? 1 : 0));
                 return QJsonObject{

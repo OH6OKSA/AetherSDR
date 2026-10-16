@@ -702,7 +702,7 @@ void DStarModel::refreshSerialDevices()
         if (path.isEmpty()) {
             path = info.portName();
         }
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
         if (path.startsWith(QStringLiteral("/dev/tty."))) {
             continue;
         }
@@ -722,7 +722,7 @@ void DStarModel::refreshSerialDevices()
     }
 #endif
 
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
     QDir dev(QStringLiteral("/dev"));
     const QStringList patterns {
         QStringLiteral("cu.usbserial*"),

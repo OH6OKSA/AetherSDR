@@ -244,6 +244,7 @@ public:
     // sending `radio callsign` so the radio's own copy stays in step.
     void setStationCallsign(const QString& callsign);
     QString nickname()     const { return m_nickname; }
+    ReceiveDispatch requestRadioNickname(const QString& nickname);
     QString region()       const { return m_region; }
     int     rttyMarkDefault() const { return m_rttyMarkDefault; }
     QString radioOptions() const { return m_radioOptions; }
@@ -608,6 +609,9 @@ public:
     // other family that takes typed intents through the IRadioBackend seam) —
     // there, Flex wire text has nowhere to go and is dropped at the sink.
     bool hasCommandPlane() const { return m_wanConn != nullptr || m_connection != nullptr; }
+    // A non-Flex backend that declares RadioCapabilities::lineoutControl, which
+    // takes setLineoutGain()/setLineoutMute() typed instead of as wire text.
+    bool lineoutThroughSeam() const;
 
     // The slice's tuning step, applied on the client when the radio has no
     // command plane to carry `slice set <n> step=`. Returns false, doing
@@ -725,6 +729,9 @@ public:
     quint32 txClientHandle() const { return m_txClientHandle; }
     quint32 ourClientHandle() const;
     bool sliceMayBelongToUs(int sliceId) const;
+    // TX requires confirmed ownership on multi-client radios; early RX state
+    // may still be visible through sliceMayBelongToUs() before owners arrive.
+    bool sliceOwnedByUs(int sliceId) const;
 
     struct ClientInfo {
         QString clientId;
@@ -986,6 +993,11 @@ public:
     // straight down to that backend. Returns false on Flex, where the caller
     // sends the weighted_average= wire command itself.
     bool requestLocalPanWeightedAverage(const QString& panId, bool on);
+    // "Show TX in Waterfall" where the backend declares the client owns it
+    // (RadioCapabilities::clientPersistsShowTxInWaterfall()): the transmit
+    // model takes it here and it is remembered per radio. Returns false
+    // elsewhere, where the caller sends the wire command. Never keys anything.
+    bool requestLocalShowTxInWaterfall(bool on);
     // Panel width in spectrum points for a backend that shapes its own
     // spectrum: straight down to that backend. Returns false on Flex, where
     // the caller sends the xpixels= wire command itself.
@@ -1044,6 +1056,12 @@ public:
     // Display controls — Waterfall (display panafall set)
     void setWaterfallColorGain(int gain);
     void setWaterfallBlackLevel(int level);
+    // The same two for one named pan, for a control the operator moved after
+    // the widget applied the value; autoBlack is that pan's widget state. A
+    // backend with no command plane is sent nothing, and the value is reported
+    // as dropped unless the client draws it.
+    void setWaterfallColorGainFor(const QString& panId, int gain, bool autoBlack);
+    void setWaterfallBlackLevelFor(const QString& panId, int level);
     void setWaterfallAutoBlack(bool on);
     // Auto-black source: false = client-side estimate (radio auto_black off),
     // true = radio's per-tile level (radio auto_black on). The radio only
@@ -1067,6 +1085,9 @@ signals:
     void infoChanged();
     void licenseFeaturesChanged();
     void connectionStateChanged(bool connected);
+    // Per-pan transmit permission changed. Consumers use the pan id to update
+    // each slice sharing that pan without inferring anything from TX ownership.
+    void panTransmitInhibitChanged(const QString& panId);
     void transmitSessionInvalidated();
     // The backend's RadioCapabilities changed, or a connect/disconnect edge
     // changed which backend answers; this one signal covers both. `connected`
@@ -1467,6 +1488,11 @@ private:
     // Sends the radio auto_black flag from the combined auto-black on/off +
     // client/radio-source state (auto_black=1 only when both select radio-side).
     void applyWaterfallAutoBlack();
+    // The one wire site per key. Without a command plane the text reaches
+    // sendCmd(), which reports it as dropped, only when reportDrop is set: an
+    // operator moved the control and the client did not draw it.
+    void sendWaterfallColorGain(const QString& panId, int gain, bool reportDrop);
+    void sendWaterfallBlackLevel(const QString& panId, int level, bool reportDrop);
     bool m_wfAutoBlackOn{true};         // mirrors the client auto-black on/off
     bool m_wfAutoBlackRadioSide{false}; // false = client-side, true = radio-side
     bool profileLoadRadioStateWritesHeld() const;
@@ -1568,6 +1594,9 @@ private:
     // in the ctor, so a non-Flex backend simply skips it.
     static std::unique_ptr<IRadioBackend> makeBackend(const QString& family);
     void handRestoredStateToBackend();  // RFC #4603
+    // Put the remembered "Show TX in Waterfall" back into the transmit model
+    // on connect, where the backend declares the client its owner.
+    void restoreClientShowTxInWaterfall();
     void persistOperatingState(bool force = false);          // RFC #4603 PR 3
     void scheduleOperatingStateSave();
     // Build the offline health source for `family` on first need, or return
@@ -1723,6 +1752,11 @@ public:
     {
         stageSessionModelsForReconnect();
     }
+    // setBackendForTest() does not connect transmitChanged; this is that handler.
+    void applyBackendTransmitDeltaForTest(const TransmitDelta& delta)
+    {
+        applyBackendTransmitDelta(delta);
+    }
     void emitBackendSliceChangedForTest(int sliceId, const SliceDelta& delta)
     {
         if (m_backend) {
@@ -1753,6 +1787,7 @@ public:
 
 private:
     friend class RadioModelSliceLifecycleTestAccess;
+    friend class RadioNicknameTestAccess;
     friend class TxOperationIntegrationTestAccess;
     friend class RerouteDeadControlsTestAccess;
     void expirePendingCallbacks(const QString& reason);
@@ -1790,6 +1825,8 @@ private:
     void dispatchSliceSquelch(const SliceSquelchRequest& request);
     void dispatchSliceRxAntenna(const QString& antenna);
     void dispatchSliceLock(bool locked);
+    void dispatchSliceControl(const SliceControlRequest& request);
+    void dispatchTransmitControl(const TransmitControlRequest& request);
     void reportReceiveDispatch(ReceiveDispatch result, const QString& operation,
                                bool operatorOrigin = true);
     // Translate a MODEL pan id to the backend's own id for a command going down
@@ -1978,6 +2015,9 @@ private:
     bool        m_cwxDrainArmed{false}; // CWX drain-release latch, immune to interlock flicker (#3949)
     bool        m_txAudioGate{false}; // actual TX audio gate state
     bool        m_radioTransmitting{false}; // raw interlock TX state, any owner
+    // Last mox a RadioCapabilities::radioPttObservation backend published; ORed
+    // into the command-edge fallback. Always false for every other backend.
+    bool        m_backendObservedTransmit{false};
     bool        m_operatorTransmitting{false}; // owned MOX/PTT/VOX (not tune/ATU/TCI/DAX)
     int         m_txFilterKillSamples{0};      // consecutive qualifying meter packets (#4649)
     bool        m_txFilterKillReported{false}; // latched, so we speak once per transmission

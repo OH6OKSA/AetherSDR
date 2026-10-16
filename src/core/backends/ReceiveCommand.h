@@ -51,12 +51,10 @@ struct SliceDspRequest {
     // of blanker is an Enabled request: `enabled` says whether one runs, `kind`
     // says which, so a backend with one blanker reads `enabled` and is right.
     enum class Field { Enabled, Level, Fill };
-    enum class Origin { Operator, ProfileRestore };
     Feature feature{Feature::Nb};
     Field field{Field::Enabled};
     bool enabled{false};
     int level{0};
-    Origin origin{Origin::Operator};
     NoiseBlankerKind kind{NoiseBlankerKind::Off};
     NoiseBlankerFill fill{NoiseBlankerFill::Zero};
 
@@ -76,10 +74,7 @@ struct SliceDspRequest {
                 || (feature == Feature::Nb && field == Field::Fill))
             && level >= 0 && level <= 100
             && isValidNoiseBlankerKind(static_cast<int>(kind))
-            && isValidNoiseBlankerFill(static_cast<int>(fill))
-            && (origin == Origin::Operator
-                || (origin == Origin::ProfileRestore && feature == Feature::Nrs
-                    && field == Field::Level));
+            && isValidNoiseBlankerFill(static_cast<int>(fill));
     }
 };
 
@@ -116,8 +111,16 @@ struct SliceSquelchRequest {
     int level{0};
     bool enabledChanged{false};
     bool levelChanged{false};
+    enum class Kind { Manual, Automatic };
+    Kind kind{Kind::Manual};
+    int marginDb{10};
 
-    bool valid() const { return level >= 0 && level <= 100; }
+    bool valid() const
+    {
+        return level >= 0 && level <= 100
+            && (kind == Kind::Manual
+                || (kind == Kind::Automatic && marginDb >= 5 && marginDb <= 20));
+    }
 };
 
 } // namespace AetherSDR

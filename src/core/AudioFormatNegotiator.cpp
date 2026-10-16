@@ -295,7 +295,9 @@ TargetOs hostTargetOs()
 {
 #if defined(Q_OS_WIN)
     return TargetOs::Windows;
-#elif defined(Q_OS_MAC)
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
+    // iOS shares CoreAudio's format behaviour (it took this branch while
+    // it was Q_OS_MAC).
     return TargetOs::MacOS;
 #else
     return TargetOs::Linux;

@@ -47,6 +47,10 @@ doing nothing silently.
 
 Docked in the applet panel, the TUN applet (title "TGXL") shows:
 
+<img src="/img/screens/tgxl-applet.png" width="248" alt="TGXL applet. PWR and SWR bar meters at the top, then C1, L and C2 bars reading 8, 16 and 24 beside TUNE and STANDBY buttons, and a green DIRECT status at the bottom right." />
+
+*The TGXL applet with a Tuner Genius XL connected.*
+
 - **Fwd Power** gauge. It scales for barefoot, Aurora or PGXL power levels,
   and uses the tuner's own peak reading, so voice peaks read correctly.
 - **SWR** gauge (1.0–3.0).
@@ -62,6 +66,11 @@ shows them: after a successful tune it shows the SWR it settled on
 (`Tuned SWR: 1.15:1`), and a tune that could not run says why.
 
 Meters update at about 60 Hz while transmitting and 4 Hz while receiving.
+
+While a TGXL is present, the **TUN** indicator in the status bar shows its
+state and cycles it OPERATE → BYPASS → STANDBY, like the applet's
+**OPERATE** key. Click it, or Tab to it and press Return or Enter. Screen
+readers announce it as a button with its state.
 
 ### Popped out or on the canvas
 

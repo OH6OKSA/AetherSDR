@@ -1,4 +1,5 @@
 #pragma once
+#include "core/backends/ModelControlRequest.h"
 
 #include <QObject>
 #include <QString>
@@ -169,6 +170,9 @@ public:
                                       : m_audioMute; }
     bool    flexAudioMute() const { return m_audioMute; }
     // Only inbound reports establish current-session truth; local setters do not.
+    bool automaticSquelch() const { return m_automaticSquelch; }
+    int automaticSquelchMarginDb() const { return m_automaticSquelchMarginDb; }
+    void setAutomaticSquelch(bool enabled, int marginDb);
     bool squelchStateKnown() const { return m_squelchOnKnown && m_squelchLevelKnown; }
     void invalidateSquelchState() { m_squelchOnKnown = false; m_squelchLevelKnown = false; }
     bool    squelchOn()   const { return m_squelchOn; }
@@ -444,17 +448,16 @@ signals:
     void receiveSquelchRequested(const AetherSDR::SliceSquelchRequest& request);
     void receiveRxAntennaRequested(const QString& antenna);
     void receiveLockRequested(bool locked);
+    void controlRequested(const AetherSDR::SliceControlRequest& request);
 
-    // Receive and transmit incremental tuning.
+    // Compatibility intent signals for test observers; production backend
+    // dispatch uses controlRequested. Radio observations never emit these.
     void ritCommandIssued(bool on, int hz);
     void xitCommandIssued(bool on, int hz);
-    // Operator asked for THIS slice to own transmit. A radio with one
-    // transmitter and several receivers has to move it rather than set a flag.
+    // Test notification that the operator asked for this slice to own TX.
     void txSliceCommandIssued();
-    // Operator selected THIS slice as the one the shared controls act on.
-    // Separate from activeChanged, which also fires when radio status is
-    // applied — driving a command off that would echo the radio's own state
-    // back as a request (Principle II).
+    // Test notification of operator selection, separate from activeChanged,
+    // which also fires for radio observations.
     void activeSliceCommandIssued();
     void panIdChanged(const QString& panId);
     void modeChanged(const QString& mode);
@@ -558,7 +561,8 @@ signals:
     void recordOnChanged(bool on);
     void playOnChanged(bool on);
     void playEnabledChanged(bool enabled);
-    void commandReady(const QString& cmd);  // ready to send to radio
+    // Legacy no-raw-command regression probe; no setter emits this signal.
+    void commandReady(const QString& cmd);
     // Mode dispatch precedes polarity normalization so synchronous backend
     // defaults win. RadioModel routes it through IRadioBackend::setSliceMode.
     void modeChangeRequested(const QString& mode);
@@ -574,6 +578,18 @@ public:
     static bool filterCarrierStraddlingFamily(const QString& mode);
 
 private:
+    auto captureControlIntent(SliceControlRequest::Field field)
+    {
+        const QPointer<SliceModel> alive(this);
+        const quint64 revision = ++m_controlIntentRevisions[static_cast<size_t>(field)];
+        return [alive, field, revision] {
+            return alive && alive->m_controlIntentRevisions[static_cast<size_t>(field)] == revision;
+        };
+    }
+    void invalidateControlIntents()
+    {
+        for (quint64& revision : m_controlIntentRevisions) { ++revision; }
+    }
     friend class RadioModel;
     bool refuseOffThread(const char* setter) const;
     void setControlPolicy(ReceiveControlPolicy policy) { m_controlPolicy = policy; }
@@ -596,6 +612,7 @@ private:
     bool m_squelchLevelIntentPending{false};
     quint64 m_rxAntennaIntentRevision{0};
     quint64 m_lockIntentRevision{0};
+    std::array<quint64, static_cast<size_t>(SliceControlRequest::Field::Count)> m_controlIntentRevisions{};
     template<class Notify, class Dispatch>
     void publishReceiveIntent(quint64& epoch, Notify notify, Dispatch dispatch)
     {
@@ -710,6 +727,8 @@ private:
     QString m_agcMode{"med"};
     int     m_agcThreshold{65};
     int     m_agcOffLevel{10};
+    bool m_automaticSquelch{false};
+    int m_automaticSquelchMarginDb{10};
     bool m_squelchOnKnown{false};
     bool m_squelchLevelKnown{false};
     bool    m_squelchOn{false};
@@ -735,13 +754,6 @@ private:
     int     m_rttyMark{2125};
     int     m_rttyMarkDefault{2125};
     bool    m_rttyMarkUserOverride{false};
-    // Flex firmware's `profile global` snapshot does not persist
-    // speex_nr_level — on recall the radio reports the firmware default of
-    // 50, even when the user set a different value before saving. Cache the
-    // user's explicit choice so applyChanges() can re-push it when the radio
-    // comes back at 50 with no user-initiated change to that value.
-    int     m_nrsLevelUser{50};
-    bool    m_nrsLevelUserOverride{false};
     int     m_rttyShift{170};
     int     m_diglOffset{2210};
     int     m_diguOffset{1500};
@@ -772,7 +784,6 @@ private:
 
     void setLockedFeedbackActive(bool on);
 
-    void sendCommand(const QString& cmd);
 
     QStringList m_pendingCommands;
 };

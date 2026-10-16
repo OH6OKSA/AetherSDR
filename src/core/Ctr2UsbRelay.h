@@ -71,11 +71,21 @@ public:
 
     // Link extensions the open device negotiated (ctr2hid::capabilityBit mask).
     quint32 extensions() const;
-    // Sends one AudioSpectrum message while relaying, if the device took that
-    // extension. Returns false, sending nothing, otherwise or when ~130 ms of
-    // output is already queued: a late frame is worth less than a fresh one,
-    // and it must not delay the radio stream.
-    bool sendAudioSpectrum(const QByteArray& payload);
+    // The open device's firmware version, when it reports one.
+    std::optional<ctr2hid::deviceinfo::Info> firmwareInfo() const;
+    // The link extensions the device offered, taken or not (0 until open).
+    quint32 offeredExtensions() const;
+    // Sends one AudioSpectrum (or AudioSpectrumLinear) message while relaying,
+    // if the device took that extension. Returns false, sending nothing,
+    // otherwise or when ~130 ms of output is already queued: a late frame is
+    // worth less than a fresh one, and it must not delay the radio stream.
+    bool sendAudioSpectrum(const QByteArray& payload,
+                           ctr2hid::MessageType type = ctr2hid::MessageType::AudioSpectrum);
+    // Sends one CwText message while relaying, if the device took that
+    // extension. Text is not dropped for a busy link the way a spectrum frame
+    // is; false only when it cannot be sent at all, or when a stalled device
+    // has left kMaxQueuedReports unsent.
+    bool sendCwText(const QByteArray& payload);
 
 signals:
     void stateChanged(AetherSDR::TcpByteProxy::State state);

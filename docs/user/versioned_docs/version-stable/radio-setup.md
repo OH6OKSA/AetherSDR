@@ -8,9 +8,9 @@ Radio Setup holds the radio's configuration and most of AetherSDR's own preferen
 
 Which pages appear depends on the connected radio: pages for hardware the radio does not have are hidden.
 
-![Radio Setup window. A search settings box spans the top. The left tree lists the sections RADIO (Radio, Network), RECEIVE & TRANSMIT (Audio, Transmit, Phone & CW, Receive) and CONTROLLERS & HARDWARE (Antennas, Transverters, USB Cables, Peripherals), with Radio selected. The Radio page on the right shows Radio Information (serial DEMO-0001, hardware version, options, a Reboot Radio button, region and Remote On) and Radio Identification (model AetherSDR Demo, callsign DEMO, nickname and station name).](/img/screens/radio-setup.png)
+<img src="/img/screens/radio-setup.png" width="960" alt="Radio Setup window. A Search settings box spans the top. The left tree lists RADIO (Radio, Network, GPS), RECEIVE &amp; TRANSMIT (Audio, Transmit, Phone &amp; CW, Receive, Filters) and CONTROLLERS &amp; HARDWARE (Antennas, Transverters), with Radio selected. The Radio page shows Radio Information (serial blacked out, HW version v4.2.20.41343, options GPS, a Reboot Radio button, region USA, Remote On disabled, FlexControl and multiFLEX enabled), Radio Identification (model FLEX-8600, callsign KK7GWY, nickname FLX8600, station name blacked out), License Info (SmartSDR+ Early Access subscription, its expiration date, radio ID blacked out, licensed version v4) and Firmware Update (FW version 4.2.20.41343, with Check for Update, Select Installer and a dimmed Upload Firmware button)." />
 
-*Radio Setup, open on the Radio page. The settings tree on the left groups the pages; the search box at the top finds any setting.*
+*Radio Setup, open on the Radio page. The settings tree on the left groups the pages; the search box at the top finds any setting. The serial number, radio ID and station name are blacked out here.*
 
 ## Setup
 
@@ -27,7 +27,11 @@ Several menu items open Radio Setup straight at the right page:
 
 ## Finding a setting
 
-Radio Setup is a searchable browser: a categorised tree of pages on the left and the selected page on the right.
+Radio Setup is a searchable browser: a categorized tree of pages on the left and the selected page on the right.
+
+<img src="/img/screens/radio-setup-search.png" width="960" alt="Radio Setup with latency typed in the search box. The left tree now shows only RECEIVE &amp; TRANSMIT with the Audio page under it, while the right side still shows the Radio page, with the serial number, radio ID and station name blacked out." />
+
+*Typing in the search box filters the page list: here, latency matches the Audio page.*
 
 - **Search settings** (Ctrl+F, ⌘F on macOS) filters the tree as you type. It matches page names and also common symptom words. Try *latency*, *ptt*, *calibration* or *certificate*. Press Enter to jump to the first match.
 - Pages for hardware the connected radio does not have are hidden. Individual controls a radio cannot use stay visible but dimmed, with the reason in the tooltip.
@@ -40,7 +44,7 @@ Radio Setup is a searchable browser: a categorised tree of pages on the left and
 |------|----------------|
 | **Radio** | Radio information (serial, hardware version, region, options), identification (model, nickname, callsign), license info and [Firmware Update](./firmware-update.md) |
 | **Network** | The radio's IP address, mask, MAC and gateway; DHCP/static IP configuration; **Advanced**: Enforce Private IP Connections, **Agent Automation (MCP)** (see [Automation Bridge and MCP](./automation-bridge-and-mcp.md)), Network MTU and the VITA-49 RX buffer (see [Low Bandwidth Connections](./low-bandwidth-connections.md)) |
-| **GPS** | Whether a GPS is installed, position, grid, altitude, satellites and lock status. The full dashboard is **Tools → GPS Dashboard...**. See [AetherClock and GPS](./aetherclock-and-gps.md). Hidden on radios without GPS hardware. |
+| **GPS** | Whether a GPS is installed, position, grid, altitude, satellites and lock status. The full dashboard is **Tools → AetherGPS...**. See [AetherClock and GPS](./aetherclock-and-gps.md). Hidden on radios without GPS hardware. |
 | **Calibration** | Host-side frequency calibration in ppb, for radios that cannot calibrate themselves ([Hermes-Lite 2](./hermes-lite-2.md)). Hidden on FlexRadio, which calibrates on the Receive page. |
 | **RTL Receiver** | ppm correction, IQ DC suppression and serial for an [RTL-SDR](./rtl-sdr.md) dongle. Only when one is connected. |
 | **HL2 Hardware** | Board variant, dither, companion filter board, CL1 external 10 MHz reference and tuner for the [Hermes-Lite 2](./hermes-lite-2.md). Only when an HL2 is connected. |
@@ -50,7 +54,7 @@ Radio Setup is a searchable browser: a categorised tree of pages on the left and
 
 | Page | What it covers |
 |------|----------------|
-| **Audio** | The radio's Line Out, Headphone and Front Speaker outputs; SmartLink audio compression; packet-loss smoothing; PC audio devices, Audio Boost and Audio Buffer; recording. See [Audio Settings](./audio-settings.md). |
+| **Audio** | The radio's Line Out, Headphone and Front Speaker outputs; audio compression for SmartLink and tailnet connections; packet-loss smoothing; **Prevent system sleep while connected**; PC audio devices, Audio Boost and Audio Buffer; recording. See [Audio Settings](./audio-settings.md). |
 | **Transmit** | TX timings (ACC TX, TX delay, timeout), TX REQ interlock polarity (RCA, Accessory), Max Power, Show TX in Waterfall, Slice/TX Follow, and **TX Band Settings** (per-band RF/tune power, PTT inhibit and interlocks). See [TX Controls](./tx-controls.md). |
 | **Phone & CW** | Microphone bias and +20 dB boost; CW iambic mode, paddle swap, sideband and CWX sync, and CW decoder RX/TX decode; Digital (RTTY mark default). See [CW Decoder](./cw-decoder.md) and [CWX Panel](./cwx-panel.md). |
 | **Receive** | Frequency offset (GPSDO detection, manual calibration) and the 10 MHz reference source |
@@ -71,7 +75,7 @@ Radio Setup is a searchable browser: a categorised tree of pages on the left and
 
 | Page | What it covers |
 |------|----------------|
-| **Appearance & Behavior** | Slice Letter Display (see [Multi-Flex](./multi-flex.md)), slice colours (see [Slice Colors](./slice-colors.md)), Single-click delay and mouse-wheel behaviour. Themes are under **View → Theme**. See [Themes and Theme Editor](./themes-and-theme-editor.md). |
+| **Appearance & Behavior** | Slice Letter Display (see [Multi-Flex](./multi-flex.md)), slice colors (see [Slice Colors](./slice-colors.md)), Single-click delay and mouse-wheel behavior. Themes are under **View → Theme**. See [Themes and Theme Editor](./themes-and-theme-editor.md). |
 | **SmartLink** | Pinned SmartLink certificates. See [SmartLink Setup](./smartlink-setup.md). |
 | **QRZ & Callsigns** | QRZ.com account and lookup cache. See [Callsign Lookup](./callsign-lookup.md). |
 
@@ -88,7 +92,7 @@ Radio Setup hides pages for hardware the connected radio does not have. For exam
 1. Check which radio you are connected to.
 2. Use **Search settings** (Ctrl+F, ⌘F on macOS) to find where the setting lives on this radio. For example, a FlexRadio calibrates on the **Receive** page.
 
-### A control is greyed out
+### A control is grayed out
 
 The connected radio or this build cannot use that control.
 

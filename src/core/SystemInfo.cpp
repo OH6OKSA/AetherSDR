@@ -24,7 +24,7 @@
 extern "C" __declspec(dllimport) HRESULT WINAPI
     GetThreadDescription(HANDLE hThread, PWSTR* ppszThreadDescription);
 #endif
-#elif defined(Q_OS_MAC)
+#elif defined(Q_OS_MACOS)
 #include <mach/mach.h>
 #include <mach/thread_act.h>
 #include <mach/thread_info.h>
@@ -35,13 +35,17 @@ extern "C" __declspec(dllimport) HRESULT WINAPI
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#elif defined(Q_OS_IOS)
+// processCpuUsecs() reads getrusage(); iOS took this from the Q_OS_MAC
+// branch before it became Q_OS_MACOS.
+#include <sys/resource.h>
 #endif
 
 namespace AetherSDR {
 
 namespace {
 
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
 // thread_extended_info's pth_run_state, in the shared vocabulary. The constants
 // are TH_STATE_* from <mach/thread_info.h>; anything outside that set is Unknown
 // rather than mapped to whichever neighbour looks closest.
@@ -130,7 +134,7 @@ QVector<ThreadTimes> SystemInfo::enumerateThreads()
 {
     QVector<ThreadTimes> result;
 
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
     MachThreadArray threads;
     if (!threads.acquire()) {
         return result;

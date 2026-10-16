@@ -42,16 +42,22 @@ RADE stays active across PTT cycles. It switches itself off if the radio or anot
 
 You can also start RADE from **Tools → FreeDV Reporter...**: double-clicking a station tunes to it and switches the slice to RADE.
 
+A MIDI controller or [Ulanzi Dial](./ulanzi-dial.md) button mapped to **RADE Modem** turns RADE on and off on the active slice. Turning it off leaves the slice in DIGU/DIGL. See [MIDI Controller Mapping](./midi-controller-mapping.md).
+
 ### Read sync and SNR
 
 While RADE is active, the VFO flag shows:
 
-- a **RADE** badge with a sync LED next to the frequency — **green ●** when the modem is synchronised, grey ○ when it is not;
+<img src="/img/screens/rade-vfo-badge.png" width="316" alt="VFO flag in RADE mode. A RADE label with a hollow sync dot sits left of the frequency 14.250.000, with --- below it in place of the SNR, a 1.5K filter width, and the mode tab reading DIGU." />
+
+*A slice in RADE, before any RADE signal is decoded: the sync dot is hollow and the SNR reads ---.*
+
+- a **RADE** badge with a sync LED next to the frequency — **green ●** when the modem is synchronized, gray ○ when it is not;
 - a **RADE info row** below the frequency with the far-end **callsign** (when received), the decoded **SNR** and the **frequency offset**.
 
 The same readouts are in the **RADE Status** applet (button **RADE**, in the applet drawer, closed by default), which shows "RADE inactive" when RADE is off.
 
-The RADE modem uses pilot symbols for synchronisation and can acquire signals down to approximately 0 dB SNR.
+The RADE modem uses pilot symbols for synchronization and can acquire signals down to approximately 0 dB SNR.
 
 ### End-of-over callsign
 

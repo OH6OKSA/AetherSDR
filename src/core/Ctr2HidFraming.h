@@ -46,6 +46,9 @@ enum class MessageType : std::uint8_t {
     // Extensions, only where negotiated:
     AudioSpectrum = 0x40,  // host -> device: [bars N][low Hz][span Hz][N levels]
     RelayUdpPort = 0x41,   // host -> device: [port hi][port lo], this link's UDP endpoint
+    AudioSpectrumLinear = 0x42,  // host -> device: [bars N][low Hz][high Hz][N levels], even split
+    CwText = 0x43,         // host -> device: [confidence 0..3][decoded CW, ASCII]
+    Firmware = 0x44,       // both: an application update session (see firmware below)
 };
 
 constexpr std::uint8_t kExtensionFirst = 0x40;
@@ -56,9 +59,11 @@ constexpr std::uint32_t capabilityBit(MessageType type)
 }
 // Largest payload each extension type may carry; 0 for one not defined.
 int extensionMaxLength(MessageType type);
-// Extensions this build of AetherSDR uses.
+// Extensions the relay uses. Firmware is negotiated only by the updater
+// (Ctr2FirmwareUpdater), never on a relaying link.
 constexpr std::uint32_t kHostCapabilities = capabilityBit(MessageType::AudioSpectrum)
-    | capabilityBit(MessageType::RelayUdpPort);
+    | capabilityBit(MessageType::RelayUdpPort) | capabilityBit(MessageType::AudioSpectrumLinear)
+    | capabilityBit(MessageType::CwText);
 
 // HID Feature report 0x02, exactly 8 bytes after the report ID (9 in all):
 //   ['C']['X'][extension version 0x01][0x00][capabilities, 32 bits MSB first]
@@ -78,6 +83,11 @@ std::uint32_t decode(const QByteArray& report);
 // Levels are 0..255, linear in dB from kFloorDb to 0 dBFS. With low > 0 the
 // bars are log-spaced in frequency from low to span Hz (bar i covers
 // bandEdgeHz(i)..bandEdgeHz(i + 1)); with low 0 they split 0..span evenly.
+//
+// AudioSpectrumLinear has the same payload, but its bars always split low..span
+// evenly (linearEdgeHz), whatever low is: a window such as 200..1000 Hz around
+// a CW pitch. A device that negotiates it gets it in place of AudioSpectrum
+// where a window does not start at 0.
 namespace spectrum {
 constexpr int kMaxBars = 64;
 constexpr int kFloorDb = -90;
@@ -92,6 +102,109 @@ int displayLowHz(int spanHz);
 // frequency. kDefaultSpanHz when there is no passband.
 constexpr int kDefaultSpanHz = 4000;
 int displaySpanHz(int filterLo, int filterHi, double sampleRate);
+// Lower edge of bar i of n when low..span splits evenly (AudioSpectrumLinear).
+double linearEdgeHz(int lowHz, int spanHz, int n, int i);
+// CW: a linear window centered on the pitch, covering the passband (pitch +
+// filterLo .. pitch + filterHi) with half its width to spare on each side, so
+// a controller can show how far a signal is from zero beat. Kept within
+// 0 Hz .. the audio's Nyquist frequency, still centered.
+struct Window {
+    int lowHz;
+    int highHz;
+};
+Window cwWindow(int filterLo, int filterHi, int pitchHz, double sampleRate);
+}
+
+// Firmware: replaces a device's application over the link. The session opens
+// in place of the host's Ready: after the device answers Hello, the host
+// resets its counter and sends Begin. No radio connection opens. Payloads
+// [op][...], integers big-endian:
+//   host Begin    [0x01][image size u32][SHA-256 of the image]
+//   host Data     [0x02][offset u32][1..kChunkBytes image bytes], in order
+//   host End      [0x03]: verify, select the new image, restart into it
+//   host Abort    [0x04]
+//   host Switch   [0x05]: restart into the device's other firmware (the
+//                 maker's own, kept beside this one); BadState if none
+//   host Bootloader [0x06]: restart into the chip's ROM download mode, for
+//                 an install there; BadMessage from firmware without it
+//   device Status [0x81][op answered][Status][value u32]
+// Every host message gets one Status; for Data, value is the bytes stored so
+// far. The new image keeps itself only after it completes a link (answers
+// Hello); a device that resets before then returns to its previous image.
+namespace firmware {
+constexpr int kChunkBytes = 512;
+constexpr std::uint8_t kBegin = 0x01;
+constexpr std::uint8_t kData = 0x02;
+constexpr std::uint8_t kEnd = 0x03;
+constexpr std::uint8_t kAbort = 0x04;
+constexpr std::uint8_t kSwitch = 0x05;
+constexpr std::uint8_t kBootloader = 0x06;
+constexpr std::uint8_t kStatus = 0x81;
+constexpr int kDataHeaderBytes = 5;
+enum class Status : std::uint8_t {
+    Ok = 0x00,
+    BadState = 0x01,       // no session, or a second Begin
+    BadOffset = 0x02,      // Data not at the next byte
+    TooLarge = 0x03,       // image larger than the device's slot
+    FlashError = 0x04,
+    Rejected = 0x05,       // not a valid, correctly signed image
+    HashMismatch = 0x06,   // stored bytes do not match Begin's hash
+    BadMessage = 0x07,     // unknown op or wrong length
+};
+QByteArray encodeBegin(quint32 imageBytes, const QByteArray& sha256);
+QByteArray encodeData(quint32 offset, const QByteArray& chunk);
+QByteArray encodeEnd();
+QByteArray encodeAbort();
+QByteArray encodeSwitch();
+QByteArray encodeBootloader();
+struct Reply {
+    std::uint8_t op{0};
+    Status status{Status::Ok};
+    quint32 value{0};
+};
+// A device Status payload; false for anything else.
+bool decodeStatus(const QByteArray& payload, Reply* reply);
+QString statusText(Status status);
+}
+
+// HID Feature report 0x03, Get only, exactly 24 bytes after the report ID:
+//   ['F']['W'][layout 0x01][major][minor][patch][flags][0x00]
+//   [build ID, 16 bytes of printable ASCII, NUL-padded]
+// The device's firmware version, readable without a link. Devices without it
+// (any stock CTR2) fail the Get.
+namespace deviceinfo {
+constexpr std::uint8_t kReportId = 0x03;
+constexpr int kBytes = 24;
+constexpr std::uint8_t kLayout = 0x01;
+constexpr int kBuildBytes = 16;
+constexpr std::uint8_t kPending = 0x01;   // not yet confirmed by a link; dropped on reset
+constexpr std::uint8_t kSigned = 0x02;    // Firmware accepts only signed images
+struct Info {
+    int major{0};
+    int minor{0};
+    int patch{0};
+    std::uint8_t flags{0};
+    QString build;
+    QString version() const;   // "major.minor.patch"
+    bool pending() const { return flags & kPending; }
+};
+QByteArray encode(const Info& info);
+// The fields of a Get reply (report ID stripped); false for anything else.
+bool decode(const QByteArray& report, Info* info);
+}
+
+// CwText payload: [confidence][1..kMaxChars text bytes]. Text decoded by the
+// CW decoder from the active slice, as it arrives (about a character at a
+// time, word gaps as spaces), printable ASCII only. Confidence 0 is the best
+// (decoder cost < 0.15), then 1 (< 0.35), 2 (< 0.60), 3, as AetherSDR's CW
+// panel colors it.
+namespace cwtext {
+constexpr int kMaxChars = 32;
+int confidence(float cost);
+// The payload for a chunk of decoded text, or empty when nothing printable is
+// left: newlines become spaces, other characters outside 0x20-0x7E are
+// dropped, and text beyond kMaxChars is cut.
+QByteArray encode(const QString& text, float cost);
 }
 
 struct Message {

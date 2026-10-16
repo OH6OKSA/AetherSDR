@@ -177,6 +177,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: RTL release requirement combinations
+        run: python tools/test_require_rtl.py
+
       # ── aetherd-migration ratchet (docs/aetherd-headless-engine-design.md §10)
       #   EB1/EB2 — the engine (src/core/ + src/models/) must never depend on
       #             the UI: no gui/ header includes, no QtWidgets.
@@ -361,6 +364,20 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tools/check_qsettings.py --strict
 
+      # Qt 6.12 deprecates Q_OS_MAC (#6354); Q_OS_MACOS is the spelling for
+      # macOS-only code. Only a macOS build warns, so without this a re-added
+      # Q_OS_MAC goes unseen by the Linux and Windows lanes. Source files only.
+      - name: No deprecated Q_OS_MAC
+        if: ${{ !cancelled() }}
+        run: |
+          rc=0
+          hits=$(git grep -nw Q_OS_MAC -- '*.cpp' '*.h' '*.hpp' '*.mm' '*.m' ':!third_party') || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "$hits" | awk -F: '{print "::error file="$1",line="$2"::Q_OS_MAC is deprecated in Qt 6.12; use Q_OS_MACOS"}'
+            exit 1
+          fi
+          [ "$rc" -eq 1 ] || { echo "::error::git grep failed (exit $rc)"; exit "$rc"; }
+
       # ── ThemeManager::seedBuiltinDefaults() compiles a copy of the default
       # theme into the binary. It is GENERATED (tools/gen_theme_seed.py emits
       # src/core/ThemeSeedGenerated.cpp from resources/themes/default-dark.json),
@@ -476,13 +493,14 @@ jobs:
         id: a11y
         if: ${{ !cancelled() }}
         run: |
-          FILES=$(cat /tmp/changed_gui_files.txt | tr '\n' ' ')
-          if [ -z "$FILES" ]; then
+          FILES=()
+          while IFS= read -r f; do FILES+=("$f"); done < /tmp/changed_gui_files.txt
+          if [ "${#FILES[@]}" -eq 0 ]; then
             echo "No src/gui/ files changed -- skipping."
             echo "findings=0" >> $GITHUB_OUTPUT
             exit 0
           fi
-          python tools/check_a11y.py $FILES | tee /tmp/a11y_output.txt
+          python tools/check_a11y.py "${FILES[@]}" | tee /tmp/a11y_output.txt
           COUNT=$(grep -c "^::warning" /tmp/a11y_output.txt || true)
           echo "findings=$COUNT" >> $GITHUB_OUTPUT
 

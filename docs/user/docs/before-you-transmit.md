@@ -6,20 +6,20 @@ description: "Work through this checklist before you key up with AetherSDR for t
 
 Work through this checklist before you key up with AetherSDR for the first time, and again after a big change to your station, your computer or AetherSDR's settings. Each item says what to check and links to the page that explains it. Items marked **(FlexRadio)** apply only to a FlexRadio; the rest apply to every radio AetherSDR can transmit on.
 
-The checks are written so you can do them without putting a signal on the air. Where you do need to transmit to check something, use low power into a dummy load or a clear frequency, and identify as your licence requires.
+The checks are written so you can do them without putting a signal on the air. Where you do need to transmit to check something, use low power into a dummy load or a clear frequency, and identify as your license requires.
 
 ## Requirements
 
-- A radio that can transmit: a FlexRadio, a Hermes-Lite 2 or a recognised networked Icom. The ANAN-G2, RTL-SDR dongles, KiwiSDR/Web-888 receivers and the demo are receive-only. See [Supported Radios](./supported-radios.md).
+- A radio that can transmit: a FlexRadio, a Hermes-Lite 2 or a recognized networked Icom. The ANAN-G2, RTL-SDR dongles, KiwiSDR/Web-888 receivers and the demo are receive-only. See [Supported Radios](./supported-radios.md).
 - AetherSDR connected to it. See [First Connection](./first-connection.md).
-- A licence that covers the bands and modes you plan to use.
+- A license that covers the bands and modes you plan to use.
 
 ## The checklist
 
 ### The radio and the transmit slice
 
 - [ ] **The right radio is connected.** Its tab is active in the title bar, and it is not the demo ("Simulator (not on the air)"). See [First Connection](./first-connection.md).
-- [ ] **You know which slice transmits.** The transmit slice has the **red TX badge** on its VFO. Switching the active slice does not move transmit; click a grey **TX** badge to move it. See [Multi-Slice Operation](./multi-slice-operation.md) and [VFO Widget](./vfo-widget.md).
+- [ ] **You know which slice transmits.** The transmit slice has the **red TX badge** on its VFO. Switching the active slice does not move transmit; click a gray **TX** badge to move it. See [Multi-Slice Operation](./multi-slice-operation.md) and [VFO Widget](./vfo-widget.md).
 - [ ] **The transmit slice is on a frequency and mode you are licensed for.** Check the band plan strip along the bottom of the panadapter. See [Panadapter Controls](./panadapter-controls.md).
 - [ ] **Split is what you expect.** If a red **SPLIT** badge shows, you transmit on the second slice, not where you are listening. Click the red **SPLIT** badge to end the split. See [Split Operation](./split-operation.md).
 
@@ -54,7 +54,7 @@ The checks are written so you can do them without putting a signal on the air. W
 - [ ] **The program's audio route works.** On Linux and macOS with a FlexRadio, [DAX Virtual Audio](./dax-virtual-audio.md) gives each slice a virtual audio device. On Windows, and on radios without DAX, use the [TCI Server](./tci-server.md). See [WSJT-X Integration](./wsjt-x-integration.md).
 - [ ] **CAT or TCI control works before you transmit.** Changing frequency and mode in the program should move the transmit slice in AetherSDR, and the program should key the slice you expect. See [CAT Control](./cat-control.md) and [TCI Server](./tci-server.md).
 - [ ] **(FlexRadio)** **The TX filter passes your tones.** If AetherSDR shows a TX filter card on the panadapter when you transmit, widen **TX Filter** in the **Phone** applet. See [TX Controls](./tx-controls.md).
-- [ ] **Your computer's clock is accurate.** FT8 and similar modes fail when the clock is off by more than about a second. Keep the computer synchronised with NTP. [AetherClock and GPS](./aetherclock-and-gps.md) shows how far the computer's clock is from WWV/WWVB or the radio's GPS.
+- [ ] **Your computer's clock is accurate.** FT8 and similar modes fail when the clock is off by more than about a second. Keep the computer synchronized with NTP. [AetherClock and GPS](./aetherclock-and-gps.md) shows how far the computer's clock is from WWV/WWVB or the radio's GPS.
 
 ### Keying paths and timers
 
@@ -63,6 +63,7 @@ The checks are written so you can do them without putting a signal on the air. W
   - Controller buttons can be bound to PTT, MOX or TUNE: [USB Control Surfaces](./usb-control-surfaces.md) (including serial PTT and foot switches), [MIDI Controller Mapping](./midi-controller-mapping.md), [Ulanzi Dial](./ulanzi-dial.md), [StreamDeck](./streamdeck.md) and the [FlexControl Tuning Knob](./flexcontrol-tuning-knob.md).
   - CAT and TCI clients can key the radio. See [CAT Control](./cat-control.md) and [TCI Server](./tci-server.md).
   - The automation bridge cannot key the transmitter unless **Allow TX via MCP** is ticked, which is off by default. Leave it off unless you need it. See [Automation Bridge and MCP](./automation-bridge-and-mcp.md).
+- [ ] **(FlexRadio, firmware v4.3 and later)** **You know what your footswitch transmits.** A hardware PTT now sends the selected TX source, DAX or PC audio included, unless **PTT Mic Override** is on. See [Hardware PTT and the TX source](./tx-controls.md#hardware-ptt-and-the-tx-source).
 - [ ] **(FlexRadio)** **The radio's transmit time-out and interlocks are set:** **Timeout (sec):** and the **Interlocks - TX REQ** group on the **Transmit** page of Radio Setup. See [Radio Setup](./radio-setup.md).
 - [ ] **You can see when you are transmitting.** A green `M:SS` transmit timer appears in the title bar, just left of **PC Audio**, for each of your own transmissions, and the VFO marker turns orange/red. If an interlock blocks transmit, a notification says why. See [TX Controls](./tx-controls.md).
 

@@ -18,6 +18,8 @@
 #include "core/AppSettings.h"
 #include "core/RadioStateMemory.h"
 #include "core/backends/anan/AnanBackend.h"
+#include "models/RadioModel.h"
+#include "models/SliceModel.h"
 
 #include <QCoreApplication>
 #include <QProcess>
@@ -25,6 +27,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <cmath>
 #include <cstdio>
 #include <limits>
 #include <memory>
@@ -72,6 +75,14 @@ static void check(bool cond, const char* what)
         ++g_failures;
     }
 }
+
+namespace {
+// Reads as connected so RadioModel dispatches slice edits to it; no socket.
+class ConnectedAnan : public AnanBackend {
+public:
+    bool isConnected() const override { return true; }
+};
+}  // namespace
 
 int main(int argc, char** argv)
 {
@@ -267,27 +278,117 @@ int main(int argc, char** argv)
               "mode field reflects the new mode");
     }
 
-    // ---- setSliceAgc: live state, not just a fire-and-forget push ----
-    // Regression test for a real (fixed) bug: beginRateChange() used to
-    // refresh only .inputSampleRateHz in m_pendingDspConfig, so a rate
-    // change silently reverted AGC (and mode/filter) to whatever they were
-    // at connectRadio() time. m_agcMode/m_agcCeilingDb are what
-    // beginRateChange() now reads instead -- this pins that setSliceAgc()
-    // actually populates them, since there is no live-radio path to test
-    // beginRateChange() itself against here.
+    // ---- AGC-T knob scale: -20..120 dB, deskHPSDR's and Thetis's range ----
+    {
+        const auto approx = [](double a, double b) { return std::abs(a - b) < 1e-9; };
+        check(approx(AnanBackend::agcKnobDb(0), -20.0), "knob 0 is -20 dB");
+        check(approx(AnanBackend::agcKnobDb(50), 50.0), "knob 50 is 50 dB (1.4 dB per step)");
+        check(approx(AnanBackend::agcKnobDb(100), 120.0), "knob 100 is 120 dB");
+        check(approx(AnanBackend::agcKnobDb(-5), -20.0) && approx(AnanBackend::agcKnobDb(150), 120.0),
+              "the knob is clamped to 0..100 before it is mapped");
+        check(approx(AnanBackend::agcKnobDb(AnanBackend::kDefaultAgcThreshold), 79.4),
+              "the default AGC gain is 79.4 dB, the step nearest deskHPSDR's 80");
+        check(approx(AnanBackend::agcKnobDb(AnanBackend::kDefaultAgcOffLevel), 20.6),
+              "the default AGC-off gain is 20.6 dB, the step nearest Thetis's 20");
+    }
+
+    // ---- setSliceAgc / requestSliceAgc: live state, published ----
+    // connectRadio() and beginRateChange() both build the DSP config from these
+    // members, so they must hold what the operator set. Publishing them is what
+    // keeps the knob showing what the DSP runs (#5988).
     {
         AnanBackend backend;
-        check(backend.agcModeForTest() == 3 && backend.agcCeilingDbForTest() == 60.0,
-              "AGC defaults match connectRadio()'s own connect-time defaults");
+        std::optional<SliceDelta> last;
+        QObject::connect(&backend, &IRadioBackend::sliceChanged,
+                         [&last](int, const SliceDelta& d) { last = d; });
+        check(backend.agcModeForTest() == 3
+                  && backend.agcMaxGainDbForTest() == AnanBackend::agcKnobDb(AnanBackend::kDefaultAgcThreshold)
+                  && backend.agcFixedGainDbForTest() == AnanBackend::agcKnobDb(AnanBackend::kDefaultAgcOffLevel),
+              "AGC starts at medium with the default gain and AGC-off gain");
 
         backend.setSliceAgc(0, QStringLiteral("fast"), 50);
         check(backend.agcModeForTest() == 4, "\"fast\" maps to WDSP AGC mode 4");
-        check(backend.agcCeilingDbForTest() == 30.0,
-              "50 operator units -> 30 dB ceiling (0.6 dB/unit)");
+        check(backend.agcMaxGainDbForTest() == AnanBackend::agcKnobDb(50),
+              "the threshold sets the AGC gain through the knob scale");
+        check(last.has_value() && last->agcMode.value_or(QString()) == QStringLiteral("fast")
+                  && last->agcThreshold.value_or(-1) == 50
+                  && last->agcOffLevel.value_or(-1) == AnanBackend::kDefaultAgcOffLevel,
+              "an AGC change publishes the mode, threshold and AGC-off level it applied");
 
-        backend.setSliceAgc(0, QStringLiteral("off"), 100);
+        backend.setSliceAgc(0, QStringLiteral("off"), 140);
         check(backend.agcModeForTest() == 0, "\"off\" maps to WDSP AGC mode 0");
-        check(backend.agcCeilingDbForTest() == 60.0, "100 operator units -> 60 dB ceiling");
+        check(last->agcMode.value_or(QString()) == QStringLiteral("off")
+                  && last->agcThreshold.value_or(-1) == 100,
+              "a threshold above 100 is clamped, and the clamped value is published");
+
+        last.reset();
+        backend.requestSliceAgc(0, {SliceAgcRequest::Field::OffLevel, QStringLiteral("off"),
+                                    100, 40, SliceAgcRequest::Origin::Operator});
+        check(backend.agcFixedGainDbForTest() == AnanBackend::agcKnobDb(40),
+              "the AGC-off level sets the fixed gain through the knob scale");
+        check(backend.agcModeForTest() == 0 && backend.agcMaxGainDbForTest() == AnanBackend::agcKnobDb(100),
+              "an AGC-off level edit leaves the mode and threshold alone");
+        check(last.has_value() && last->agcOffLevel.value_or(-1) == 40,
+              "an AGC-off level edit is published");
+
+        backend.requestSliceAgc(0, {SliceAgcRequest::Field::Threshold, QStringLiteral("slow"),
+                                    30, 40, SliceAgcRequest::Origin::Operator});
+        check(backend.agcModeForTest() == 2 && backend.agcMaxGainDbForTest() == AnanBackend::agcKnobDb(30),
+              "a threshold request still reaches setSliceAgc() with its mode");
+    }
+
+    // ---- applyLiveRxState(): the receive state a connect or rate change builds ----
+    // connectRadio() and beginRateChange() both fill the DSP config with it.
+    {
+        AnanBackend backend;
+        backend.setSliceMode(0, QStringLiteral("LSB"));
+        backend.setSliceAgc(0, QStringLiteral("slow"), 40);
+        backend.requestSliceAgc(0, {SliceAgcRequest::Field::OffLevel, QStringLiteral("slow"),
+                                    40, 60, SliceAgcRequest::Origin::Operator});
+        backend.setSliceNoiseBlanker(0, AetherSDR::NoiseBlankerKind::Impulse, 70,
+                                     AetherSDR::NoiseBlankerFill::Interpolate);
+        const AnanRxDsp::Config config = backend.liveRxConfigForTest();
+        check(config.mode == WdspChannel::Mode::Lsb && config.filterLowHz == -2900.0
+                  && config.filterHighHz == -100.0,
+              "the DSP config carries the live mode and passband");
+        check(config.agcMode == 2 && config.maximumAgcGainDb == AnanBackend::agcKnobDb(40)
+                  && config.agcFixedGainDb == AnanBackend::agcKnobDb(60),
+              "and the live AGC mode, AGC gain and AGC-off gain");
+        check(static_cast<int>(config.noiseBlanker)
+                      == static_cast<int>(AetherSDR::NoiseBlankerKind::Impulse)
+                  && config.noiseBlankerLevel == 70
+                  && static_cast<int>(config.noiseBlankerFill)
+                      == static_cast<int>(AetherSDR::NoiseBlankerFill::Interpolate),
+              "and the live noise blanker");
+    }
+
+    // ---- the knob shows what the DSP runs, through RadioModel (#5988) ----
+    // SliceModel's own default is 65. The backend's published AGC replaces it,
+    // so a touch or bookmark recall starts from what the DSP runs.
+    {
+        RadioModel radio;
+        auto owned = std::make_unique<ConnectedAnan>();
+        ConnectedAnan* backend = owned.get();
+        radio.setBackendForTest(std::move(owned), QStringLiteral("anan"));
+        backend->setSliceFilter(0, 100, 2900);   // the first publication creates the slice
+        SliceModel* slice = radio.slice(0);
+        check(slice != nullptr, "ANAN publication creates the slice");
+        if (slice) {
+            check(slice->agcMode() == QStringLiteral("med")
+                      && slice->agcThreshold() == AnanBackend::kDefaultAgcThreshold
+                      && slice->agcOffLevel() == AnanBackend::kDefaultAgcOffLevel,
+                  "the knob shows the backend's AGC, not the slice model's own defaults");
+            slice->setAgcThreshold(60);
+            check(backend->agcMaxGainDbForTest() == AnanBackend::agcKnobDb(60),
+                  "a knob edit reaches the backend");
+            slice->setAgcMode(QStringLiteral("off"));
+            slice->setAgcOffLevel(35);
+            check(backend->agcModeForTest() == 0
+                      && backend->agcFixedGainDbForTest() == AnanBackend::agcKnobDb(35),
+                  "with AGC off the knob sets the AGC-off gain");
+            check(slice->agcThreshold() == 60 && slice->agcOffLevel() == 35,
+                  "the published values match what the operator set");
+        }
     }
 
     // ---- nearestDdc0RateKsps: nearest by RATIO, not linear distance ----

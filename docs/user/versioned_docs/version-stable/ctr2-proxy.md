@@ -27,7 +27,7 @@ AetherSDR's own command or transmit paths.
   LAN or a VPN. The proxy is unavailable on SmartLink connections.
 - **Wi-Fi (TCP) mode** works with current CTR2 firmware.
 - **USB mode** needs CTR2 firmware with USB mode, which has not been released
-  yet, and a build with USB HID support (hidapi).
+  yet, or an AetherKnob, and a build with USB HID support (hidapi).
 
 ## Setup
 
@@ -40,6 +40,10 @@ address and device are chosen again each session, and it only starts when you
 press **Start**.
 
 The **Mode** selector offers **Wi-Fi (TCP)** and **USB**.
+
+<img src="/img/screens/ctr2-applet.png" width="248" alt="CTR2 Proxy applet. Mode is set to USB with a Rescan button, the USB selector reads Select CTR2 USB device, and the Radio row (blacked out here) sits beside a dimmed Start button. An amber hint reads Select the CTR2 USB device, followed by State: Stopped and traffic counters of 0 B to the radio and to the CTR2." />
+
+*The CTR2 Proxy applet before a CTR2 is selected. The radio's address is blacked out.*
 
 > **Check the mode every time.** On builds with USB support, USB is the
 > default and the choice is not saved. USB mode waits on a CTR2 USB firmware
@@ -64,13 +68,25 @@ AetherSDR starts the link, so you only pick the device and press **Start**. It
 needs CTR2 firmware with USB mode, which has not been released yet.
 
 - The **USB** device list shows candidate HID devices, with known CTR2 boards
-  named and listed first. **Rescan** refreshes the list (and the local
-  addresses).
+  and the AetherKnob named and listed first. **Rescan** refreshes the list
+  (and the local addresses).
 - **Linux:** a udev rule for the CTR2 ships with the build. If the device
   cannot be opened, **Start** offers to install the rule
   (`/etc/udev/rules.d/70-aethersdr-ctr2.rules`) through `pkexec`, asking for
-  your administrator password once. The rule only opens CTR2 controllers to
-  whoever is logged in at the computer.
+  your administrator password once. The rule only opens CTR2 controllers and
+  the AetherKnob to whoever is logged in at the computer.
+- **AetherKnob** (an AetherSDR controller on the Elecrow CrowPanel 2.1"
+  rotary display) uses USB mode the same way. It appears in the list as
+  **AetherKnob**. While it is relaying, AetherSDR also sends it a 32-bar
+  spectrum for its center display. While receiving it shows the audio you
+  are hearing (after the radio's DSP, AetherSDR's noise reduction and the
+  RX chain up to the EQ) across the active slice's filter width, for
+  example 20–600 Hz for a 600 Hz CW filter. While transmitting it shows your
+  transmit audio across the TX filter width. Either way it reaches at most
+  half the audio sample rate (12 kHz for 24 kHz audio), and the bars are
+  spaced logarithmically in frequency, as on an audio analyzer, so the low
+  end gets more detail. AetherSDR also tells it the UDP port the relay uses,
+  so its meters update. A CTR2 never receives either.
 
 ## Reference
 

@@ -386,6 +386,7 @@ void RxApplet::buildUI()
         // RX antenna dropdown (blue text, no border)
         m_rxAntBtn = new QPushButton("ANT1");
         m_rxAntBtn->setFlat(true);
+        m_rxAntBtn->setFixedHeight(20);
         m_rxAntBtn->setStyleSheet(
             "QPushButton { color: #4488ff; background: transparent; border: none; "
             "font-size: 10px; font-weight: bold; padding: 0 2px; }"
@@ -468,6 +469,7 @@ void RxApplet::buildUI()
         // TX antenna dropdown (red text, no border)
         m_txAntBtn = new QPushButton("ANT1");
         m_txAntBtn->setFlat(true);
+        m_txAntBtn->setFixedHeight(20);
         AetherSDR::ThemeManager::instance().applyStyleSheet(m_txAntBtn, "QPushButton { color: {{color.accent.danger}}; background: transparent; border: none; "
             "font-size: 10px; font-weight: bold; padding: 0 2px; }"
             "QPushButton:hover { color: #ff6666; }");
@@ -510,18 +512,20 @@ void RxApplet::buildUI()
 
         row->addStretch(1);
 
-        // Filter width label (e.g. "2.7K") — centered between ANT and QSK
+        // Filter width and QSK share the antenna controls' font and row height.
         m_filterWidthLbl = new QLabel("2.7K");
+        m_filterWidthLbl->setFixedHeight(20);
+        m_filterWidthLbl->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
         m_filterWidthLbl->setAlignment(Qt::AlignCenter);
-        AetherSDR::ThemeManager::instance().applyStyleSheet(m_filterWidthLbl, "QLabel { color: {{color.accent.bright}}; font-size: 11px; font-weight: bold; }");
+        AetherSDR::ThemeManager::instance().applyStyleSheet(m_filterWidthLbl, "QLabel { color: {{color.accent.bright}}; font-size: 10px; font-weight: bold; }");
         row->addWidget(m_filterWidthLbl);
-
-        row->addStretch(1);
 
         // QSK indicator (read-only — controlled via CW applet Breakin button)
         m_qskBtn = new QPushButton("QSK");
         m_qskBtn->setCheckable(true);
         m_qskBtn->setFlat(true);
+        m_qskBtn->setFixedHeight(20);
+        m_qskBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
         m_qskBtn->setEnabled(false);
         AetherSDR::ThemeManager::instance().applyStyleSheet(m_qskBtn, "QPushButton { color: {{color.text.secondary}}; background: transparent; border: none; "
             "font-size: 10px; font-weight: bold; padding: 0 2px; }"
@@ -1044,6 +1048,10 @@ void RxApplet::buildUI()
         connect(m_sqlBtn, &QPushButton::clicked,
                 this, &RxApplet::cycleSqlMode);
         connect(m_sqlSlider, &QSlider::valueChanged, this, [this](int v) {
+            if (usingEngineAutoSquelch() && m_slice) {
+                setSqlSliderValueExternal(v);
+                return;
+            }
             if (m_sqlMode == SqlMode::Manual) {
                 // Cache the user's chosen manual level so re-entering
                 // Manual from Auto/Off restores it on Flex. Kiwi replacement
@@ -1061,9 +1069,13 @@ void RxApplet::buildUI()
                 // pan's auto-squelch algorithm picks up the new margin
                 // and the suggested level recomputes on the next FFT.
                 const int margin = std::clamp(v, 5, 20);
-                auto& s = AppSettings::instance();
-                s.setValue("AutoSqlMarginDb", QString::number(margin));
-                s.save();
+                if (usingEngineAutoSquelch() && m_slice) {
+                    m_slice->setAutomaticSquelch(true, margin);
+                } else {
+                    auto& s = AppSettings::instance();
+                    s.setValue("AutoSqlMarginDb", QString::number(margin));
+                    s.save();
+                }
                 emit autoSqlMarginDbChanged(margin);
             }
         });
@@ -1412,8 +1424,7 @@ void RxApplet::applySqlModeVisuals()
         case SqlMode::Auto: {
             m_sqlSlider->setRange(5, 20);
             const int margin = std::clamp(
-                AppSettings::instance().value("AutoSqlMarginDb", "10").toInt(),
-                5, 20);
+                autoSqlMarginDb(), 5, 20);
             m_sqlSlider->setValue(margin);
             m_sqlSlider->setEnabled(m_sqlBtn->isEnabled());
             m_sqlSlider->setToolTip(
@@ -1473,7 +1484,7 @@ QString RxApplet::sqlButtonAccessibleDescription() const
 
 bool RxApplet::autoSqlAvailable() const
 {
-    return usingExternalReceiveSquelch() || m_autoSqlAvailable;
+    return usingExternalReceiveSquelch() || usingEngineAutoSquelch() || m_autoSqlAvailable;
 }
 
 QString RxApplet::autoSqlUnavailableReason() const
@@ -1524,8 +1535,15 @@ void RxApplet::cycleSqlModeExternal()
 
 int RxApplet::autoSqlMarginDb() const
 {
+    if (usingEngineAutoSquelch() && m_slice) { return m_slice->automaticSquelchMarginDb(); }
     return std::clamp(
         AppSettings::instance().value("AutoSqlMarginDb", "10").toInt(), 5, 20);
+}
+
+bool RxApplet::usingEngineAutoSquelch() const
+{
+    return m_exclusiveSquelch && m_exclusiveSquelch->automaticInEngine
+        && !usingExternalReceiveSquelch();
 }
 
 bool RxApplet::usingExternalReceiveSquelch() const
@@ -1582,6 +1600,19 @@ void RxApplet::setManualSqlLevelForCurrentSurface(int level)
 
 void RxApplet::setSqlSliderValueExternal(int v)
 {
+    if (usingEngineAutoSquelch() && m_slice) {
+        // A request may be refused or adopted later. Keep both sliders on
+        // the accepted state until the backend publishes squelchChanged.
+        if (m_sqlMode == SqlMode::Auto) {
+            m_slice->setAutomaticSquelch(true, std::clamp(v, 5, 20));
+            emit autoSqlMarginDbChanged(autoSqlMarginDb());
+        } else if (m_sqlMode == SqlMode::Manual) {
+            m_slice->setSquelch(true, clampManualSqlLevelForCurrentSurface(v));
+            emit sqlModeChanged(static_cast<int>(m_sqlMode));
+        }
+        applySqlModeVisuals();
+        return;
+    }
     if (m_sqlMode == SqlMode::Manual) {
         const int level = clampManualSqlLevelForCurrentSurface(v);
         setManualSqlLevelForCurrentSurface(level);
@@ -1596,9 +1627,13 @@ void RxApplet::setSqlSliderValueExternal(int v)
         }
     } else if (m_sqlMode == SqlMode::Auto) {
         const int margin = std::clamp(v, 5, 20);
-        auto& s = AppSettings::instance();
-        s.setValue("AutoSqlMarginDb", QString::number(margin));
-        s.save();
+        if (usingEngineAutoSquelch() && m_slice) {
+            m_slice->setAutomaticSquelch(true, margin);
+        } else {
+            auto& s = AppSettings::instance();
+            s.setValue("AutoSqlMarginDb", QString::number(margin));
+            s.save();
+        }
         emit autoSqlMarginDbChanged(margin);
         if (m_sqlSlider) {
             QSignalBlocker b(m_sqlSlider);
@@ -1615,7 +1650,7 @@ void RxApplet::loadClientSquelchIntent()
     m_clientManualSqlLevel.reset();
     m_restoreAutoSql = false;
     m_clientSqlAwaitingReport = false;
-    if (!m_slice || !m_radioModel || usingExternalReceiveSquelch()) {
+    if (!m_slice || !m_radioModel || usingExternalReceiveSquelch() || usingEngineAutoSquelch()) {
         return;
     }
     const RadioSettingsScope scope = m_radioModel->settingsScope();
@@ -1652,7 +1687,7 @@ void RxApplet::loadClientSquelchIntent()
 void RxApplet::saveClientSquelchIntent()
 {
     if (!m_clientSquelchScope.hasRadioIdentity() || !m_slice
-        || usingExternalReceiveSquelch()) {
+        || usingExternalReceiveSquelch() || usingEngineAutoSquelch()) {
         return;
     }
     const RadioSettingsScope scope = m_clientSquelchScope;
@@ -1682,6 +1717,16 @@ void RxApplet::setSqlMode(SqlMode m, bool propagateToRadio)
     // Every route into Auto (cycle, restore, slice switch) passes here.
     if (m == SqlMode::Auto && !autoSqlAvailable()) {
         m = SqlMode::Manual;
+    }
+    if (propagateToRadio && usingEngineAutoSquelch() && m_slice) {
+        // Engine SQL is confirmed state, including transitions out of Auto.
+        // Only the accepted delta below may publish a new presentation.
+        if (m == SqlMode::Auto) {
+            m_slice->setAutomaticSquelch(true, autoSqlMarginDb());
+        } else {
+            m_slice->setSquelch(m != SqlMode::Off, sqlManualLevel());
+        }
+        return;
     }
     if (propagateToRadio) {
         m_clientSqlAwaitingReport = false;
@@ -1742,7 +1787,11 @@ void RxApplet::setSqlMode(SqlMode m, bool propagateToRadio)
         // For an absolute detector Auto starts from the accepted/manual
         // threshold. A dB margin is not an absolute threshold; the next FFT
         // supplies that through the spectrum's declared scale.
-        m_slice->setSquelch(sqOn, level);
+        if (m == SqlMode::Auto && usingEngineAutoSquelch()) {
+            m_slice->setAutomaticSquelch(true, autoSqlMarginDb());
+        } else {
+            m_slice->setSquelch(sqOn, level);
+        }
     }
 }
 
@@ -2755,6 +2804,15 @@ void RxApplet::connectSlice(SliceModel* s)
     });
 
     auto applySquelchState = [this](bool on, int level, bool externalReceive) {
+        if (!externalReceive && usingEngineAutoSquelch()) {
+            if (on && !m_slice->automaticSquelch()) { setManualSqlLevelForCurrentSurface(level); }
+            const SqlMode mode = !on ? SqlMode::Off
+                : (m_slice->automaticSquelch() ? SqlMode::Auto : SqlMode::Manual);
+            setSqlMode(mode, /*propagateToRadio=*/false);
+            emit autoSqlMarginDbChanged(autoSqlMarginDb());
+            emit squelchStateChanged(on, level);
+            return;
+        }
         if (!externalReceive && m_clientSqlAwaitingReport) {
             if (!m_slice->squelchStateKnown()) {
                 return;
@@ -2836,6 +2894,8 @@ void RxApplet::connectSlice(SliceModel* s)
             if (s->externalReceiveAutoSquelchOn()) {
                 mode = SqlMode::Auto;
             }
+        } else if (usingEngineAutoSquelch()) {
+            mode = s->squelchOn() && s->automaticSquelch() ? SqlMode::Auto : mode;
         } else if (m_clientSqlAwaitingReport) {
             // A previous radio/slice's Auto mode is not this radio's intent.
             // Wait for its first SQL report instead of starting on defaults.

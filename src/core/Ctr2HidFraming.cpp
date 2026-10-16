@@ -55,6 +55,12 @@ int extensionMaxLength(MessageType type)
         return spectrum::kHeaderBytes + spectrum::kMaxBars;
     case MessageType::RelayUdpPort:
         return 2;
+    case MessageType::AudioSpectrumLinear:
+        return spectrum::kHeaderBytes + spectrum::kMaxBars;
+    case MessageType::CwText:
+        return 1 + cwtext::kMaxChars;
+    case MessageType::Firmware:
+        return firmware::kDataHeaderBytes + firmware::kChunkBytes;
     default:
         return 0;
     }
@@ -69,6 +75,128 @@ void FrameReassembler::setExtensions(std::uint32_t caps)
         }
     }
     m_extensions = caps & defined;
+}
+
+namespace {
+
+void appendU32(QByteArray* out, quint32 v)
+{
+    out->append(static_cast<char>((v >> 24) & 0xFF));
+    out->append(static_cast<char>((v >> 16) & 0xFF));
+    out->append(static_cast<char>((v >> 8) & 0xFF));
+    out->append(static_cast<char>(v & 0xFF));
+}
+
+quint32 readU32(const QByteArray& in, int at)
+{
+    const auto b = [&](int i) { return static_cast<quint32>(static_cast<std::uint8_t>(in[at + i])); };
+    return (b(0) << 24) | (b(1) << 16) | (b(2) << 8) | b(3);
+}
+
+} // namespace
+
+QByteArray firmware::encodeBegin(quint32 imageBytes, const QByteArray& sha256)
+{
+    QByteArray out(1, static_cast<char>(kBegin));
+    appendU32(&out, imageBytes);
+    out.append(sha256.left(32));
+    return out;
+}
+
+QByteArray firmware::encodeData(quint32 offset, const QByteArray& chunk)
+{
+    QByteArray out(1, static_cast<char>(kData));
+    appendU32(&out, offset);
+    out.append(chunk.left(kChunkBytes));
+    return out;
+}
+
+QByteArray firmware::encodeEnd()
+{
+    return QByteArray(1, static_cast<char>(kEnd));
+}
+
+QByteArray firmware::encodeAbort()
+{
+    return QByteArray(1, static_cast<char>(kAbort));
+}
+
+QByteArray firmware::encodeSwitch()
+{
+    return QByteArray(1, static_cast<char>(kSwitch));
+}
+
+QByteArray firmware::encodeBootloader()
+{
+    return QByteArray(1, static_cast<char>(kBootloader));
+}
+
+bool firmware::decodeStatus(const QByteArray& payload, Reply* reply)
+{
+    if (payload.size() != 7 || static_cast<std::uint8_t>(payload[0]) != kStatus) {
+        return false;
+    }
+    reply->op = static_cast<std::uint8_t>(payload[1]);
+    reply->status = static_cast<Status>(static_cast<std::uint8_t>(payload[2]));
+    reply->value = readU32(payload, 3);
+    return true;
+}
+
+QString firmware::statusText(Status status)
+{
+    switch (status) {
+    case Status::Ok:           return QStringLiteral("OK");
+    case Status::BadState:     return QStringLiteral("the device was not expecting that step");
+    case Status::BadOffset:    return QStringLiteral("image data arrived out of order");
+    case Status::TooLarge:     return QStringLiteral("the image is too large for the device");
+    case Status::FlashError:   return QStringLiteral("the device could not write its flash");
+    case Status::Rejected:     return QStringLiteral("the device rejected the image (not signed for it)");
+    case Status::HashMismatch: return QStringLiteral("the image was damaged in transfer");
+    case Status::BadMessage:   return QStringLiteral("the device did not understand the request");
+    }
+    return QStringLiteral("unknown status %1").arg(static_cast<int>(status));
+}
+
+QString deviceinfo::Info::version() const
+{
+    return QStringLiteral("%1.%2.%3").arg(major).arg(minor).arg(patch);
+}
+
+QByteArray deviceinfo::encode(const Info& info)
+{
+    QByteArray r(kBytes, '\0');
+    r[0] = 'F';
+    r[1] = 'W';
+    r[2] = static_cast<char>(kLayout);
+    r[3] = static_cast<char>(info.major);
+    r[4] = static_cast<char>(info.minor);
+    r[5] = static_cast<char>(info.patch);
+    r[6] = static_cast<char>(info.flags);
+    const QByteArray build = info.build.toLatin1().left(kBuildBytes);
+    std::copy(build.begin(), build.end(), r.begin() + 8);
+    return r;
+}
+
+bool deviceinfo::decode(const QByteArray& report, Info* info)
+{
+    if (report.size() != kBytes || report[0] != 'F' || report[1] != 'W'
+        || static_cast<std::uint8_t>(report[2]) != kLayout) {
+        return false;
+    }
+    QString build;
+    for (int i = 8; i < kBytes && report[i] != '\0'; ++i) {
+        const auto c = static_cast<std::uint8_t>(report[i]);
+        if (c < 0x20 || c > 0x7E) {
+            return false;
+        }
+        build.append(QChar(c));
+    }
+    info->major = static_cast<std::uint8_t>(report[3]);
+    info->minor = static_cast<std::uint8_t>(report[4]);
+    info->patch = static_cast<std::uint8_t>(report[5]);
+    info->flags = static_cast<std::uint8_t>(report[6]);
+    info->build = build;
+    return true;
 }
 
 QByteArray capabilities::encode(std::uint32_t caps)
@@ -131,6 +259,49 @@ double spectrum::bandEdgeHz(int lowHz, int spanHz, int n, int i)
 int spectrum::displayLowHz(int spanHz)
 {
     return std::clamp(spanHz / 60, 20, 100);
+}
+
+int cwtext::confidence(float cost)
+{
+    return cost < 0.15f ? 0 : cost < 0.35f ? 1 : cost < 0.60f ? 2 : 3;
+}
+
+QByteArray cwtext::encode(const QString& text, float cost)
+{
+    QByteArray out(1, char(confidence(cost)));
+    for (const QChar c : text) {
+        if (out.size() > kMaxChars) {
+            break;
+        }
+        const ushort u = c.unicode();
+        if (u == '\n' || u == '\r') {
+            out.append(' ');
+        } else if (u >= 0x20 && u <= 0x7E) {
+            out.append(char(u));
+        }
+    }
+    return out.size() > 1 ? out : QByteArray();
+}
+
+double spectrum::linearEdgeHz(int lowHz, int spanHz, int n, int i)
+{
+    if (n <= 0 || i <= 0) {
+        return lowHz;
+    }
+    if (i >= n) {
+        return spanHz;
+    }
+    return lowHz + double(spanHz - lowHz) * i / n;
+}
+
+spectrum::Window spectrum::cwWindow(int filterLo, int filterHi, int pitchHz, double sampleRate)
+{
+    const int nyquist = sampleRate > 0 ? static_cast<int>(sampleRate / 2) : 12000;
+    const int pitch = std::clamp(pitchHz, 100, std::max(nyquist / 2, 100));
+    const int width = std::max(filterHi - filterLo, 50);
+    int half = std::max(std::abs(filterLo), std::abs(filterHi)) + width / 2;
+    half = std::max(0, std::min({half, pitch, nyquist - pitch}));
+    return {pitch - half, pitch + half};
 }
 
 int spectrum::displaySpanHz(int filterLo, int filterHi, double sampleRate)

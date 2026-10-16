@@ -20,6 +20,10 @@ same interferer.
 
 ### Creating a TNF
 
+<img src="/img/screens/tnf-markers.png" width="640" alt="Right-hand part of the panadapter, 14.260 to 14.350 MHz, with two tracking notch filters drawn as hatched amber vertical lines with triangle handles at the top, near 14.2765 and 14.3035 MHz, among SSB signals." />
+
+*Two tracking notch filters on the panadapter, each drawn as a hatched amber line.*
+
 - Right-click on the spectrum or waterfall → **Add TNF at XX.XXX MHz**
 - Or click **+TNF** in the panadapter's overlay menu (creates a TNF at the
   current frequency)
@@ -69,7 +73,7 @@ lengthens the receive filter slightly, which adds a little audio delay. See
 
 ### Permanent vs temporary
 
-| Type | Colour | Survives reboot | Default |
+| Type | Color | Survives reboot | Default |
 |------|-------|-----------------|---------|
 | Temporary | Yellow | No | Yes |
 | Permanent | Green | Yes | No |

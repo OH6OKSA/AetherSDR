@@ -168,8 +168,9 @@ The verbs kept behind `bridge_command` on purpose: the low-level widget
 primitives (`close`, `hover`, `tooltip`, `scrollTo`, `drag`, `showMenu`,
 `contextMenu`, `rightClick`, `hitTest`, `clickAt`, `doubleClick`,
 `doubleClickAt` — `invoke`/`grab` cover the common cases), the transmit-keying verbs (`key`, `txtest`,
-`atu`, `cwx`, `testtone`, `txwaterfall`, `transmit` — gated by
-`AETHER_AUTOMATION_ALLOW_TX`, deliberately less convenient), and the
+`atu`, `cwx`, `testtone`, `transmit` — gated by
+`AETHER_AUTOMATION_ALLOW_TX`, deliberately less convenient), the non-keying
+`txwaterfall` display toggle, and the
 niche/complex ones (`dss`, `layout`, `scale`, `panmessage`, `tci`,
 `station`, `resize`, `qrz`).
 
@@ -1372,7 +1373,7 @@ comparing screenshots.
    "panIndex":1,"objectName":"",
    "fftAverage":0,"fftFps":25,"fftWeightedAvg":false,
    "fftHeatMap":true,"showGrid":true,
-   "fftLineWidth":1.0,"fftLineColor":"#00e5ff",
+   "fftLineWidth":1.0,"fftSmoothing":0,"fftDecombHz":0,"fftLineColor":"#00e5ff",
    "fftFillAlpha":0.7,"fftFillColor":"#00e5ff",
    "noiseFloorEnable":false,"noiseFloorPosition":75,
    "wfBlankerEnabled":false,"wfBlankerThreshold":1.15,"wfBlankerMode":0,
@@ -3067,11 +3068,9 @@ failure and preserved in `tuneEvents` rather than being silently ignored.
 The MCP server exposes the same surface as `memory_profile`.
 
 ### `txwaterfall`
-Toggle the radio's **show-TX-in-waterfall** display flag (`transmit set
-show_tx_in_waterfall`), which gates whether keyed-up TX renders FFT-derived rows
-in the waterfall. Off by default; enable it so a test can confirm CWX / tune /
-ATU energy appears in the waterfall, not just in the FFT trace. This is a display
-toggle — it does **not** key the transmitter.
+Toggle **Show TX in Waterfall**, which lets keyed-up TX render FFT-derived rows
+where spectrum frames are available. It is off by default. This display toggle
+does **not** key the transmitter.
 
 ```json
 → {"cmd":"txwaterfall","value":"on"}
@@ -3080,6 +3079,23 @@ toggle — it does **not** key the transmitter.
 
 Accepts `on`/`off` (also `1`/`0`, `true`/`false`, `enable`/`disable`). The radio
 echoes the change asynchronously — re-read with `get transmit showTxInWaterfall`.
+
+Where the backend declares the client the owner of the flag
+(`RadioCapabilities::txWaterfallClientFlag`: the **Hermes-Lite 2 only**) there
+is no radio-side display engine and no echo. The verb applies the flag at once
+through `RadioModel::requestLocalShowTxInWaterfall`, remembers it per radio,
+and the note says so:
+
+```json
+← {"ok":true,"txwaterfall":true,"note":"client-side flag on this radio, applied now; get transmit showTxInWaterfall reads it"}
+```
+
+Flex owns the flag in the radio. ANAN, Icom, RTL-SDR and the **demo simulator**
+declare no owner: there the verb sends the wire text and answers with the first
+note above, nothing echoes, `get transmit showTxInWaterfall` stays `false`, and
+nothing is stored. A `true` flag only says keyed rows are allowed: the demo,
+ANAN and RTL-SDR cannot key, and on a Hermes-Lite 2 what those rows show while
+keyed has not been measured.
 
 ### `get dax`
 Read the centralized DAX RX channel-ownership table (#3305): which consumers
@@ -3143,10 +3159,10 @@ the radio tabs, the audio cluster, and the window controls on every platform.
              "popoverVisible":false,"pulseEnabled":true,
              "tabs":[{"id":"DEMO-0001","name":"Simulator (not on the air)",
                       "model":"FLEX-6600","status":"connected",
-                      "statusLine":"FLEX-6600 · connected · DEMO",
+                      "statusLine":"FLEX-6600 · Connected · DEMO",
                       "transport":"127.0.0.1","active":true,"linkCarrier":true,
                       "screenRect":[233,48,257,36],
-                      "accessibleName":"Radio Simulator (not on the air), connected"}],
+                      "accessibleName":"Radio Simulator (not on the air), Connected"}],
              "discovered":[…]},
    "audio":{"pcAudioEnabled":true,"pcAudioLocked":true,"lineoutMuted":false,
             "headphoneMuted":false,"masterVolume":100,"headphoneVolume":50,
@@ -3185,7 +3201,11 @@ currently clipping configured radios. `radios.tabs[].visibleInTabs` is the
 retained tab preference and `visible` is current widget visibility (which can
 also change in minimal mode). `radios.tabs[].linkCarrier` identifies
 the one tab carrying discovery/heartbeat state. `radios.tabs[].status` is one of `connected` / `available` /
-`in use`, and `statusLine` is the second line the tab actually renders —
+`in use` — a lower-case, untranslated token, and the field to match on.
+The text the tab *renders* is sentence case and translated (`Connected`,
+`Available`, `In use`, and `Link lost` while the link alarm is up), so
+`statusLine` and `accessibleName` deliberately disagree with `status` on
+casing; assert the token, not the prose. `statusLine` is the second line the tab actually renders —
 `[model ·] status [· detail]`, with the model shown only when a nickname hides
 it and the name (line one) never repeated. Assert against it rather than the
 dot colour, since [status is never encoded by colour alone](a11y.md); the
@@ -3804,6 +3824,13 @@ meter's display hold: a single key-edge ADC sample decays over seconds, so a
 script that asserts on it reads a transient from the start of the over as
 though it were the power now. It is reset at each key edge, which is right for
 a needle and wrong for a test.
+
+**`forwardPowerSkippedTotal` counts HL2 forward-power responses left out of the
+peak window** because their temperature word is 0, which no working sensor
+reads. It is a total since connect and absent until a forward-power response
+arrived, so `0` is a reading. A few per key-on is normal on gateware 74.2. A
+count that rises all the time means the radio's temperature word reads 0: the
+peak hold then runs on the last value alone and reads low on speech.
 
 On the HL2, `rfPowerPercent` / `txDriveRegister` / `txDriveGated` are the
 requested-versus-applied pair for transmit drive. `txDriveRegister` is the raw

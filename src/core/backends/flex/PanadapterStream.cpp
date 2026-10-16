@@ -199,6 +199,20 @@ void PanadapterStream::setReceiveBufferSizeBytes(int bytes)
         applyReceiveBufferSize();
 }
 
+void PanadapterStream::applyDscpEf(const QHostAddress& destination, std::initializer_list<quint16> ports)
+{
+    const VitaDscpResult result = m_dscpApplyForTest
+        ? m_dscpApplyForTest(m_socket->socketDescriptor(), destination, ports)
+        : m_dscpMarker.apply(m_socket->socketDescriptor(), destination, ports);
+    if (result.applied) {
+        qCInfo(lcVita49) << "PanadapterStream: VITA UDP DSCP EF configured (DSCP 46, TOS 0xB8):"
+                       << result.detail;
+    } else {
+        qCWarning(lcVita49) << "PanadapterStream: VITA UDP DSCP EF unavailable; streaming continues:"
+                          << result.detail;
+    }
+}
+
 bool PanadapterStream::start(RadioConnection* conn)
 {
     if (isRunning()) stop();  // clean up previous session before rebinding (#561)
@@ -240,6 +254,7 @@ bool PanadapterStream::start(RadioConnection* conn)
     }
 
     applyReceiveBufferSize();   // #3810 — absorb VITA-49 bursts so they don't drop
+    applyDscpEf(conn ? conn->radioAddress() : QHostAddress(), {4991, 4992});
     m_localAddress = m_socket->localAddress();
     m_localPort = m_socket->localPort();
     qCDebug(lcVita49) << "PanadapterStream: local UDP endpoint"
@@ -289,6 +304,7 @@ bool PanadapterStream::rebindToEphemeralPort(RadioConnection* conn)
     if (m_routedPrimeTimer)
         m_routedPrimeTimer->stop();
 
+    m_dscpMarker.reset();
     if (m_socket->state() != QAbstractSocket::UnconnectedState)
         m_socket->close();
 
@@ -313,6 +329,7 @@ bool PanadapterStream::rebindToEphemeralPort(RadioConnection* conn)
     }
 
     applyReceiveBufferSize();   // #3810 — absorb VITA-49 bursts so they don't drop
+    applyDscpEf(conn ? conn->radioAddress() : QHostAddress(), {4991, 4992});
     m_localAddress = m_socket->localAddress();
     m_localPort = m_socket->localPort();
     m_radioAddress = conn ? conn->radioAddress() : QHostAddress();
@@ -363,6 +380,7 @@ bool PanadapterStream::startWan(const QHostAddress& radioAddr, quint16 radioUdpP
     }
 
     applyReceiveBufferSize();   // #3810 — absorb VITA-49 bursts so they don't drop
+    applyDscpEf(radioAddr, {radioUdpPort});
     m_localPort = m_socket->localPort();
     m_localAddress = m_socket->localAddress();
     m_radioAddress = radioAddr;
@@ -416,6 +434,7 @@ void PanadapterStream::stop()
     m_wanRegistered = false;
     m_wanClientHandle = 0;
     m_hasReceivedPacket = false;
+    m_dscpMarker.reset();
     if (m_socket) {
         m_socket->close();
     }
@@ -1705,6 +1724,7 @@ const char* PanadapterStream::daxConsumerName(DaxConsumer who)
     case DaxConsumer::Clock:  return "clock";
     case DaxConsumer::CwDecoder: return "cw-decoder";
     case DaxConsumer::RttyDecoder: return "rtty-decoder";
+    case DaxConsumer::Ax25Decoder: return "ax25-decoder";
     }
     return "?";
 }
@@ -1840,7 +1860,7 @@ QVector<PanadapterStream::DaxChannelSnapshot> PanadapterStream::daxChannelSnapsh
         s.createPending = it->createPending;
         for (DaxConsumer who : {DaxConsumer::Bridge, DaxConsumer::Tci, DaxConsumer::Rade,
                                 DaxConsumer::Clock, DaxConsumer::CwDecoder,
-                                DaxConsumer::RttyDecoder}) {
+                                DaxConsumer::RttyDecoder, DaxConsumer::Ax25Decoder}) {
             if (it->holders & daxHolderBit(who))
                 s.holders << QString::fromLatin1(daxConsumerName(who));
         }

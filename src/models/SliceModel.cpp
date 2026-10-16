@@ -1,4 +1,5 @@
 #include "SliceModel.h"
+#include <QScopeGuard>
 #include "core/DigitalVoiceModeRegistry.h"
 #include "core/DtcsCodes.h"
 #include "core/KiwiSdrProtocol.h"
@@ -7,6 +8,7 @@
 #include <QPointer>
 
 #include <cmath>
+#include <limits>
 
 namespace AetherSDR {
 
@@ -36,12 +38,6 @@ void SliceModel::setLockedFeedbackActive(bool on)
 
 // ─── Setters ──────────────────────────────────────────────────────────────────
 
-// Helper: emit commandReady to send the command immediately (when connected),
-// or queue it for when the connection becomes available.
-void SliceModel::sendCommand(const QString& cmd)
-{
-    emit commandReady(cmd);
-}
 
 // ── Filter polarity (#3434) ─────────────────────────────────────────────
 // FlexLib knows FDV only as a USB-family mode (Slice.cs:543-546), so the
@@ -393,9 +389,13 @@ void SliceModel::setRxAntenna(const QString& ant)
 
 void SliceModel::setTxAntenna(const QString& ant)
 {
-    if (m_txAntenna == ant) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::TxAntenna;
+    if (m_txAntenna == ant) { return; }
+    const auto current = captureControlIntent(field);
     m_txAntenna = ant;
-    sendCommand(QString("slice set %1 txant=%2").arg(m_id).arg(ant));
+    emit controlRequested({field, ant});
+    if (!current()) { return; }
     emit txAntennaChanged(ant);
 }
 
@@ -638,10 +638,6 @@ void SliceModel::setNrlLevel(int v)
 void SliceModel::setNrsLevel(int v)
 {
     v = std::clamp(v, 0, 100);
-    // Record any explicit user choice (including a deliberate 50) so the
-    // applyChanges() re-push won't fight a value the user picked themselves.
-    m_nrsLevelUser = v;
-    m_nrsLevelUserOverride = true;
     if (m_nrsLevel == v) return;
     m_nrsLevel = v;
     notifyReceiveDspIntent(SliceDspRequest::Feature::Nrs, SliceDspRequest::Field::Level,
@@ -869,6 +865,14 @@ void SliceModel::setSquelch(bool on, int level)
     });
 }
 
+void SliceModel::setAutomaticSquelch(bool enabled, int marginDb)
+{
+    if (refuseOffThread(__func__) || marginDb < 5 || marginDb > 20
+        || externalReceiveReplacementActive()) { return; }
+    emit receiveSquelchRequested({enabled, m_squelchLevel, false, false,
+        SliceSquelchRequest::Kind::Automatic, marginDb});
+}
+
 void SliceModel::setManualSquelch(bool on, int level)
 {
     const QPointer<SliceModel> alive(this);
@@ -892,12 +896,20 @@ void SliceModel::setExternalReceiveAutoSquelch(bool on)
 
 void SliceModel::setRit(bool on, int hz)
 {
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::Rit;
+    hz = std::clamp(hz, -kIncrementalTuningMaxHz, kIncrementalTuningMaxHz);
+    const auto current = captureControlIntent(field);
     m_ritOn   = on;
     m_ritFreq = hz;
-    sendCommand(QString("slice set %1 rit_on=%2 rit_freq=%3")
-                    .arg(m_id).arg(on ? 1 : 0).arg(hz));
     m_ritCommandInFlight = true;
+    const auto resetInFlight = qScopeGuard([alive = QPointer<SliceModel>(this)] {
+        if (alive) { alive->m_ritCommandInFlight = false; }
+    });
+    emit controlRequested({field, IncrementalTuning{on, hz}});
+    if (!current()) { return; }
     emit ritCommandIssued(on, hz);
+    if (!current()) { return; }
     m_ritCommandInFlight = false;
     // The members, not the arguments: a backend that answers synchronously
     // (HL2's clamp) has already corrected them.
@@ -906,74 +918,122 @@ void SliceModel::setRit(bool on, int hz)
 
 void SliceModel::setXit(bool on, int hz)
 {
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::Xit;
+    hz = std::clamp(hz, -kIncrementalTuningMaxHz, kIncrementalTuningMaxHz);
+    const auto current = captureControlIntent(field);
     m_xitOn   = on;
     m_xitFreq = hz;
-    sendCommand(QString("slice set %1 xit_on=%2 xit_freq=%3")
-                    .arg(m_id).arg(on ? 1 : 0).arg(hz));
     m_xitCommandInFlight = true;
+    const auto resetInFlight = qScopeGuard([alive = QPointer<SliceModel>(this)] {
+        if (alive) { alive->m_xitCommandInFlight = false; }
+    });
+    emit controlRequested({field, IncrementalTuning{on, hz}});
+    if (!current()) { return; }
     emit xitCommandIssued(on, hz);
+    if (!current()) { return; }
     m_xitCommandInFlight = false;
     emit xitChanged(m_xitOn, m_xitFreq);
 }
 
 void SliceModel::setDaxChannel(int ch)
 {
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::DaxChannel;
     ch = std::clamp(ch, 0, 8);
-    if (m_daxChannel == ch) return;
+    if (m_daxChannel == ch) { return; }
+    const auto current = captureControlIntent(field);
     m_daxChannel = ch;
-    sendCommand(QString("slice set %1 dax=%2").arg(m_id).arg(ch));
+    emit controlRequested({field, ch});
+    if (!current()) { return; }
     emit daxChannelChanged(ch);
 }
 
 void SliceModel::setRttyMark(int hz)
 {
-    if (m_rttyMark == hz) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::RttyMark;
+    if (m_rttyMark == hz) { return; }
+    const auto current = captureControlIntent(field);
     // Track explicit user override so applyChanges() won't fight an intentional
     // choice of 2125 when rtty_mark_default is non-standard.
     m_rttyMarkUserOverride = (hz == 2125 && m_rttyMarkDefault != 2125);
     m_rttyMark = hz;
-    sendCommand(QString("slice set %1 rtty_mark=%2").arg(m_id).arg(hz));
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
     emit rttyMarkChanged(hz);
 }
 
 void SliceModel::setRttyShift(int hz)
 {
-    if (m_rttyShift == hz) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::RttyShift;
+    if (m_rttyShift == hz) { return; }
+    const auto current = captureControlIntent(field);
     m_rttyShift = hz;
-    sendCommand(QString("slice set %1 rtty_shift=%2").arg(m_id).arg(hz));
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
     emit rttyShiftChanged(hz);
 }
 
 void SliceModel::setDiglOffset(int hz)
 {
-    if (m_diglOffset == hz) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::DiglOffset;
+    if (m_diglOffset == hz) { return; }
+    const auto current = captureControlIntent(field);
     m_diglOffset = hz;
-    sendCommand(QString("slice set %1 digl_offset=%2").arg(m_id).arg(hz));
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
     emit diglOffsetChanged(hz);
 }
 
 void SliceModel::setDiguOffset(int hz)
 {
-    if (m_diguOffset == hz) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::DiguOffset;
+    if (m_diguOffset == hz) { return; }
+    const auto current = captureControlIntent(field);
     m_diguOffset = hz;
-    sendCommand(QString("slice set %1 digu_offset=%2").arg(m_id).arg(hz));
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
     emit diguOffsetChanged(hz);
 }
 
 void SliceModel::setTxSlice(bool on)
 {
-    sendCommand(QString("slice set %1 tx=%2").arg(m_id).arg(on ? 1 : 0));
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::TxSlice;
+    const auto current = captureControlIntent(field);
+    emit controlRequested({field, on});
+    if (!current()) { return; }
     // Only the REQUEST to take transmit is forwarded. There is no "stop being
     // the TX slice" on a radio with one transmitter — transmit always lives
     // somewhere — so a backend is told which slice should own it, never that
     // one should stop. Clearing is what the operator does by choosing another.
-    if (on)
+    if (on) {
         emit txSliceCommandIssued();
+        if (!current()) { return; }
+    }
 }
 
 void SliceModel::setActive(bool on)
 {
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::ActiveSlice;
+    if (confirmsControls()) {
+        // Confirmed selection follows live-object admission before any UI edge;
+        // a retired model must not select a reused numeric slot optimistically.
+        if (on) {
+            const auto current = captureControlIntent(field);
+            emit controlRequested({field, true});
+            if (!current()) { return; }
+            emit activeSliceCommandIssued();
+        }
+        return;
+    }
     if (on) {
+        const auto current = captureControlIntent(field);
         // Optimistic (#3854 review): activeSlice() prefers the radio's active
         // flag, so waiting for the echo leaves a one-round-trip window where
         // the PREVIOUS slice still reads active and the first wheel/MIDI/
@@ -982,12 +1042,14 @@ void SliceModel::setActive(bool on)
         if (!m_active) {
             m_active = true;
             emit activeChanged(true);
+            if (!current()) { return; }
         }
-        sendCommand(QString("slice set %1 active=1").arg(m_id));
-        // For a backend that never sees the wire text above. It also has to
-        // CLEAR the previously active slice, which on a Flex arrives as a status
-        // echo and here has no other way of happening.
+        emit controlRequested({field, true});
+        if (!current()) { return; }
+        // Compatibility notification for test observers. Backend selection
+        // (including clearing the previous slice) uses controlRequested above.
         emit activeSliceCommandIssued();
+        if (!current()) { return; }
     }
 }
 
@@ -995,84 +1057,138 @@ void SliceModel::setActive(bool on)
 
 void SliceModel::setRecordOn(bool on)
 {
-    sendCommand(QString("slice set %1 record=%2").arg(m_id).arg(on ? 1 : 0));
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::Record;
+    captureControlIntent(field);
+    emit controlRequested({field, on});
 }
 
 void SliceModel::setPlayOn(bool on)
 {
-    sendCommand(QString("slice set %1 play=%2").arg(m_id).arg(on ? 1 : 0));
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::Play;
+    captureControlIntent(field);
+    emit controlRequested({field, on});
 }
 
 // ─── FM duplex/repeater setters ──────────────────────────────────────────────
 
 void SliceModel::setFmToneMode(const QString& mode)
 {
-    if (m_fmToneMode == mode) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::FmToneMode;
+    if (m_fmToneMode == mode) { return; }
+    const auto current = captureControlIntent(field);
     m_fmToneMode = mode;
-    sendCommand(QString("slice set %1 fm_tone_mode=%2").arg(m_id).arg(mode));
+    emit controlRequested({field, mode});
+    if (!current()) { return; }
     emit fmToneModeCommandIssued(mode);
+    if (!current()) { return; }
     emit fmToneModeChanged(mode);
 }
 
 void SliceModel::setFmToneValue(const QString& value)
 {
-    if (m_fmToneValue == value) return;
+    if (refuseOffThread(__func__)) { return; }
+    bool parsed = false;
+    const double hz = value.toDouble(&parsed);
+    if (!parsed || !std::isfinite(hz)) { return; }
+    const auto field = SliceControlRequest::Field::FmToneValue;
+    if (m_fmToneValue == value) { return; }
+    const auto current = captureControlIntent(field);
     m_fmToneValue = value;
-    sendCommand(QString("slice set %1 fm_tone_value=%2").arg(m_id).arg(value));
-    emit fmToneValueCommandIssued(value.toDouble());
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
+    emit fmToneValueCommandIssued(hz);
+    if (!current()) { return; }
     emit fmToneValueChanged(value);
 }
 
 void SliceModel::setFmToneRxValue(const QString& value)
 {
+    if (refuseOffThread(__func__)) { return; }
+    bool parsed = false;
+    const double hz = value.toDouble(&parsed);
+    if (!parsed || !std::isfinite(hz)) { return; }
+    const auto field = SliceControlRequest::Field::FmRxToneValue;
     if (m_fmToneRxValue == value) {
         return;
     }
+    const auto current = captureControlIntent(field);
     m_fmToneRxValue = value;
-    emit fmToneRxValueCommandIssued(value.toDouble());
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
+    emit fmToneRxValueCommandIssued(hz);
+    if (!current()) { return; }
     emit fmToneRxValueChanged(value);
 }
 
 void SliceModel::setFmDtcs(int code, bool txReverse, bool rxReverse)
 {
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::FmDtcs;
     if (!isCanonicalDtcsCode(code)) {
         return;
     }
+    const auto current = captureControlIntent(field);
     // Operator intent is not radio state. The IC-9700 echoes 1B 02, and only
     // that reply reaches applyChanges() and fmDtcsChanged().
+    emit controlRequested({field, DtcsSetting{code, txReverse, rxReverse}});
+    if (!current()) { return; }
     emit fmDtcsCommandIssued(code, txReverse, rxReverse);
 }
 
 void SliceModel::setRepeaterOffsetDir(const QString& dir)
 {
-    if (m_repeaterOffsetDir == dir) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::RepeaterDirection;
+    if (m_repeaterOffsetDir == dir) { return; }
+    const auto current = captureControlIntent(field);
     m_repeaterOffsetDir = dir;
-    sendCommand(QString("slice set %1 repeater_offset_dir=%2").arg(m_id).arg(dir));
+    emit controlRequested({field, dir});
+    if (!current()) { return; }
     emit repeaterOffsetDirCommandIssued(dir);
+    if (!current()) { return; }
     emit repeaterOffsetDirChanged(dir);
 }
 
 void SliceModel::setFmRepeaterOffsetFreq(double mhz)
 {
-    if (qFuzzyCompare(m_fmRepeaterOffsetFreq, mhz)) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::RepeaterOffset;
+    if (qFuzzyCompare(m_fmRepeaterOffsetFreq, mhz)) { return; }
+    const auto current = captureControlIntent(field);
     m_fmRepeaterOffsetFreq = mhz;
-    sendCommand(QString("slice set %1 fm_repeater_offset_freq=%2")
-                    .arg(m_id).arg(mhz, 0, 'f', 6));
+    emit controlRequested({field, mhz * 1.0e6});
+    if (!current()) { return; }
     emit fmRepeaterOffsetCommandIssued(mhz * 1.0e6);
+    if (!current()) { return; }
     emit fmRepeaterOffsetFreqChanged(mhz);
 }
 
 void SliceModel::applyRecalledFmRepeater(const QString& direction, double offsetMhz,
                                          const QString& toneMode, double toneHz)
 {
+    if (refuseOffThread(__func__)) { return; }
+    const QPointer<SliceModel> alive(this);
+    const auto field = SliceControlRequest::Field::RepeaterRecall;
+    const quint64 revision = ++m_controlIntentRevisions[static_cast<size_t>(field)];
+    const auto current = [alive, field, revision] {
+        return alive && alive->m_controlIntentRevisions[static_cast<size_t>(field)] == revision;
+    };
     // Local-memory radios have no vendor memory command to decode back through
     // the model.  Apply the requested snapshot locally as one unit, then emit a
-    // grouped backend intent.  This deliberately avoids the four Flex wire
-    // strings above: RadioModel calls it only for the local-memory path.
+    // grouped backend intent rather than four individual control requests.
+    // RadioModel calls it only for the local-memory path.
     applyRecalledFmRepeaterState(
         direction, offsetMhz, toneMode, toneHz, 0.0);
+    if (!current()) { return; }
+    emit controlRequested({field, RepeaterSetting{direction, offsetMhz * 1.0e6, toneMode, toneHz},
+                           SliceControlRequest::Origin::RadioDefaultRestore});
+    if (!current()) { return; }
     emit fmRepeaterRecallCommandIssued(direction, offsetMhz * 1.0e6,
                                        toneMode, toneHz);
+    if (!current()) { return; }
 }
 
 void SliceModel::applyRecalledFmRepeaterState(
@@ -1122,18 +1238,25 @@ double SliceModel::txOffsetForDirection(const QString& dir, double magnitudeMhz)
 
 void SliceModel::setTxOffsetFreq(double mhz)
 {
-    if (qFuzzyCompare(m_txOffsetFreq, mhz)) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::TxOffset;
+    if (qFuzzyCompare(m_txOffsetFreq, mhz)) { return; }
+    const auto current = captureControlIntent(field);
     m_txOffsetFreq = mhz;
-    sendCommand(QString("slice set %1 tx_offset_freq=%2")
-                    .arg(m_id).arg(mhz, 0, 'f', 6));
+    emit controlRequested({field, mhz * 1.0e6});
+    if (!current()) { return; }
     emit txOffsetFreqChanged(mhz);
 }
 
 void SliceModel::setFmDeviation(int hz)
 {
-    if (m_fmDeviation == hz) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::FmDeviation;
+    if (m_fmDeviation == hz) { return; }
+    const auto current = captureControlIntent(field);
     m_fmDeviation = hz;
-    sendCommand(QString("slice set %1 fm_deviation=%2").arg(m_id).arg(hz));
+    emit controlRequested({field, hz});
+    if (!current()) { return; }
     emit fmDeviationChanged(hz);
 }
 
@@ -1167,8 +1290,13 @@ void SliceModel::setAudioGain(float gain)
 
 void SliceModel::setRfGain(float gain)
 {
+    if (refuseOffThread(__func__)) { return; }
+    if (!std::isfinite(gain) || double(gain) < std::numeric_limits<int>::min()
+        || double(gain) > std::numeric_limits<int>::max()) { return; }
+    const auto field = SliceControlRequest::Field::RfGain;
+    captureControlIntent(field);
     m_rfGain = gain;
-    sendCommand(QString("slice set %1 rfgain=%2").arg(m_id).arg(static_cast<int>(gain)));
+    emit controlRequested({field, static_cast<int>(gain)});
 }
 
 void SliceModel::setAudioMute(bool mute)
@@ -1317,39 +1445,60 @@ void SliceModel::prepareExternalReceiveAudioReplacementBandRecall(
 
 void SliceModel::setDiversity(bool on)
 {
-    if (m_diversity == on) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::Diversity;
+    if (m_diversity == on) { return; }
+    const auto current = captureControlIntent(field);
     m_diversity = on;
-    sendCommand(QString("slice set %1 diversity=%2").arg(m_id).arg(on ? 1 : 0));
+    emit controlRequested({field, on});
+    if (!current()) { return; }
     emit diversityChanged(on);
 }
 
 void SliceModel::setEscEnabled(bool on)
 {
-    if (m_escEnabled == on) return;
+    if (refuseOffThread(__func__)) { return; }
+    const auto field = SliceControlRequest::Field::EscEnabled;
+    if (m_escEnabled == on) { return; }
+    const auto current = captureControlIntent(field);
     m_escEnabled = on;
     // FlexLib: only diversity parent sends ESC commands (Slice.cs:3367)
     // SmartSDR pcap: uses "on"/"off" not "1"/"0"
-    if (!m_diversityChild)
-        sendCommand(QString("slice set %1 esc=%2").arg(m_id).arg(on ? "on" : "off"));
+    if (!m_diversityChild) {
+        emit controlRequested({field, on});
+        if (!current()) { return; }
+    }
     emit escEnabledChanged(on);
 }
 
 void SliceModel::setEscGain(float gain)
 {
+    if (refuseOffThread(__func__)) { return; }
+    if (!std::isfinite(gain)) { return; }
+    const auto field = SliceControlRequest::Field::EscGain;
     gain = std::clamp(gain, 0.0f, 2.0f);
-    if (qFuzzyCompare(m_escGain, gain)) return;
+    if (qFuzzyCompare(m_escGain, gain)) { return; }
+    const auto current = captureControlIntent(field);
     m_escGain = gain;
-    if (!m_diversityChild)
-        sendCommand(QString("slice set %1 esc_gain=%2").arg(m_id).arg(gain, 0, 'f', 6));
+    if (!m_diversityChild) {
+        emit controlRequested({field, double(gain)});
+        if (!current()) { return; }
+    }
     emit escGainChanged(gain);
 }
 
 void SliceModel::setEscPhaseShift(float deg)
 {
-    if (qFuzzyCompare(m_escPhaseShift, deg)) return;
+    if (refuseOffThread(__func__)) { return; }
+    if (!std::isfinite(deg)) { return; }
+    const auto field = SliceControlRequest::Field::EscPhase;
+    if (qFuzzyCompare(m_escPhaseShift, deg)) { return; }
+    const auto current = captureControlIntent(field);
     m_escPhaseShift = deg;
-    if (!m_diversityChild)
-        sendCommand(QString("slice set %1 esc_phase_shift=%2").arg(m_id).arg(deg, 0, 'f', 6));
+    if (!m_diversityChild) {
+        emit controlRequested({field, double(deg)});
+        if (!current()) { return; }
+    }
     emit escPhaseShiftChanged(deg);
 }
 
@@ -1388,8 +1537,6 @@ void SliceModel::emitLetterRefresh()
 void SliceModel::applyChanges(const SliceDelta& d)
 {
     const QPointer<SliceModel> alive(this);
-    std::optional<SliceDspRequest> profileRestore;
-    const quint64 nrsLevelRevision = m_dspIntentRevisions[static_cast<size_t>(SliceDspRequest::Feature::Nrs)][1];
     const ReceiveObservation previousObservation = m_receiveObservation;
     if (d.mode) {
         // A mode change invalidates the old mode's passband. Partial filter
@@ -1796,16 +1943,6 @@ void SliceModel::applyChanges(const SliceDelta& d)
     }
     if (d.nrsLevel.has_value()) {
         int v = *d.nrsLevel;
-        // The radio's `profile global` snapshot does not persist
-        // speex_nr_level. On recall the firmware reports its default of 50
-        // even when the user previously set a different value. If we have a
-        // cached user choice that differs, push it back. Same precedent as
-        // the rtty_mark workaround below.
-        if (v == 50 && m_nrsLevelUserOverride && m_nrsLevelUser != 50) {
-            v = m_nrsLevelUser;
-            profileRestore = SliceDspRequest{SliceDspRequest::Feature::Nrs,
-                SliceDspRequest::Field::Level, m_nrs, v, SliceDspRequest::Origin::ProfileRestore};
-        }
         if (m_nrsLevel != v) { m_nrsLevel = v; emit nrsLevelChanged(v); }
     }
     if (d.nrfLevel.has_value()) {
@@ -1879,7 +2016,13 @@ void SliceModel::applyChanges(const SliceDelta& d)
             emit wfmReceptionDiagnosticsChanged(value);
         }
     }
-    if (d.squelchOn.has_value() || d.squelchLevel.has_value()) {
+    if (d.automaticSquelch) { m_automaticSquelch = *d.automaticSquelch; }
+    if (d.automaticSquelchMarginDb && *d.automaticSquelchMarginDb >= 5
+        && *d.automaticSquelchMarginDb <= 20) {
+        m_automaticSquelchMarginDb = *d.automaticSquelchMarginDb;
+    }
+    if (d.squelchOn.has_value() || d.squelchLevel.has_value()
+        || d.automaticSquelch || d.automaticSquelchMarginDb) {
         m_squelchOnKnown |= d.squelchOn.has_value();
         m_squelchLevelKnown |= d.squelchLevel.has_value();
         if (d.squelchOn.has_value())
@@ -1894,8 +2037,13 @@ void SliceModel::applyChanges(const SliceDelta& d)
             // External-receive (Kiwi) slices keep their level in
             // m_externalReceiveSquelchLevel and never read the Flex manual
             // memory, so exclude them here exactly as setManualSquelch does.
-            if (m_squelchEchoIsManual && !m_externalReceiveAudioReplacement)
+            // Engine-owned Auto publishes its retained manual threshold,
+            // not a computed Auto level. Restore that memory even if the
+            // attached applet already marked its echo surface Off/Auto.
+            if ((m_squelchEchoIsManual || d.automaticSquelch.has_value())
+                && !m_externalReceiveAudioReplacement) {
                 setManualSquelchLevel(*d.squelchLevel);
+            }
         }
         emit squelchChanged(m_squelchOn, m_squelchLevel);
     }
@@ -1930,7 +2078,8 @@ void SliceModel::applyChanges(const SliceDelta& d)
         // user has not explicitly chosen 2125, push the default back.
         if (v == 2125 && m_rttyMarkDefault != 2125 && !m_rttyMarkUserOverride) {
             v = m_rttyMarkDefault;
-            sendCommand(QString("slice set %1 rtty_mark=%2").arg(m_id).arg(v));
+            emit controlRequested({SliceControlRequest::Field::RttyMark, v,
+                                   SliceControlRequest::Origin::RadioDefaultRestore});
         }
         if (m_rttyMark != v) { m_rttyMark = v; emit rttyMarkChanged(v); }
     }
@@ -2051,11 +2200,6 @@ void SliceModel::applyChanges(const SliceDelta& d)
     }
     if (d.mode) {
         emit receiveModeReported();
-    }
-    if (alive && profileRestore
-        && nrsLevelRevision == m_dspIntentRevisions[static_cast<size_t>(SliceDspRequest::Feature::Nrs)][1]
-        && m_nrsLevelUser == profileRestore->level) {
-        emit receiveDspRequested(*profileRestore);
     }
 }
 

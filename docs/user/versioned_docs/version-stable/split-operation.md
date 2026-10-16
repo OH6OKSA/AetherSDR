@@ -21,6 +21,10 @@ panadapter.
 
 ### Starting and ending a split
 
+<img src="/img/screens/split-pair.png" width="760" alt="Two VFO flags on one panadapter. Slice A at 14.250.000 has a red SPLIT badge and a dimmed TX badge. Slice B at 14.255.000, 5 kHz up, has a SWAP badge, the red TX badge and a magenta B, with its own magenta marker line in the spectrum." />
+
+*A split pair: the receive slice's SPLIT badge turns red and the new transmit slice shows SWAP and TX.*
+
 1. On the slice you are listening with, click **SPLIT** on its VFO flag.
 2. AetherSDR makes that slice the **receive** slice and creates a **transmit**
    slice on the same panadapter, **1 kHz up in CW** and **5 kHz up** in other
@@ -42,6 +46,10 @@ partner (see [Diversity and ESC](./diversity-and-esc.md)).
 
 **Right-click either badge** (SPLIT or SWAP) for the controls that go with
 split operation.
+
+<img src="/img/screens/split-badge-menu.png" width="212" alt="SPLIT badge context menu: Split Up 1 kHz, Split Up 5 kHz, Split Up 10 kHz, Split QSY Option (submenu), Monitor TX (submenu), Nothing remembered yet and Forget remembered audio." />
+
+*Right-clicking the SPLIT badge: preset offsets and the split options.*
 
 #### Split Up 1 / 5 / 10 kHz
 
@@ -105,7 +113,7 @@ comes back the same way, and keeps doing so until you change it.
 - Only your own edits teach it: the VFO flag, applets, keyboard and
   controllers. Changes arriving over CAT, TCI or from the radio do not.
 - If you mute the transmit slice yourself before ending a split, the remembered
-  arrangement is cleared, so muting it once returns to the original behaviour.
+  arrangement is cleared, so muting it once returns to the original behavior.
 - Splits started by a logging program or another client over CAT, Hamlib or
   TCI are left alone.
 

@@ -29,7 +29,7 @@
 #include "core/CwxLocalKeyer.h"
 #include "core/IambicKeyer.h"
 #include "core/PerfTelemetry.h"
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
 #include "core/UlanziDialMacOSManager.h"
 #include "core/VirtualAudioBridge.h"
 #elif defined(HAVE_PIPEWIRE)
@@ -66,12 +66,14 @@
 #include "core/AutomationBridgeSettings.h"
 #include "core/AutomationServer.h"
 
+#include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QStatusBar>
+#include <QUrl>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include "core/LogManager.h"
@@ -1363,7 +1365,7 @@ void MainWindow::wireRadioModel()
     // Start/stop PC audio TX when mic_selection changes
     connect(&m_radioModel.transmitModel(), &TransmitModel::micStateChanged,
             this, [this]() {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
         const bool allowBluetoothTelephonyOutput =
             m_radioModel.transmitModel().micSelection() == "PC";
         QMetaObject::invokeMethod(m_audio, [this, allowBluetoothTelephonyOutput]() {
@@ -1415,7 +1417,7 @@ void MainWindow::wireRadioModel()
             }
         }
     });
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     const bool allowBluetoothTelephonyOutput =
         m_radioModel.transmitModel().micSelection() == "PC";
     QMetaObject::invokeMethod(m_audio, [this, allowBluetoothTelephonyOutput]() {
@@ -1634,7 +1636,7 @@ void MainWindow::wireRadioModel()
             m_audio->setTransmitting(tx);
 #endif
         }
-#if defined(Q_OS_MAC) || defined(HAVE_PIPEWIRE)
+#if defined(Q_OS_MACOS) || defined(HAVE_PIPEWIRE)
         if (m_daxBridge)
             m_daxBridge->setTransmitting(tx);
 #endif
@@ -1665,7 +1667,7 @@ void MainWindow::wireRadioModel()
                 m_audio->setTransmitting(false);
 #endif
             }
-#if defined(Q_OS_MAC) || defined(HAVE_PIPEWIRE)
+#if defined(Q_OS_MACOS) || defined(HAVE_PIPEWIRE)
             if (m_daxBridge)
                 m_daxBridge->setTransmitting(false);
 #endif
@@ -2382,7 +2384,7 @@ void MainWindow::wirePanLifecycle()
         }
     });
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     auto repushPanDimensions = [this]() {
         QTimer::singleShot(200, this, [this]() {
             if (m_shuttingDown || !m_panStack) {
@@ -2817,7 +2819,7 @@ void MainWindow::wireDaxIq()
                 &m_radioModel.daxIqModel(), &DaxIqModel::setSampleRate);
     }
 
-#if defined(Q_OS_MAC) || defined(HAVE_PIPEWIRE)
+#if defined(Q_OS_MACOS) || defined(HAVE_PIPEWIRE)
     // DAX enable button in DaxApplet → start/stop DAX bridge
     connect(m_appletPanel->daxApplet(), &DaxApplet::daxToggled,
             this, [this](bool on) {
@@ -3011,7 +3013,7 @@ bool MainWindow::startAutomationBridge(const QString& sockName)
         QThread* backendThread = m_dialBackend->thread();
         bool queued = false;
         if (lifecycle) {
-#if !defined(Q_OS_LINUX) && !defined(Q_OS_MAC) && !(defined(Q_OS_WIN) && defined(HAVE_HIDAPI))
+#if !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS) && !(defined(Q_OS_WIN) && defined(HAVE_HIDAPI))
             return QJsonObject{
                 {QStringLiteral("ok"), false},
                 {QStringLiteral("supported"), false},
@@ -3045,7 +3047,7 @@ bool MainWindow::startAutomationBridge(const QString& sockName)
         // queued means accepted for delivery, not completed. A later thread
         // shutdown can still prevent delivery; do not report device state from
         // before an asynchronous lifecycle request as its outcome.
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
         QJsonObject snapshot = m_dialBackend->diagnostics();
         snapshot[QStringLiteral("operation")] = diagnostic;
         snapshot[QStringLiteral("enabled")] = dialEnabled();
@@ -3303,6 +3305,93 @@ void MainWindow::syncPanSpanControlPlacement()
         sw->setSpanControlPlacement(
             spanControlLiveOnPan(radioWide, panIds, txPanId, panId), radioWide);
     }
+}
+
+// Color the version row by how current the firmware is, and make it a link to
+// the release notes when it is not.
+//
+// Runs from refreshRadioIdentityLabels(), the single owner of this stack, so
+// it repaints on exactly the edges the text does: connect, the late-arriving
+// infoChanged, a capabilities update, and disconnect. It reads the LABEL's
+// text rather than the model's, which is what makes disconnect correct for
+// free: the label is cleared first, an empty string parses to nothing, and the
+// verdict falls back to Unknown instead of stranding the last radio's color
+// on a blank row.
+//
+// Bold is applied through the stylesheet rather than QFont so the width
+// recalculation that follows sees the wider text; setting it after
+// updateStatusBarMinimumWidth() would clip the row on a narrow window.
+//
+// The verdict comes entirely from the backend's declared FirmwareUpdateSource,
+// with no test of which family it is (see FirmwareCurrency.h). A radio whose
+// backend declares no source, and any station whose backend could not find out
+// what is published, keep the plain secondary color of the model row above.
+void MainWindow::applyFirmwareCurrencyToVersionLabel()
+{
+    using AetherSDR::FirmwareCurrency::Status;
+
+    // Two things have to be true before a verdict exists: the backend must have
+    // declared that its firmware versions are published somewhere, and it must
+    // have found out what the newest one is. Either missing leaves Unknown.
+    const auto& source = m_radioModel.backendCapabilities().firmwareUpdateSource;
+    m_radioFirmwareCurrency =
+        source.has_value()
+            ? AetherSDR::FirmwareCurrency::evaluate(source->publishedReleases,
+                                                    m_radioVersionLabel->text())
+            : Status::Unknown;
+
+    QString color = QStringLiteral("{{color.text.secondary}}");
+    bool bold = false;
+    switch (m_radioFirmwareCurrency) {
+    case Status::Current:
+        color = QStringLiteral("{{color.accent.success}}");
+        break;
+    case Status::Outdated:
+        color = QStringLiteral("{{color.accent.warning}}");
+        bold = true;
+        break;
+    case Status::Unknown:
+        // Deliberately identical to the model row directly above it: no verdict
+        // must look like no opinion, not like a third verdict of its own.
+        break;
+    }
+
+    applyStatusBarCompactLabelStyle(m_radioVersionLabel, color, bold);
+    const QString verdict = AetherSDR::FirmwareCurrency::tooltip(m_radioFirmwareCurrency);
+    m_radioVersionLabel->setToolTip(verdict);
+    // The verdict must not live only in color and a hover: a screen reader
+    // would otherwise hear "4.2.18.41174" and nothing about it being behind
+    // (#4896). Same string as the tooltip, on the accessible channel.
+    m_radioVersionLabel->setAccessibleDescription(verdict);
+    // Reachable by keyboard only while it actually does something. StatusIndicator
+    // gives the row TabFocus when attached; a row that kept it in every state
+    // would add a dead tab stop to the status bar.
+    m_radioVersionLabel->setFocusPolicy(m_radioFirmwareCurrency == Status::Outdated
+                                            ? Qt::TabFocus
+                                            : Qt::NoFocus);
+    m_radioVersionLabel->setCursor(m_radioFirmwareCurrency == Status::Outdated
+                                       ? Qt::PointingHandCursor
+                                       : Qt::ArrowCursor);
+}
+
+// The version row's action (click, Return/Enter, or the accessible Press):
+// open the release notes, but ONLY while it shows an out-of-date version,
+// which is the state the tooltip invites a click in. Otherwise it does nothing.
+void MainWindow::openFirmwareReleaseNotes()
+{
+    if (m_radioFirmwareCurrency != AetherSDR::FirmwareCurrency::Status::Outdated)
+        return;
+    const auto& source = m_radioModel.backendCapabilities().firmwareUpdateSource;
+    if (!source.has_value())
+        return;
+    // The newest release OF THE RADIO'S OWN LINE, never the newest overall: an
+    // operator on v3 must not be handed v4's notes.
+    const QString url = AetherSDR::FirmwareCurrency::releaseNotesUrl(
+        source->releaseNotesUrlTemplate,
+        AetherSDR::FirmwareCurrency::upgradeTargetFor(
+            source->publishedReleases, m_radioVersionLabel->text()));
+    if (!url.isEmpty())
+        QDesktopServices::openUrl(QUrl(url));
 }
 
 } // namespace AetherSDR

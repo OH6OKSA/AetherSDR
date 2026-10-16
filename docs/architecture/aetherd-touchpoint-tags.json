@@ -317,6 +317,12 @@
   "split": "",
   "confidence": "high"
  },
+ "core/FirmwareCurrency.h": {
+  "tag": "universal",
+  "note": "Pure release comparison and its operator-facing wording; names no family and holds no wire types — the published version and release-notes template both arrive from the backend's declared capability.",
+  "split": "",
+  "confidence": "high"
+ },
  "core/FirmwareStager.h": {
   "tag": "vendor(flex)",
   "note": "Downloads SmartSDR installers from flexradio.com, extracts .ssdr firmware for 6x00/9600 upload — pure Flex",
@@ -983,6 +989,12 @@
   "split": "",
   "confidence": "high"
  },
+ "models/FirmwareInstallModel.h": {
+  "tag": "peripheral(ctr2)",
+  "note": "CTR2-Max firmware installer model behind the CTR2 window: the signed release catalog, which controller is connected and in what mode, and actions on it (EspFirmwareJob in ROM download mode, or Ctr2ProxyModel's updater over the USB link), each checked against the device the operator confirmed. Controller firmware tooling, no radio state; a peripheral, NOT behind the radio seam.",
+  "split": "",
+  "confidence": "high"
+ },
  "models/GreenHeronModel.h": {
   "tag": "peripheral(greenheron)",
   "note": "Green Heron \"Everyware\" client — antenna switches and rotator on one connection to a standalone accessory served by a PC-side Everyware server over direct TCP (default port 10000), reached by an operator-entered address with no discovery and no radio awareness at all; works with any radio or none. Same precedent as models/AntennaGeniusModel.h and core/AcomConnection.h. Not radio-family wire; a peripheral accessory, NOT behind the IRadioBackend radio seam. Protocol determined by observing traffic on the wire (Principle IV); see docs/green-heron-everyware.md.",
@@ -992,6 +1004,12 @@
  "models/MemoryEntry.h": {
   "tag": "universal",
   "note": "POD memory-channel record (freq/mode/offset/tone/squelch/filter/digital offsets) — canonical memories surface",
+  "split": "",
+  "confidence": "high"
+ },
+ "models/DaxReceiveModel.h": {
+  "tag": "universal",
+  "note": "Owner-thread adapter from typed native receive PCM and stable TCI receiver bindings to the existing 24 kHz virtual audio bridges; no radio wire protocol.",
   "split": "",
   "confidence": "high"
  },
@@ -1547,6 +1565,12 @@
   "split": "Core: receiver selection, epochs, bounded backlog, rate conversion and decoder resets. Flex compatibility: DAX channel selection and central consumer holds; no wire commands are generated here.",
   "confidence": "high"
  },
+ "models/Ax25ReceiveModel.h": {
+  "tag": "universal",
+  "note": "Selected AX.25 receive model over the existing typed decoder route; continuous mono24 conversion and bounded modem worker results retain source leases and generation retirement. Existing transmit ownership is separate.",
+  "split": "",
+  "confidence": "high"
+ },
  "models/ReceiverSlotCount.h": {
   "tag": "universal",
   "note": "How many receiver letters (A, B, C, ...) the UI offers — the RX applet's slice tabs and the CAT applet's VFO targets — tracked from the connection/capability/slice edges. Family-agnostic: the backend's declared ceiling, floored by the slots live receivers occupy (#5775, #5776).",
@@ -1556,6 +1580,18 @@
  "core/SpectrumDecodeScale.h": {
   "tag": "universal",
   "note": "Immutable sample decode aperture and local generation carried through the existing spectrum feed. No commands, vendor types or backend access; queued observations retain the scale that produced their levels.",
+  "split": "",
+  "confidence": "high"
+ },
+ "core/dsp/SpectralEnvelope.h": {
+  "tag": "ui-support",
+  "note": "Cepstral true envelope of a dB trace for the panadapter's FFT De-comb display option; pure DSP on the drawn trace, no radio state.",
+  "split": "",
+  "confidence": "high"
+ },
+ "core/AudioDevicePreferencePolicy.h": {
+  "tag": "ui-support",
+  "note": "Header-only policy over PC audio device ids: whether a device-list change keeps the engine's device, falls back to the system default or returns to the saved device, and whether a selection is written to the saved id (#6040); also which enumerable ids count as present and which as arrivals. Host audio, no radio state.",
   "split": "",
   "confidence": "high"
  }
