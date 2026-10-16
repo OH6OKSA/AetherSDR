@@ -19,7 +19,9 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <sys/stat.h>
-#ifdef Q_OS_MACOS
+// openpty() is in <util.h> on Apple platforms (iOS took this branch while
+// it was Q_OS_MAC), <pty.h> elsewhere.
+#if defined(Q_OS_MACOS) || defined(Q_OS_IOS)
 #include <util.h>
 #else
 #include <pty.h>
