@@ -181,7 +181,7 @@ refreshed with every user-interface change.</sub>
 | LAN discovery on iOS | ⏳ Needs Apple's multicast entitlement. Connect by IP for now. |
 
 **Next:** CW on air, and offering the engine-side work
-(beat cancel, packet-loss tracking, TX hand-over) upstream; see
+(beat cancel, packet-loss tracking) upstream; see
 [discussion #6409](https://github.com/aethersdr/AetherSDR/discussions/6409).
 
 ## Try it
@@ -222,8 +222,10 @@ refreshed with every user-interface change.</sub>
 
 ## Relationship to AetherSDR
 
-All radio, DSP and protocol work is AetherSDR's: this fork adds a mobile
-build option, iOS platform guards and a new touch client on top. For the
+The radio, DSP and protocol engine is AetherSDR's: this fork adds a mobile
+build option, iOS platform guards and a new touch client on top, plus a few
+engine additions that are being offered upstream: beat cancel (BC) and
+per-stream VITA packet-loss tracking. For the
 desktop application (Linux, macOS, Windows), downloads, supported radios and
 the full feature list, see the upstream project:
 **https://github.com/aethersdr/AetherSDR**
@@ -231,6 +233,14 @@ the full feature list, see the upstream project:
 Upstream issue [#3128](https://github.com/aethersdr/AetherSDR/issues/3128)
 plans a mobile client (AetherLink). This port is a standalone alternative,
 and its QML client could also become an AetherLink thin client later.
+
+## Support
+
+AetherSDR Mobile is free. If it is useful to you and you would like to buy
+me a beer, you can do it through
+**[PayPal](https://www.paypal.me/NikoOksa)**. The desktop project that
+makes all of this possible takes support through
+[Open Collective](https://opencollective.com/aethersdr).
 
 ## Privacy, license, contact
 

@@ -1,4 +1,5 @@
 # Renders the "Sponsor" button on the GitHub repo page.
-# Site funding story: https://www.aethersdr.com/#sponsor (add as `custom:`
-# once the domain cutover is live — it currently redirects back to GitHub).
+# open_collective funds the upstream AetherSDR project; the PayPal link goes
+# to the maintainer of this mobile fork.
 open_collective: aethersdr
+custom: ["https://www.paypal.me/NikoOksa"]

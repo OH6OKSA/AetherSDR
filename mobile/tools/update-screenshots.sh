@@ -13,7 +13,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD="${BUILD_DIR:-$ROOT/build-mobile}"
 OUT="$ROOT/docs/mobile"
 RADIO="${1:-}"
-DELAY="${SCREENSHOT_DELAY_MS:-12000}"
+DELAY="${SCREENSHOT_DELAY_MS:-40000}"
 APP="$BUILD/mobile/aether-mobile"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
