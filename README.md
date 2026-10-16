@@ -22,6 +22,9 @@ SmartLink (or your own VPN), it is a complete station control surface.
   <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="AetherSDR Mobile on iPhone in portrait"/>
 </p>
 
+**[Join the TestFlight test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)**: what you need and what to
+email to oh6oksa@gmail.com.
+
 **[User manual](docs/mobile/MANUAL.md)** — every function, with screenshots
 (also the app's *Manual* button).
 
@@ -187,7 +190,7 @@ refreshed with every user-interface change.</sub>
 ## Try it
 
 - **TestFlight beta.** Ask for an invitation at oh6oksa@gmail.com; see
-  **[how to join the test group](docs/mobile/TESTING.md)** for what to send.
+  **[how to join the test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)** for what to send.
   You need iPadOS or iOS 18 or newer and a FlexRadio: on the same network,
   through SmartLink from anywhere, or over your own VPN.
 - **Build it yourself.** Linux or macOS works for development with the
