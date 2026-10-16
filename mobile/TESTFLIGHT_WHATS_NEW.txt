@@ -1,72 +1,36 @@
-OksaSDR – testattavaa
+OksaSDR (formerly "AetherSDR Mobile")
 
-Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti sekä laitteen malli osoitteeseen oh6oksa@gmail.com.
-[TX] = lähetys: testaa pienellä teholla tai keinokuormaan.
+Welcome, and thank you for testing! OksaSDR is a FlexRadio client for iPad and iPhone, built on the AetherSDR engine. It talks to your radio directly: on your home network (enter the radio's IP address), from anywhere over SmartLink, or over your own VPN.
 
-UUTTA TÄSSÄ BUILDISSA
-• Uusi nimi: OksaSDR (ennen AetherSDR Mobile). Asetukset ja äänimakrot säilyvät.
-• Viritysaskel toimii: STEP moden alla, kaikki askeleet valittavissa.
-• Bändin vaihdon jälkeen spektri ja 3D pysyvät oikealla asteikolla (esim. 80 m → 160 m).
-• Infopalkissa aina näkyvät asiat (antenni, leveys, AGC) ensin, DSP-valinnat perässä; iPhonen yläosa tiiviimpi.
-• View: FFT average, FFT frames/s ja Waterfall speed (radion omat asetukset).
-• Band-painike (−/+ vieressä) näyttää koko bändin.
-• Uudet bändit WWV ja GEN.
-• SPLIT pitkä painallus: +1, +5 tai +10 kHz.
-• Mittarit pitävät huippuarvon 1,5 s (keltainen neula).
-• VOX ja DEXP näkyvät vain radion omalla mikrofonilla (PC-mikrofonilla PTT riittää).
+GETTING STARTED
+- Connect: enter your radio's IP address and tap Connect, or sign in to SmartLink on the Connect page.
+- Start with receive: check the spectrum, waterfall and audio.
+- [TX] = transmits. Test at low power or into a dummy load first. The app sets the radio's mic input to PC (this device's microphone) when it connects.
+- The Manual button (top row) opens the user manual.
 
-YHTEYS
-• Suora yhteys omalla IP-osoitteella.
-• SmartLink: kirjaudu Connect-sivulla ja yhdistä radioon.
-• Disconnect ja uudelleenyhdistys, myös suoran ja SmartLinkin välillä: taajuuden, spektrin ja vesiputouksen pitää palata. Jos SmartLinkissä vesiputous puuttuu, lähetä lokista rivi "display check".
+NEW IN THIS BUILD
+- The Manual button opens the manual at its new address.
 
-VASTAANOTTO
-• Ääni jatkuu kotinäkymässä ja toisessa sovelluksessa, ja palaa puhelun tai Sirin jälkeen.
-• Sovellus pysyy samassa slicessä eikä hypi.
+RECENT
+- New name: OksaSDR. Your settings and voice macros carry over.
+- Tuning step: STEP under the mode; every step from the radio's list works.
+- Spectrum and 3D keep the right scale after a band change.
+- View: the radio's FFT average, FFT frames/s and waterfall speed.
+- Band button (next to − / +) zooms out to the whole band. New WWV and GEN band buttons.
+- Press and hold SPLIT for +1, +5 or +10 kHz. [TX]
+- Meters hold their peak for 1.5 s.
+- Smoother transmit start: no delay and no whoosh at key-up. [TX]
 
-VESIPUTOUS JA VIRITYS
-• Napautus virittää.
-• Raahaus suodattimen kaistan sisältä virittää; raahaus muualta siirtää näkymää, taajuus pysyy.
-• Virittäessä sormi näytön reunalla jatkaa vieritystä ja kiihtyy reunaa kohti.
-• Step-painikkeet ±1 Hz … ±1 kHz pyöristävät tasalukuihin (.002 +10 → .010).
-• Pinch ja −/+ (vesiputouksen vasen alakulma) zoomaavat.
-• Lukko (infopalkissa) estää virityksen ja välähtää, jos viritystä yritetään.
-• Taajuuden syöttö (napauta taajuutta): numerot ja taajuus näkyvät kokonaan myös iPhonen vaakatilassa.
+PLEASE TRY
+- Receive on a few bands, with zoom, the Band button and the 3D view.
+- Your connection type: home network, SmartLink or VPN. Disconnect and reconnect; the spectrum and audio should come back.
+- Both portrait and landscape; on iPad also Split View.
+- Voice transmit with the device mic or a Bluetooth headset, and tell me how it sounds at the other end. [TX]
+- CW keying, CWX memories (F1–F12 on a keyboard) and the decoder. [TX]
 
-NÄKYMÄ (Controls → View, iPadissa myös sivupaneelissa)
-• Vesiputouksen Black level, Colour gain ja Auto.
-• Spektrin Auto tai Reference ja Range.
-• dBm-asteikko spektrin vasemmassa reunassa: raahaa ylös/alas siirtääksesi spektriä.
-• 3D-näkymä (2D waterfall | 3D) kuten AetherSDR:ssä: 3D spektrin paikalla, vesiputous alla, näytönohjaimella. Kerro, onko se sujuva.
+REPORTING A PROBLEM
+Right after it happens, open Log in the top row, tap Copy, and paste the text into an email to oh6oksa@gmail.com. Add your device model, radio model and what you were doing. Screenshots or a screen recording help a lot.
 
-PROFIILIT (Controls → Profiles, iPadissa sivupaneelissa)
-• Global-, TX- ja Mic-profiilin lataus, tallennus ja poisto kuten SmartSDR:ssä.
+Leave Log → Developer link off; it is only for the developer's own devices.
 
-SÄÄTIMET
-• Infopalkki taajuuden vieressä: napauta antennia, leveyttä/DSP:tä (filtterit, NR, NB, ANF, BC), AGC:tä, kaiutinta tai lukkoa.
-• Taajuuskorjain RX ja TX, 8 kaistaa (Controls → Audio).
-• Mittarin ja slicen valikot aukeavat painetun kohdan alle (slice: pitkä painallus).
-• Mittareille oma valinta vastaanottoon ja lähetykseen (esim. S/Power ja lähetyksessä SWR/Power).
-• Mode: napauta modea taajuuden vieressä.
-• RIT/XIT, SQL, RF gain ja AGC-T (Controls → DSP).
-• Muistit (Controls → Memory): napautus virittää, Save tallentaa, pitkä painallus poistaa.
-• Slicen ja panadapterin lisäys, slicen valinta, TX-slicen vaihto ja sulkeminen (pitkä painallus).
-• "Close N other pans": sovellus näyttää yhden panadapterin; ylimääräiset kuluttavat kaistaa ja varaavat radion paikat.
-
-LÄHETYS [TX]
-• Lokin voi lähettää Log → Share (Mail, Viestit…).
-• Mikrofonitulo vaihtuu PC:ksi automaattisesti yhdistettäessä.
-• PTT lähettää mikrofonin ääntä. Jos ääntä ei kuulu, lähetä lokista rivi "mic capture".
-• TUNE ja ATU.
-• TX-suodattimen ala- ja yläraja (Controls → TX).
-• Oma lähetys näkyy vesiputouksessa.
-
-CW [TX]
-• CW-modessa PTT-painike on KEY.
-• 12 muistipaikkaa (Controls → CW), F1–F12: napautus lähettää, pitkä painallus muokkaa. {CALL} = radion tunnus.
-• CWX-teksti, nopeus, pitch ja break-in.
-• CW-dekooderi: teksti näkyy vesiputouksen yläreunassa.
-
-Testaa pysty- ja vaakatilassa; iPadilla myös Split View.
-
-Kehittäjälinkki (Log → Developer link) on vain kehittäjän omaan käyttöön; pidä se pois päältä.
+73, Niko OH6OKSA
