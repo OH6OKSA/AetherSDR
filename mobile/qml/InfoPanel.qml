@@ -29,6 +29,9 @@ Item {
     readonly property color dim: "#6b7785"
     readonly property color rxColor: "#3fb6ff"
 
+    function stepLabel(hz) {
+        return hz >= 1000 ? (hz / 1000).toFixed(hz % 1000 ? 1 : 0) + " kHz" : hz + " Hz"
+    }
     function widthLabel(hz) {
         if (hz <= 0) return ""
         return hz >= 1000 ? (hz / 1000).toFixed(1).replace(/\.0$/, "") + "K" : hz + ""
@@ -295,6 +298,17 @@ Item {
                 pad: info.singleLine ? 6 : 12
                 onTapped: agcChooser.open()
             }
+            // Tuning step (the desktop's STEP): tap to choose from the
+            // radio's list. Tap-tune, the arrows and Pencil use it.
+            Hit {
+                objectName: "stepHit"
+                text: info.stepLabel(Engine.stepHz)
+                color: info.rxColor
+                fontPx: info.fontPx
+                rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
+                onTapped: stepChooser.open()
+            }
         }
     }
 
@@ -302,6 +316,22 @@ Item {
     FilterChooser {
         id: filterChooser
         y: info.height + 4
+    }
+    ChooserPopup {
+        id: stepChooser
+        objectName: "stepChooser"
+        title: qsTr("Tuning step")
+        options: Engine.stepList.map(hz => info.stepLabel(hz))
+        current: info.stepLabel(Engine.stepHz)
+        y: info.height + 4
+        onPicked: (name) => {
+            const list = Engine.stepList
+            for (let i = 0; i < list.length; ++i) {
+                if (info.stepLabel(list[i]) === name) {
+                    Engine.setStepHz(list[i])
+                }
+            }
+        }
     }
     ChooserPopup {
         id: rxChooser
@@ -321,7 +351,7 @@ Item {
         y: info.height + 4
         onPicked: (name) => Engine.txAntenna = name
     }
-    // Volume: AF gain and mute, from the speaker.
+    // Volume: every slice's AF gain, mute and pan, from the speaker.
     Popup {
         id: volumePopup
         objectName: "volumePopup"
@@ -332,26 +362,82 @@ Item {
         background: Rectangle { color: Theme.surface; border.color: Theme.surfaceRaised; radius: Theme.radius }
         contentItem: ColumnLayout {
             spacing: Theme.spacing / 2
+            // Every slice's audio, as the desktop's RX applet: AF gain, mute
+            // and pan (left-right), the active slice marked.
             Label {
-                text: qsTr("Volume  %1").arg(Math.round(Engine.afGain))
+                text: qsTr("Volume")
                 color: Theme.textDim
                 font.pixelSize: Math.round(Theme.buttonFont * 0.9)
             }
-            RowLayout {
-                Layout.fillWidth: true
-                Slider {
+            Repeater {
+                model: Engine.slices
+                delegate: ColumnLayout {
+                    id: sliceAudio
+                    required property var modelData
                     Layout.fillWidth: true
-                    from: 0
-                    to: 100
-                    value: Engine.afGain
-                    onMoved: Engine.afGain = value
-                }
-                AppButton {
-                    text: Engine.muted ? qsTr("Unmute") : qsTr("Mute")
-                    checked: Engine.muted
-                    focusPolicy: Qt.NoFocus
-                    Layout.preferredHeight: Theme.touchTarget
-                    onClicked: Engine.muted = !Engine.muted
+                    spacing: 0
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Rectangle {
+                            implicitWidth: sliceLetter.implicitWidth + 10
+                            implicitHeight: sliceLetter.implicitHeight + 4
+                            radius: 4
+                            color: sliceAudio.modelData.active ? "#2f7fd6" : Theme.surfaceRaised
+                            Text {
+                                id: sliceLetter
+                                anchors.centerIn: parent
+                                text: sliceAudio.modelData.letter + (sliceAudio.modelData.tx ? " TX" : "")
+                                font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+                        }
+                        Slider {
+                            id: gainSlider
+                            Layout.fillWidth: true
+                            from: 0; to: 100
+                            focusPolicy: Qt.NoFocus
+                            onMoved: Engine.setSliceAudio(sliceAudio.modelData.id, "gain", value)
+                            Binding on value {
+                                when: !gainSlider.pressed
+                                value: sliceAudio.modelData.gain
+                            }
+                        }
+                        Label {
+                            text: Math.round(gainSlider.value)
+                            color: Theme.textDim
+                            font.pixelSize: Math.round(Theme.buttonFont * 0.8)
+                            Layout.preferredWidth: 28
+                            horizontalAlignment: Text.AlignRight
+                        }
+                        AppButton {
+                            text: sliceAudio.modelData.mute ? qsTr("Unmute") : qsTr("Mute")
+                            checked: sliceAudio.modelData.mute
+                            Layout.preferredHeight: Theme.touchTarget
+                            onClicked: Engine.setSliceAudio(sliceAudio.modelData.id, "mute",
+                                                            sliceAudio.modelData.mute ? 0 : 1)
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label { text: "L"; color: Theme.textDim; font.pixelSize: Math.round(Theme.buttonFont * 0.75) }
+                        Slider {
+                            id: panSlider
+                            Layout.fillWidth: true
+                            from: 0; to: 100; stepSize: 1
+                            focusPolicy: Qt.NoFocus
+                            onMoved: Engine.setSliceAudio(sliceAudio.modelData.id, "pan", value)
+                            // Double-tap centres.
+                            TapHandler {
+                                onDoubleTapped: Engine.setSliceAudio(sliceAudio.modelData.id, "pan", 50)
+                            }
+                            Binding on value {
+                                when: !panSlider.pressed
+                                value: sliceAudio.modelData.pan
+                            }
+                        }
+                        Label { text: "R"; color: Theme.textDim; font.pixelSize: Math.round(Theme.buttonFont * 0.75) }
+                    }
                 }
             }
         }

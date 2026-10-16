@@ -182,6 +182,17 @@ Popup {
                         on: !!setup.d.muteLocalWhenRemote
                         onToggled: (v) => setup.set("muteLocalWhenRemote", v)
                     }
+                    Heading { text: qsTr("Stations") }
+                    AppButton {
+                        text: qsTr("Connected stations (%1)…").arg(Engine.stations.length)
+                        leftPadding: 16
+                        rightPadding: 16
+                        Layout.preferredHeight: Theme.touchTarget
+                        onClicked: {
+                            setup.close()
+                            Engine.requestStations()
+                        }
+                    }
                     Heading { text: qsTr("About the radio") }
                     Info { label: qsTr("Model"); value: setup.d.model || "" }
                     Info { label: qsTr("Serial"); value: setup.d.serial || "" }

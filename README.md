@@ -56,13 +56,17 @@ radio interface, with no computer running alongside.
 - Mode: tap the mode next to the frequency for the mode buttons.
 - Info panel next to the frequency, after the slice flag of SmartSDR-style
   clients: slice letter and TX tag, RX and TX antenna, filter width,
-  speaker, tuning lock, the DSP flags (lit when on) and AGC. Each is a
+  speaker, tuning lock, the DSP flags (lit when on), AGC and the tuning
+  step. Each is a
   touch target with its choices behind it: the antennas open their
   chooser; the width and the flags the mode's eight filter widths and the
   radio's DSP (NR, NB, ANF, APF in CW, NRL/ANFL/ANFT and NRS/RNN/NRF where
-  the radio has them; every one the radio offers is listed, lit when on);
-  AGC its modes, AGC threshold and RF gain; the speaker the volume and
-  mute; the lock locks.
+  the radio has them, and WNB; every one the radio offers is listed, lit
+  when on), with a level slider for each DSP that is on; AGC its modes, AGC
+  threshold and RF gain; the speaker every slice's volume, mute and pan;
+  the step the radio's step list; the lock locks.
+- Connected stations (multiFLEX): every program on the radio, and
+  disconnecting one to free its slices.
 - **Split**, as SmartSDR and AetherSDR: SPLIT on the info panel adds a TX
   slice 1 kHz (CW) or 5 kHz up, muted, with transmit and focus to tune the
   offset; tap again to end it.
@@ -93,8 +97,9 @@ radio interface, with no computer running alongside.
 **Transmit**
 - TX audio passband (low and high cut) and the radio's 8-band RX and TX
   equalizer, as in SmartSDR.
-- TUNE carrier with tune power, the radio's ATU (tune or bypass, memories)
-  and the speech processor (PROC NOR/DX/DX+), monitor and radio mic level.
+- TUNE carrier with tune power, MOX, the radio's ATU (tune or bypass,
+  memories) and the speech processor (PROC NOR/DX/DX+), VOX (level, delay),
+  DEXP, AM carrier, monitor and radio mic level.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input is
   set to `PC` when the app connects), with RF power, mic gain and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.

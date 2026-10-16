@@ -195,6 +195,7 @@ MobileEngine::MobileEngine(QObject* parent)
         }
     });
     connect(&rm, &RadioModel::sliceAdded, this, &MobileEngine::onSliceAdded);
+    connect(&rm, &RadioModel::otherClientsChanged, this, [this](int, const QStringList&) { emit stationsChanged(); });
     connect(&rm, &RadioModel::sliceRemoved, this, [this](int) { applyBeatCancel(); });
     connect(&rm, &RadioModel::sliceRemoved, this, [this](int id) {
         // The split's TX slice closed (here, another client or the radio):
@@ -774,6 +775,7 @@ void MobileEngine::wireTransmit()
         emit atuChanged();
     });
     connect(&tm, &TransmitModel::micStateChanged, this, &MobileEngine::txAudioChanged);
+    connect(&tm, &TransmitModel::phoneStateChanged, this, &MobileEngine::phoneChanged);
     connect(&rm.meterModel(), &MeterModel::txMetersChanged, this,
             [this](float fwdPower, float swr, bool swrValid) {
         m_forwardPowerW = fwdPower;
@@ -1085,6 +1087,45 @@ void MobileEngine::setAtuMemories(bool on)
 {
     if (hasTunerMemories()) {
         m_session.radioModel().transmitModel().setAtuMemories(on);
+    }
+}
+
+QVariantMap MobileEngine::phone() const
+{
+    const TransmitModel& tm = m_session.radioModel().transmitModel();
+    return {
+        {QStringLiteral("voxOn"), tm.voxEnable()},
+        {QStringLiteral("voxLevel"), tm.voxLevel()},
+        {QStringLiteral("voxDelay"), tm.voxDelay()},
+        {QStringLiteral("dexpOn"), tm.dexpOn()},
+        {QStringLiteral("dexpLevel"), tm.dexpLevel()},
+        {QStringLiteral("amCarrier"), tm.amCarrierLevel()},
+    };
+}
+
+void MobileEngine::setPhone(const QString& key, int value)
+{
+    if (!m_connected) {
+        return;
+    }
+    TransmitModel& tm = m_session.radioModel().transmitModel();
+    const int level = std::clamp(value, 0, 100);
+    if (key == QLatin1String("voxOn")) tm.setVoxEnable(value != 0);
+    else if (key == QLatin1String("voxLevel")) tm.setVoxLevel(level);
+    else if (key == QLatin1String("voxDelay")) tm.setVoxDelay(level);
+    else if (key == QLatin1String("dexpOn")) tm.setDexp(value != 0);
+    else if (key == QLatin1String("dexpLevel")) tm.setDexpLevel(level);
+    else if (key == QLatin1String("amCarrier")) tm.setAmCarrierLevel(level);
+}
+
+void MobileEngine::toggleMox()
+{
+    // Same keying path and refusals as PTT; only the release is the next tap.
+    if (transmitting()) {
+        setPtt(false, QStringLiteral("MOX off"));
+    } else {
+        qCInfo(lcMobile) << "MOX on";
+        setPtt(true);
     }
 }
 
@@ -1529,9 +1570,29 @@ QVariantList MobileEngine::slices() const
             {QStringLiteral("panId"), s->panId()},
             {QStringLiteral("filterLow"), s->filterLow()},
             {QStringLiteral("filterHigh"), s->filterHigh()},
+            {QStringLiteral("gain"), static_cast<double>(s->audioGain())},
+            {QStringLiteral("pan"), s->audioPan()},
+            {QStringLiteral("mute"), s->audioMute()},
         });
     }
     return list;
+}
+
+void MobileEngine::setSliceAudio(int sliceId, const QString& what, double value)
+{
+    // Per-slice receive audio, as the desktop's RX applet: AF gain (0-100),
+    // pan (0 left, 50 centre, 100 right) and mute.
+    SliceModel* s = m_session.radioModel().slice(sliceId);
+    if (!s) {
+        return;
+    }
+    if (what == QLatin1String("gain")) {
+        s->setAudioGain(static_cast<float>(std::clamp(value, 0.0, 100.0)));
+    } else if (what == QLatin1String("pan")) {
+        s->setAudioPan(std::clamp(qRound(value), 0, 100));
+    } else if (what == QLatin1String("mute")) {
+        s->setAudioMute(value != 0.0);
+    }
 }
 
 int MobileEngine::activeSliceId() const
@@ -2257,6 +2318,63 @@ int MobileEngine::stepHz() const
     return m_slice && m_slice->stepHz() > 0 ? m_slice->stepHz() : 100;
 }
 
+QVariantList MobileEngine::stations() const
+{
+    const RadioModel& rm = m_session.radioModel();
+    const quint32 ours = rm.ourClientHandle();
+    QVariantList list;
+    const auto& infos = rm.clientInfoMap();
+    for (auto it = infos.cbegin(); it != infos.cend(); ++it) {
+        list.append(QVariantMap{
+            {QStringLiteral("handle"), static_cast<int>(it.key())},
+            {QStringLiteral("station"), it->station.isEmpty() ? QStringLiteral("(unnamed)") : it->station},
+            {QStringLiteral("program"), it->program},
+            {QStringLiteral("ours"), it.key() == ours},
+            {QStringLiteral("transmitting"), it->localPtt},
+        });
+    }
+    return list;
+}
+
+void MobileEngine::disconnectStation(int handle)
+{
+    RadioModel& rm = m_session.radioModel();
+    const quint32 h = static_cast<quint32>(handle);
+    if (h == 0 || h == rm.ourClientHandle()) {
+        return;
+    }
+    const QString name = rm.clientInfoMap().value(h).station;
+    qCInfo(lcMobile).noquote() << QStringLiteral("disconnecting station %1 (0x%2)").arg(name).arg(h, 0, 16);
+    if (!rm.disconnectClient(h)) {
+        setLastError(tr("The radio did not take the disconnect for %1.").arg(name));
+    }
+}
+
+QList<int> MobileEngine::stepList() const
+{
+    // The radio's list for the slice's mode; the desktop's ladder until it
+    // has sent one.
+    if (m_slice && !m_slice->stepList().isEmpty()) {
+        const QVector<int> list = m_slice->stepList();
+        return QList<int>(list.cbegin(), list.cend());
+    }
+    return {1, 10, 50, 100, 500, 1000, 2000, 3000};
+}
+
+void MobileEngine::setStepHz(int hz)
+{
+    if (!m_slice || hz <= 0 || hz == m_slice->stepHz()) {
+        return;
+    }
+    // As MainWindow::applyOperatorTuningStep: the radio owns the slice's
+    // step; backends without a command plane keep it on the client.
+    RadioModel& rm = m_session.radioModel();
+    if (!rm.applyClientOwnedSliceStep(m_slice->sliceId(), hz)) {
+        rm.sendCommand(QStringLiteral("slice set %1 step=%2").arg(m_slice->sliceId()).arg(hz));
+    }
+    qCInfo(lcMobile) << "tuning step" << hz << "Hz";
+}
+
 bool MobileEngine::nr() const
 {
     return m_slice && m_slice->nrOn();
@@ -2383,6 +2501,10 @@ QStringList MobileEngine::dspKeys() const
         }
         keys << QStringLiteral("NRF");
     }
+    // Wideband noise blanker: the panadapter's, for every slice on it.
+    if (m_pan) {
+        keys << QStringLiteral("WNB");
+    }
     // Client-side: beat cancel (this app's audio, not the radio).
     if (beatCancelMode()) {
         keys << QStringLiteral("BC");
@@ -2405,8 +2527,56 @@ bool MobileEngine::dspOn(const QString& key) const
     if (key == QLatin1String("NRS")) return m_slice->nrsOn();
     if (key == QLatin1String("RNN")) return m_slice->rnnOn();
     if (key == QLatin1String("NRF")) return m_slice->nrfOn();
+    if (key == QLatin1String("WNB")) return m_pan && m_pan->wnbActive();
     if (key == QLatin1String("BC")) return beatCancelSetting();
     return false;
+}
+
+bool MobileEngine::dspHasLevel(const QString& key) const
+{
+    static const QStringList kWithLevel{QStringLiteral("NR"),  QStringLiteral("NB"),   QStringLiteral("ANF"),
+                                        QStringLiteral("APF"), QStringLiteral("NRL"),  QStringLiteral("ANFL"),
+                                        QStringLiteral("NRS"), QStringLiteral("NRF"),  QStringLiteral("WNB")};
+    return kWithLevel.contains(key);
+}
+
+int MobileEngine::dspLevel(const QString& key) const
+{
+    if (key == QLatin1String("WNB")) return m_pan ? m_pan->wnbLevel() : 0;
+    if (!m_slice) {
+        return 0;
+    }
+    if (key == QLatin1String("NR")) return m_slice->nrLevel();
+    if (key == QLatin1String("NB")) return m_slice->nbLevel();
+    if (key == QLatin1String("ANF")) return m_slice->anfLevel();
+    if (key == QLatin1String("APF")) return m_slice->apfLevel();
+    if (key == QLatin1String("NRL")) return m_slice->nrlLevel();
+    if (key == QLatin1String("ANFL")) return m_slice->anflLevel();
+    if (key == QLatin1String("NRS")) return m_slice->nrsLevel();
+    if (key == QLatin1String("NRF")) return m_slice->nrfLevel();
+    return 0;
+}
+
+void MobileEngine::setDspLevel(const QString& key, int level)
+{
+    level = std::clamp(level, 0, 100);
+    if (key == QLatin1String("WNB")) {
+        if (m_pan) {
+            m_session.radioModel().setPanWnbLevel(level);
+        }
+        return;
+    }
+    if (!m_slice) {
+        return;
+    }
+    if (key == QLatin1String("NR")) m_slice->setNrLevel(level);
+    else if (key == QLatin1String("NB")) m_slice->setNbLevel(level);
+    else if (key == QLatin1String("ANF")) m_slice->setAnfLevel(level);
+    else if (key == QLatin1String("APF")) m_slice->setApfLevel(level);
+    else if (key == QLatin1String("NRL")) m_slice->setNrlLevel(level);
+    else if (key == QLatin1String("ANFL")) m_slice->setAnflLevel(level);
+    else if (key == QLatin1String("NRS")) m_slice->setNrsLevel(level);
+    else if (key == QLatin1String("NRF")) m_slice->setNrfLevel(level);
 }
 
 void MobileEngine::setDsp(const QString& key, bool on)
@@ -2424,6 +2594,7 @@ void MobileEngine::setDsp(const QString& key, bool on)
     else if (key == QLatin1String("NRS")) m_slice->setNrs(on);
     else if (key == QLatin1String("RNN")) m_slice->setRnn(on);
     else if (key == QLatin1String("NRF")) m_slice->setNrf(on);
+    else if (key == QLatin1String("WNB")) m_session.radioModel().setPanWnb(on);
     else if (key == QLatin1String("BC")) {
         AppSettings::instance().setValue(QStringLiteral("MobileBeatCancel"), on ? QStringLiteral("1") : QStringLiteral("0"));
         AppSettings::instance().save();
@@ -2606,6 +2777,9 @@ void MobileEngine::onSliceAdded(SliceModel* slice)
     connect(slice, &SliceModel::modeChanged, this, &MobileEngine::slicesChanged);
     connect(slice, &SliceModel::txSliceChanged, this, &MobileEngine::slicesChanged);
     connect(slice, &SliceModel::letterChanged, this, &MobileEngine::slicesChanged);
+    connect(slice, &SliceModel::audioGainChanged, this, &MobileEngine::slicesChanged);
+    connect(slice, &SliceModel::audioPanChanged, this, &MobileEngine::slicesChanged);
+    connect(slice, &SliceModel::audioMuteChanged, this, &MobileEngine::slicesChanged);
     emit slicesChanged();
     selectActiveSlice();
 }
@@ -2666,6 +2840,11 @@ void MobileEngine::bindSlice(SliceModel* slice)
                          &SliceModel::apfChanged}) {
             m_sliceConnections.append(connect(slice, sig, this, &MobileEngine::dspChanged));
         }
+        for (auto sig : {&SliceModel::nrLevelChanged, &SliceModel::nbLevelChanged, &SliceModel::anfLevelChanged,
+                         &SliceModel::apfLevelChanged, &SliceModel::nrlLevelChanged, &SliceModel::nrsLevelChanged,
+                         &SliceModel::nrfLevelChanged, &SliceModel::anflLevelChanged}) {
+            m_sliceConnections.append(connect(slice, sig, this, &MobileEngine::dspChanged));
+        }
         // The DSP set changes with the mode (APF in CW, none of the 8000s in FM).
         m_sliceConnections.append(connect(slice, &SliceModel::modeChanged, this, &MobileEngine::dspChanged));
         // Beat cancel only on voice: it would notch CW and data tones.
@@ -2706,6 +2885,7 @@ void MobileEngine::bindPan(PanadapterModel* pan)
     if (pan) {
         m_panConnections.append(connect(pan, &PanadapterModel::infoChanged, this, &MobileEngine::panGeometryChanged));
         m_panConnections.append(connect(pan, &PanadapterModel::rfGainChanged, this, &MobileEngine::rfGainChanged));
+        m_panConnections.append(connect(pan, &PanadapterModel::wnbChanged, this, &MobileEngine::dspChanged));
         m_panConnections.append(connect(pan, &PanadapterModel::rfGainInfoChanged, this, &MobileEngine::rfGainChanged));
         sendPanDimensions(pan->panId());
     }

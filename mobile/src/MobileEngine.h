@@ -127,6 +127,8 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QVariantList memories READ memories NOTIFY memoriesChanged)
     Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
     Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
+    // The slice's step list from the radio (Hz), for the step chooser.
+    Q_PROPERTY(QList<int> stepList READ stepList NOTIFY stepChanged)
     Q_PROPERTY(bool ritOn READ ritOn WRITE setRitOn NOTIFY ritXitChanged)
     Q_PROPERTY(int ritHz READ ritHz WRITE setRitHz NOTIFY ritXitChanged)
     Q_PROPERTY(bool xitOn READ xitOn WRITE setXitOn NOTIFY ritXitChanged)
@@ -139,6 +141,9 @@ class MobileEngine : public QObject {
     Q_PROPERTY(QString txAntenna READ txAntenna WRITE setTxAntenna NOTIFY antennaChanged)
     Q_PROPERTY(QStringList txAntennas READ txAntennas NOTIFY antennaChanged)
     Q_PROPERTY(QVariantList slices READ slices NOTIFY slicesChanged)
+    // Every GUI client on the radio (multiFLEX), this app's marked: handle,
+    // station, program, ours.
+    Q_PROPERTY(QVariantList stations READ stations NOTIFY stationsChanged)
     Q_PROPERTY(int activeSliceId READ activeSliceId NOTIFY slicesChanged)
     Q_PROPERTY(bool canAddSlice READ canAddSlice NOTIFY slicesChanged)
     // Split, as SmartSDR/AetherSDR: a TX slice beside the RX slice.
@@ -236,6 +241,9 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool atuTuned READ atuTuned NOTIFY atuChanged)
     Q_PROPERTY(bool atuMemories READ atuMemories WRITE setAtuMemories NOTIFY atuChanged)
     Q_PROPERTY(bool procEnabled READ procEnabled WRITE setProcEnabled NOTIFY txAudioChanged)
+    // Phone transmit extras, as the desktop's Phone applet: voxOn, voxLevel,
+    // voxDelay, dexpOn, dexpLevel, amCarrier (levels 0-100).
+    Q_PROPERTY(QVariantMap phone READ phone NOTIFY phoneChanged)
     Q_PROPERTY(int procLevel READ procLevel WRITE setProcLevel NOTIFY txAudioChanged)
     Q_PROPERTY(int procLevelMax READ procLevelMax NOTIFY txAudioChanged)
     Q_PROPERTY(bool monitor READ monitor WRITE setMonitor NOTIFY txAudioChanged)
@@ -342,6 +350,11 @@ public:
     QStringList dspKeys() const;
     Q_INVOKABLE bool dspOn(const QString& key) const;
     Q_INVOKABLE void setDsp(const QString& key, bool on);
+    // Levels of the radio's DSP (0-100), as the desktop's DSP popups: NR, NB,
+    // ANF, APF and the 8000-series filters per slice, WNB per panadapter.
+    Q_INVOKABLE bool dspHasLevel(const QString& key) const;
+    Q_INVOKABLE int dspLevel(const QString& key) const;
+    Q_INVOKABLE void setDspLevel(const QString& key, int level);
     // Beat cancel (BC, client-side): remembered; runs in voice modes only.
     bool beatCancelSetting() const;
     bool beatCancelMode() const;
@@ -473,6 +486,20 @@ public:
     QString cwDecoderStats() const { return m_cwDecoderStats; }
     // The active slice's tuning step (radio-reported), Hz.
     int stepHz() const;
+    QList<int> stepList() const;
+    // The operator's step for the active slice (the desktop's STEP control).
+    Q_INVOKABLE void setStepHz(int hz);
+    QVariantList stations() const;
+    // Ends another station's session on the radio (multiFLEX), freeing its
+    // slices and panadapters. Never this app's own.
+    Q_INVOKABLE void disconnectStation(int handle);
+    Q_INVOKABLE void requestStations() { emit stationsRequested(); }
+    // what: "gain" (0-100), "pan" (0-100, 50 centre) or "mute" (0/1).
+    Q_INVOKABLE void setSliceAudio(int sliceId, const QString& what, double value);
+    QVariantMap phone() const;
+    Q_INVOKABLE void setPhone(const QString& key, int value);
+    // MOX: transmit latched on until pressed again (the desktop's MOX).
+    Q_INVOKABLE void toggleMox();
     // Radio RF power setting (Flex rfpower, 0..100).
     int rfPower() const;
     void setRfPower(int power);
@@ -641,6 +668,11 @@ signals:
     void squelchChanged();
     void antennaChanged();
     void slicesChanged();
+    void stationsChanged();
+    void phoneChanged();
+    // The connected-stations list was asked for (Radio Setup); the operate
+    // page opens it.
+    void stationsRequested();
     void cwChanged();
     void cwDecoderChanged();
     void displayLevelsChanged();

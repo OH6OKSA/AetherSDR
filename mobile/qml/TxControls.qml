@@ -4,7 +4,8 @@ import QtQuick.Layouts
 import AetherMobile
 
 // Transmit settings shared by the tablet side panel and the controls drawer:
-// tune carrier, ATU, speech processor, monitor, power and microphone.
+// tune carrier, MOX, ATU, speech processor, VOX, DEXP, AM carrier, monitor,
+// power and microphone.
 ColumnLayout {
     id: tx
     spacing: Theme.spacing / 2
@@ -27,6 +28,21 @@ ColumnLayout {
                 opacity: tuneButton.enabled ? 1.0 : 0.5
             }
             onClicked: Engine.toggleTune()
+        }
+        // MOX: transmit latched until tapped again (the desktop's MOX).
+        AppButton {
+            id: moxButton
+            readonly property bool on: Engine.transmitting && !Engine.tuning
+            text: on ? qsTr("MOX ●") : qsTr("MOX")
+            enabled: Engine.transmitAvailable || on
+            Layout.fillWidth: true
+            background: Rectangle {
+                implicitHeight: Theme.touchTarget
+                radius: Theme.radius
+                color: moxButton.on ? Theme.transmit : moxButton.down ? "#bdbdbd" : "#e0e0e0"
+                opacity: moxButton.enabled ? 1.0 : 0.5
+            }
+            onClicked: Engine.toggleMox()
         }
         AppButton {
             text: Engine.atuTuned ? qsTr("ATU ✓") : qsTr("ATU")
@@ -112,6 +128,55 @@ ColumnLayout {
             enabled: Engine.procEnabled
             onMoved: Engine.procLevel = Math.round(value)
         }
+    }
+
+    // ---- Phone: VOX, downward expander, AM carrier (the desktop's Phone
+    // applet; levels sent when a slider is released) ----
+    component PhoneLevel: RowLayout {
+        id: pl
+        property string key: ""
+        property string toggleKey: ""
+        property string title: ""
+        Layout.fillWidth: true
+        AppButton {
+            visible: pl.toggleKey.length > 0
+            text: pl.title
+            checked: !!Engine.phone[pl.toggleKey]
+            Layout.preferredWidth: 64
+            onClicked: Engine.setPhone(pl.toggleKey, checked ? 0 : 1)
+        }
+        Label {
+            visible: pl.toggleKey.length === 0
+            text: pl.title
+            color: Theme.textDim
+            font.pixelSize: 15
+            Layout.preferredWidth: 64
+        }
+        Slider {
+            id: plSlider
+            Layout.fillWidth: true
+            from: 0; to: 100; stepSize: 1
+            onPressedChanged: if (!pressed) Engine.setPhone(pl.key, Math.round(value))
+            Binding on value {
+                when: !plSlider.pressed
+                value: Engine.phone[pl.key] || 0
+            }
+        }
+        Label {
+            text: Math.round(plSlider.value)
+            color: Theme.textDim
+            font.pixelSize: 13
+            Layout.preferredWidth: 28
+            horizontalAlignment: Text.AlignRight
+        }
+    }
+    PhoneLevel { visible: !Engine.cwMode; key: "voxLevel"; toggleKey: "voxOn"; title: qsTr("VOX") }
+    PhoneLevel { visible: !Engine.cwMode; key: "voxDelay"; title: qsTr("Delay") }
+    PhoneLevel { visible: !Engine.cwMode; key: "dexpLevel"; toggleKey: "dexpOn"; title: qsTr("DEXP") }
+    PhoneLevel {
+        visible: ["AM", "SAM", "DSB"].indexOf(Engine.mode) >= 0
+        key: "amCarrier"
+        title: qsTr("Carrier")
     }
 
     // ---- Monitor ----

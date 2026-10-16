@@ -127,18 +127,21 @@ is a touch target with its choices behind it:
 | **ANT1** (blue) | Receive antenna | Choose the RX antenna |
 | **ANT1** (red) | Transmit antenna | Choose the TX antenna |
 | **2.7K** | Receive filter width | Filters and DSP |
-| Speaker | Audio on (blue) / muted (red) | Volume (AF gain) and Mute |
+| Speaker | Audio on (blue) / muted (red) | Every slice's volume (AF gain), Mute and pan (left–right; double-tap centres) |
 | Lock | Tuning lock open / locked | Lock or unlock tuning (flashes when a tune is refused) |
 | **NB NR ANF NRL …** | Every DSP the radio offers, bright when on (on an iPhone the rarer ones only while on) | Filters and DSP |
 | **AGC-M** | AGC mode | AGC mode, AGC threshold and RF gain |
+| **100 Hz** | Tuning step | Choose the step from the radio's list (tap-tune, arrow keys and Pencil use it) |
 
 On an iPhone the panel is one row (under the frequency in portrait).
 
 **Filters and DSP** — the mode's eight filter widths (the active one dark;
 choosing one closes the window) and the radio's DSP: NR, NB, ANF, APF (CW),
-and NRL, ANFL, ANFT, NRS, RNN, NRF where the radio has them. **BC** is the
-app's own beat cancel (below). DSP toggles leave the window open, so several
-can be set together.
+and NRL, ANFL, ANFT, NRS, RNN, NRF where the radio has them, and **WNB**, the
+panadapter's wideband noise blanker. **BC** is the app's own beat cancel
+(below). DSP toggles leave the window open, so several can be set together.
+Each DSP that is on and has a level (NR, NB, ANF, APF, NRL, ANFL, NRS, NRF,
+WNB) gets a slider under the toggles, sent to the radio when released.
 
 ![Filters and DSP](manual/filter.jpg)
 
@@ -294,9 +297,12 @@ them back into the drawer.
   and once a minute a "performance" line (CPU, frames drawn). Below, the radio's
   8-band receive and transmit equalizer
   (volume is on the info panel's speaker).
-- **TX** — TUNE and the ATU (tune, bypass, memories), tune power, RF power,
-  speech processor (PROC NOR/DX/DX+), monitor (MON), radio mic level, device
-  mic gain, microphone choice and the transmit filter (low and high cut).
+- **TX** — TUNE, **MOX** (transmit latched on until tapped again) and the
+  ATU (tune, bypass, memories), tune power, RF power, speech processor (PROC
+  NOR/DX/DX+), **VOX** (on/off, level and delay) and **DEXP** (the downward
+  expander, on/off and level) in voice modes, the AM **carrier** level in
+  AM/SAM/DSB, monitor (MON), radio mic level, device mic gain, microphone
+  choice and the transmit filter (low and high cut).
 
 | CW | View | Profiles | Memory |
 |---|---|---|---|
@@ -328,7 +334,9 @@ radio.
 
 - **Radio** — callsign (what `{CALL}` sends), the radio's name in radio
   lists, *Remote on* (SmartLink may power the radio on), muting the radio's
-  own audio while remote, and the model, serial, firmware, region and address.
+  own audio while remote, **Connected stations** (every program on the radio,
+  multiFLEX; *Disconnect* ends another station's session after asking, which
+  frees its slices), and the model, serial, firmware, region and address.
 - **Transmit** — maximum power, TX delay, transmit timeout (0 = off) and the
   TUNE signal (single or two tone).
 - **Phone/CW** — microphone bias and boost; the CW keyer's break-in delay,
@@ -353,7 +361,7 @@ Notices and refusals pop up in the middle of the display; tap one, or wait
 
 | You see | Why | What to do |
 |---|---|---|
-| **No slice** (frequency 0.000.000) | The radio did not give the app a slice. The app first retries once on a fresh panadapter; if it still fails, the radio's slices may all be in use by other programs | Close a slice there, then **Try again** |
+| **No slice** (frequency 0.000.000) | The radio did not give the app a slice. The app first retries once on a fresh panadapter; if it still fails, the radio's slices may all be in use by other programs | **Stations…** shows them; close a slice there or disconnect it, then **Try again** |
 | *No slice transmits* | No slice has transmit | Press and hold a slice → **Make TX slice** |
 | *Interlock / did not accept the transmit request* | The radio refused to transmit; its reason is shown | Check TX antenna, band, other clients |
 | A band button opens another band | The radio's band stack (in its global profile) holds that frequency | Tune the band where you want it and save the profile |

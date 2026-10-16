@@ -460,15 +460,29 @@ Rectangle {
                 text: Engine.lastError.length > 0 ? Engine.lastError
                       : qsTr("The radio has not given this app a slice yet, so it cannot tune.")
             }
-            AppButton {
-                text: qsTr("Try again")
-                leftPadding: 16
-                rightPadding: 16
-                Layout.preferredHeight: Theme.touchTarget
-                focusPolicy: Qt.NoFocus
-                onClicked: Engine.addSlice()
+            RowLayout {
+                AppButton {
+                    text: qsTr("Try again")
+                    leftPadding: 16
+                    rightPadding: 16
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: Engine.addSlice()
+                }
+                // Another program often holds the radio's slices.
+                AppButton {
+                    text: qsTr("Stations…")
+                    leftPadding: 16
+                    rightPadding: 16
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: stationsDialog.open()
+                }
             }
         }
+    }
+    StationsDialog { id: stationsDialog }
+    Connections {
+        target: Engine
+        function onStationsRequested() { stationsDialog.open() }
     }
 
     function mhzAt(x) {

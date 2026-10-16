@@ -4,9 +4,9 @@ import QtQuick.Layouts
 import AetherMobile
 
 // Receive filter and DSP, as on SmartSDR/AetherSDR: the mode's eight
-// widths (the active one checked; picking one closes) and the radio's DSP
+// widths (the active one checked; picking one closes), the radio's DSP
 // toggles plus the app's beat cancel (stay open: several are often set
-// together).
+// together), and a level slider for each DSP that is on.
 Popup {
     id: chooser
     objectName: "filterChooser"
@@ -73,6 +73,46 @@ Popup {
                     Layout.preferredWidth: chooser.cellWidth
                     Layout.preferredHeight: Theme.touchTarget
                     onClicked: Engine.setDsp(modelData, !checked)
+                }
+            }
+        }
+        // Levels of the DSP that is on (the desktop's DSP popups): a slider
+        // each, sent when released.
+        Repeater {
+            model: Engine.dspKeys.filter(k => Engine.dspOn(k) && Engine.dspHasLevel(k))
+            delegate: RowLayout {
+                id: levelRow
+                required property string modelData
+                Layout.fillWidth: true
+                spacing: Theme.spacing / 2
+                Label {
+                    text: levelRow.modelData
+                    color: Theme.text
+                    font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+                    Layout.preferredWidth: chooser.cellWidth * 0.7
+                }
+                Slider {
+                    id: levelSlider
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: chooser.cellWidth * 2
+                    from: 0; to: 100; stepSize: 1
+                    focusPolicy: Qt.NoFocus
+                    onPressedChanged: {
+                        if (!pressed) {
+                            Engine.setDspLevel(levelRow.modelData, Math.round(value))
+                        }
+                    }
+                    Binding on value {
+                        when: !levelSlider.pressed
+                        value: Engine.dspKeys.length >= 0 ? Engine.dspLevel(levelRow.modelData) : 0
+                    }
+                }
+                Label {
+                    text: Math.round(levelSlider.value)
+                    color: Theme.textDim
+                    font.pixelSize: Math.round(Theme.buttonFont * 0.85)
+                    horizontalAlignment: Text.AlignRight
+                    Layout.preferredWidth: chooser.cellWidth * 0.5
                 }
             }
         }
