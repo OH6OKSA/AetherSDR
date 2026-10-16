@@ -5,6 +5,8 @@ Jos jokin ei toimi: avaa Log → Copy heti ongelman jälkeen ja lähetä teksti 
 
 UUTTA TÄSSÄ BUILDISSA
 • Lähetyksen alku: ei enää viivettä eikä kohahdusta PTT:tä painettaessa; puhumaan pääsee heti. Kerro, kuuluuko vastaasemalla vielä alkukohinaa. [TX]
+• Profiilien ja mikrofonin valintalistat aukeavat taas (build 66–68 sulki ne heti).
+• Äänimakrot TX-välilehden alimpana.
 • Edelliseltä: lähetysääni korjattu (mikrofoni 48 kHz), ei enää rämise.
 • CW: 12 muistia, F1–F12 näppäimistöltä, Esc keskeyttää, Live-tila (kirjaimet lähtevät kirjoittaessa). [TX]
 • Äänimakrot (TX → Voice keyer): 12 paikkaa, pitkä painallus tallentaa. Ilman SmartSDR+:aa tallenteet ovat puhelimessa. [TX]
