@@ -39,6 +39,7 @@ From the comparison with upstream main and tester requests:
 - 3D with 768 columns
 - Upstream FFT Smooth and De-comb
 - Optional VOX mode (microphone always open)
+- The desktop's client-side TX chain (gate, EQ, compressor: CHAIN)
 - CW profiles (new in SmartSDR 4.3)
 
 ## Waiting
