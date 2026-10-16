@@ -2,7 +2,7 @@
 
 **A FlexRadio client for iPad and iPhone, built on the [AetherSDR](https://github.com/aethersdr/AetherSDR) engine.**
 
-[![Mobile iOS build](https://github.com/OH6OKSA/AetherSDR/actions/workflows/mobile-ios.yml/badge.svg?branch=mobile/aether-mobile-core)](https://github.com/OH6OKSA/AetherSDR/actions/workflows/mobile-ios.yml)
+[![Mobile iOS build](https://github.com/OH6OKSA/OksaSDR/actions/workflows/mobile-ios.yml/badge.svg?branch=mobile/oksasdr)](https://github.com/OH6OKSA/OksaSDR/actions/workflows/mobile-ios.yml)
 ![Platform](https://img.shields.io/badge/platform-iPadOS%20%7C%20iOS%2018%2B-blue)
 ![Status](https://img.shields.io/badge/status-TestFlight%20beta-orange)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
@@ -24,7 +24,7 @@ SmartLink (or your own VPN), it is a complete station control surface.
   <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="OksaSDR on iPhone in portrait"/>
 </p>
 
-**[Join the TestFlight test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)**: what you need and how to join.
+**[Join the TestFlight test group](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md)**: what you need and how to join.
 
 **[User manual](docs/mobile/MANUAL.md)** — every function, with screenshots
 (also the app's *Manual* button).
@@ -199,7 +199,7 @@ refreshed with every user-interface change.</sub>
 ## Try it
 
 - **TestFlight beta.** Ask for an invitation at oh6oksa@gmail.com; see
-  **[how to join the test group](https://github.com/OH6OKSA/AetherSDR/blob/mobile/aether-mobile-core/docs/mobile/TESTING.md)** for what to send.
+  **[how to join the test group](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md)** for what to send.
   You need iPadOS or iOS 18 or newer and a FlexRadio: on the same network,
   through SmartLink from anywhere, or over your own VPN.
 - **Build it yourself.** Linux or macOS works for development with the

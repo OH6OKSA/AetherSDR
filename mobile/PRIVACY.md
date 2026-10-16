@@ -4,7 +4,7 @@ OksaSDR is a FlexRadio client for iPad and iPhone, built on the
 [AetherSDR](https://github.com/aethersdr/AetherSDR) engine. It is
 maintained by Niko Oksa (OH6OKSA). This policy covers the app distributed
 through TestFlight from
-[this source](https://github.com/OH6OKSA/AetherSDR/tree/mobile/aether-mobile-core).
+[this source](https://github.com/OH6OKSA/OksaSDR/tree/mobile/oksasdr).
 
 ## Summary
 
