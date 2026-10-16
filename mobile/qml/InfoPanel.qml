@@ -16,12 +16,18 @@ Item {
     property bool singleLine: false
     // The tablet shows the step under the mode instead (StepButton).
     property bool showStep: true
-    // Either row can be shown alone (phones in portrait put the status row
-    // beside the frequency and the slice row under it).
-    property bool showSliceRow: true
+    // Groups, always-on first: the slice (letter, TX), the core settings
+    // (antennas, filter width, AGC), the controls (speaker, lock); then the
+    // optional SPLIT and DSP flags. Phones in portrait split them between the
+    // frequency row and the row under it.
+    property bool showIdentity: true
+    property bool showCore: true
+    property bool showControls: true
+    property bool showOptions: true
     // Row height as a share of the default (a compact beside-the-frequency line).
     property real rowScale: 1.0
-    property bool showStatusRow: true
+    // Type size as a share of the default (the narrowest phones).
+    property real fontScale: 1.0
 
     readonly property var activeSlice: {
         for (const s of Engine.slices) {
@@ -29,8 +35,8 @@ Item {
         }
         return null
     }
-    readonly property real fontPx: singleLine ? Math.round(Theme.buttonFont * 0.85)
-                                              : Math.round(Theme.buttonFont * 1.15)
+    readonly property real fontPx: Math.round((singleLine ? Theme.buttonFont * 0.85 : Theme.buttonFont * 1.15)
+                                              * fontScale)
     // Height of a row, and so of every target in it.
     readonly property real rowH: Math.round((singleLine ? Theme.touchTarget : Theme.touchTarget * 0.8) * rowScale)
     readonly property real gap: Math.round(fontPx * 0.45)
@@ -107,11 +113,25 @@ Item {
         rowSpacing: 0
         verticalItemAlignment: Grid.AlignVCenter
 
-        // Slice letter, TX, antennas, filter width, speaker, lock.
+        // Always on: the step (where shown), slice letter and TX, antennas,
+        // filter width, AGC, speaker, lock.
         Row {
-            visible: info.showSliceRow
+            visible: info.showStep || info.showIdentity || info.showCore || info.showControls
             spacing: 0
+            // Tuning step (the desktop's STEP): tap to choose from the
+            // radio's list. Tap-tune, the arrows and Pencil use it.
+            Hit {
+                objectName: "stepHit"
+                visible: info.showStep
+                text: info.stepLabel(Engine.stepHz)
+                color: info.rxColor
+                fontPx: info.fontPx
+                rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
+                onTapped: stepChooser.open()
+            }
             Row {
+                visible: info.showIdentity
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 4
                 rightPadding: info.gap
@@ -145,20 +165,8 @@ Item {
                     }
                 }
             }
-            // Split, as the SPLIT badge of the SmartSDR/AetherSDR slice
-            // flag: tap for a TX slice beside this one, tap again to end it.
             Hit {
-                objectName: "splitHit"
-                visible: Engine.splitAvailable
-                text: "SPLIT"
-                color: Engine.splitActive ? Theme.warning : info.dim
-                fontPx: info.fontPx
-                rowH: info.rowH
-                pad: info.singleLine ? 6 : 12
-                onTapped: Engine.toggleSplit()
-            }
-            Hit {
-                visible: Engine.rxAntenna.length > 0
+                visible: (info.showCore) && (Engine.rxAntenna.length > 0)
                 text: Engine.rxAntenna
                 color: info.rxColor
                 fontPx: info.fontPx
@@ -167,7 +175,7 @@ Item {
                 onTapped: rxChooser.open()
             }
             Hit {
-                visible: Engine.txAntenna.length > 0 && Engine.txAntennas.length > 0
+                visible: (info.showCore) && (Engine.txAntenna.length > 0 && Engine.txAntennas.length > 0)
                 text: Engine.txAntenna
                 color: Theme.transmit
                 fontPx: info.fontPx
@@ -176,7 +184,7 @@ Item {
                 onTapped: txChooser.open()
             }
             Hit {
-                visible: Engine.filterPresets.length > 0
+                visible: (info.showCore) && (Engine.filterPresets.length > 0)
                 text: info.widthLabel(Engine.filterWidth)
                 color: info.rxColor
                 fontPx: info.fontPx
@@ -184,8 +192,18 @@ Item {
                 pad: info.singleLine ? 6 : 12
                 onTapped: filterChooser.open()
             }
+            Hit {
+                visible: info.showCore
+                text: info.agcText
+                color: info.rxColor
+                fontPx: info.fontPx
+                rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
+                onTapped: agcChooser.open()
+            }
             // Speaker: tap for the volume (AF gain) and mute.
             Item {
+                visible: info.showControls
                 implicitWidth: info.singleLine ? speaker.width + 10 : Math.max(info.rowH * 0.9, speaker.width + 12)
                 implicitHeight: info.rowH
                 Canvas {
@@ -219,6 +237,7 @@ Item {
             }
             // Tuning lock: tap to lock; flashes when a tune is refused.
             Item {
+                visible: info.showControls
                 implicitWidth: info.singleLine ? lockIcon.width + 12 : Math.max(info.rowH * 0.9, lockIcon.width + 12)
                 implicitHeight: info.rowH
                 Rectangle {
@@ -269,10 +288,22 @@ Item {
             }
         }
 
-        // DSP flags, AGC.
+        // Optional: SPLIT and the DSP flags.
         Row {
-            visible: info.showStatusRow
+            visible: info.showOptions
             spacing: 0
+            // Split, as the SPLIT badge of the SmartSDR/AetherSDR slice
+            // flag: tap for a TX slice beside this one, tap again to end it.
+            Hit {
+                objectName: "splitHit"
+                visible: (info.showOptions) && (Engine.splitAvailable)
+                text: "SPLIT"
+                color: Engine.splitActive ? Theme.warning : info.dim
+                fontPx: info.fontPx
+                rowH: info.rowH
+                pad: info.singleLine ? 6 : 12
+                onTapped: Engine.toggleSplit()
+            }
             // DSP flags: tap for the filter/DSP chooser.
             Item {
                 implicitWidth: flagRow.implicitWidth + (info.singleLine ? 6 : 12)
@@ -299,26 +330,6 @@ Item {
                     }
                 }
                 MouseArea { id: flagArea; anchors.fill: parent; onClicked: filterChooser.open() }
-            }
-            Hit {
-                text: info.agcText
-                color: info.rxColor
-                fontPx: info.fontPx
-                rowH: info.rowH
-                pad: info.singleLine ? 6 : 12
-                onTapped: agcChooser.open()
-            }
-            // Tuning step (the desktop's STEP): tap to choose from the
-            // radio's list. Tap-tune, the arrows and Pencil use it.
-            Hit {
-                objectName: "stepHit"
-                visible: info.showStep
-                text: info.stepLabel(Engine.stepHz)
-                color: info.rxColor
-                fontPx: info.fontPx
-                rowH: info.rowH
-                pad: info.singleLine ? 6 : 12
-                onTapped: stepChooser.open()
             }
         }
     }

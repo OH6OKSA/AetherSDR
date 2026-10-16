@@ -115,9 +115,10 @@ Page {
                     singleLine: true
                     showStep: false
                 }
-                // Portrait: the room right of the mode takes the tuning step
-                // and the DSP/AGC line, left-aligned, so the row under the
-                // frequency only carries the slice.
+                // Portrait: the room right of the mode takes the always-on
+                // settings, left-aligned: the step, then antennas, filter
+                // width and AGC. The row under the frequency has the slice,
+                // speaker and lock, then the optional SPLIT and DSP flags.
                 ColumnLayout {
                     visible: !page.landscape
                     spacing: 0
@@ -128,12 +129,16 @@ Page {
                         fontSize: 13
                         heightScale: 0.55
                     }
+                    // The core settings: antennas, filter width, AGC.
                     InfoPanel {
                         Layout.alignment: Qt.AlignLeft
                         singleLine: true
-                        showSliceRow: false
                         showStep: false
+                        showIdentity: false
+                        showControls: false
+                        showOptions: false
                         rowScale: 0.55
+                        fontScale: page.width < 400 ? 0.88 : 1.0
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -143,7 +148,7 @@ Page {
             InfoPanel {
                 visible: !page.landscape
                 showStep: false
-                showStatusRow: false
+                showCore: false
                 singleLine: true
                 rowScale: 0.75
                 Layout.fillWidth: true
