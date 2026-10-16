@@ -612,6 +612,8 @@ public:
     // Straight key: down while held. Every release path also keys up.
     Q_INVOKABLE void setCwKey(bool down, const QString& reason = QString());
     Q_INVOKABLE void sendCwx(const QString& text);
+    // Live mode: one character to the keyer as it is typed.
+    Q_INVOKABLE void sendCwxChar(const QString& ch);
     Q_INVOKABLE void stopCwx();
     Q_INVOKABLE void clearCwDecoded();
     // Tune by whole tuning steps, landing on the step grid.
@@ -785,6 +787,7 @@ private:
     TxController::Input m_atuInput;
     TxController::Input m_cwKeyInput;
     TxController::Input m_cwxInput;
+    bool m_cwxLiveInDecoder{false};
     bool m_cwKeyHeld{false};
     std::unique_ptr<CwRxModel> m_cwDecoder;
     std::unique_ptr<DecoderAudioModel> m_cwAudio;

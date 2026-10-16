@@ -1903,14 +1903,15 @@ void MobileEngine::setCwBreakIn(bool on)
 }
 
 namespace {
-constexpr int kCwMemoryCount = 9;
+// Twelve, as the radio's CWX macros (F1-F12 on a keyboard).
+constexpr int kCwMemoryCount = 12;
 QString cwMemoryKey(int index)
 {
     return QStringLiteral("MobileCwMemory%1").arg(index + 1);
 }
 const char* const kCwMemoryDefaults[kCwMemoryCount] = {
     "CQ CQ CQ DE {CALL} {CALL} K", "{CALL}", "5NN TU", "TU 73", "QRZ?", "AGN?",
-    "QRL?", "R R TU 73", "",
+    "QRL?", "R R TU 73", "", "", "", "",
 };
 } // namespace
 
@@ -2324,6 +2325,7 @@ void MobileEngine::sendCwx(const QString& text)
         return;
     }
     qCInfo(lcMobile) << "CWX sent" << trimmed.size() << "characters";
+    m_cwxLiveInDecoder = false;
     // What we send shows in the decoder's text too, marked, so the exchange
     // reads both ways (the receiver hears nothing of it while transmitting).
     m_cwDecodedText += QStringLiteral("\n[TX] %1\n").arg(trimmed.toUpper());
@@ -2333,8 +2335,39 @@ void MobileEngine::sendCwx(const QString& text)
     emit cwDecoderChanged();
 }
 
+void MobileEngine::sendCwxChar(const QString& ch)
+{
+    // Live mode (the desktop's CWX live typing): each character to the
+    // radio's keyer as it is typed.
+    if (ch.isEmpty() || !cwxAvailable()) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    if (!m_cwxInput.valid() || !m_cwxInput.active()) {
+        if (!rm.cwxModel().canSend()) {
+            setLastError(tr("CW text cannot be sent right now."));
+            return;
+        }
+        m_cwxInput = rm.localTxController()->capture(TxController::Activity::Cwx);
+    }
+    if (!m_cwxInput.sendChar(ch.toUpper())) {
+        return;
+    }
+    // Typed text joins the decoder's text under one [TX] mark per burst.
+    if (!m_cwxLiveInDecoder) {
+        m_cwDecodedText += QStringLiteral("\n[TX] ");
+        m_cwxLiveInDecoder = true;
+    }
+    m_cwDecodedText += ch.toUpper();
+    if (m_cwDecodedText.size() > kCwDecodedMaxChars) {
+        m_cwDecodedText = m_cwDecodedText.right(kCwDecodedMaxChars);
+    }
+    emit cwDecoderChanged();
+}
+
 void MobileEngine::stopCwx()
 {
+    m_cwxLiveInDecoder = false;
     if (m_cwxInput.valid()) {
         m_cwxInput.stop();
         m_cwxInput = {};

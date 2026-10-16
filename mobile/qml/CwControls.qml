@@ -39,12 +39,13 @@ ColumnLayout {
         }
     }
 
-    // Memories: tap sends (CWX), press and hold edits. {CALL} = the radio's
-    // callsign. The straight key is the KEY button in PTT's place.
+    // Memories M1-M12: tap sends (CWX), press and hold edits; F1-F12 on a
+    // keyboard send them too. {CALL} = the radio's callsign. The straight key
+    // is the KEY button in PTT's place.
     GridLayout {
         Layout.fillWidth: true
         visible: Engine.cwxAvailable
-        columns: 3
+        columns: width > 520 ? 4 : 3
         columnSpacing: Theme.spacing / 2
         rowSpacing: Theme.spacing / 2
         Repeater {
@@ -67,29 +68,73 @@ ColumnLayout {
         }
     }
 
-    // CWX: text sent by the radio's keyer at the set speed.
+    // CWX: text sent by the radio's keyer at the set speed. Live sends each
+    // character as it is typed (the desktop's live mode); otherwise Send (or
+    // Return) sends the line. Stop, or Esc on a keyboard, aborts.
     RowLayout {
         Layout.fillWidth: true
         visible: Engine.cwxAvailable
         TextField {
             id: cwxText
+            property string sentText: ""
             Layout.fillWidth: true
-            placeholderText: qsTr("CW text to send")
+            placeholderText: liveButton.checked ? qsTr("Type: each letter goes now") : qsTr("CW text to send")
             inputMethodHints: Qt.ImhUppercaseOnly | Qt.ImhNoPredictiveText
             font.pixelSize: 16
-            onAccepted: send.clicked()
+            onAccepted: {
+                if (liveButton.checked) {
+                    Engine.sendCwxChar(" ")
+                    text = ""
+                    sentText = ""
+                } else {
+                    send.clicked()
+                }
+            }
+            // Live: only what was added at the end goes; edits before it
+            // cannot be unsent.
+            onTextEdited: {
+                if (!liveButton.checked) {
+                    return
+                }
+                if (text.startsWith(sentText) && text.length > sentText.length) {
+                    const added = text.substring(sentText.length)
+                    for (let i = 0; i < added.length; ++i) {
+                        Engine.sendCwxChar(added[i])
+                    }
+                }
+                sentText = text
+            }
+            // The keyboard's F-keys and Esc work while typing too.
+            Keys.onPressed: (event) => {
+                if (event.key >= Qt.Key_F1 && event.key <= Qt.Key_F12) {
+                    Engine.sendCwMemory(event.key - Qt.Key_F1)
+                    event.accepted = true
+                } else if (event.key === Qt.Key_Escape) {
+                    Engine.stopCwx()
+                    event.accepted = true
+                }
+            }
+        }
+        AppButton {
+            id: liveButton
+            text: qsTr("Live")
+            checkable: true
+            onToggled: {
+                cwxText.text = ""
+                cwxText.sentText = ""
+            }
         }
         AppButton {
             id: send
+            visible: !liveButton.checked
             text: qsTr("Send")
             enabled: cwxText.text.length > 0
-            focusPolicy: Qt.NoFocus
             onClicked: {
                 Engine.sendCwx(cwxText.text)
                 cwxText.text = ""
             }
         }
-        AppButton { text: qsTr("Stop"); focusPolicy: Qt.NoFocus; onClicked: Engine.stopCwx() }
+        AppButton { text: qsTr("Stop"); onClicked: Engine.stopCwx() }
     }
 
     Label { text: qsTr("Speed  %1 WPM").arg(Engine.cwSpeed); color: Theme.textDim; font.pixelSize: 15 }

@@ -8,7 +8,8 @@ Page {
     focus: true
 
     // Hardware keyboard (Magic Keyboard): arrows tune by step (Shift x10),
-    // +/- zoom, F opens direct entry. Space is hold-to-talk: press keys,
+    // +/- zoom, F opens direct entry, F1-F12 send the CW memories, Esc stops
+    // CW text. Space is hold-to-talk: press keys,
     // release unkeys, auto-repeat is ignored, and losing focus unkeys.
     property bool spacePtt: false
     Keys.onPressed: (event) => {
@@ -26,6 +27,13 @@ Page {
         case Qt.Key_Equal: Engine.zoom(0.5); break
         case Qt.Key_Minus: Engine.zoom(2.0); break
         case Qt.Key_F: freqDialog.open(); break
+        // CW memories M1-M12 and abort, as the desktop's CWX F-keys and Esc.
+        case Qt.Key_F1: case Qt.Key_F2: case Qt.Key_F3: case Qt.Key_F4:
+        case Qt.Key_F5: case Qt.Key_F6: case Qt.Key_F7: case Qt.Key_F8:
+        case Qt.Key_F9: case Qt.Key_F10: case Qt.Key_F11: case Qt.Key_F12:
+            Engine.sendCwMemory(event.key - Qt.Key_F1)
+            break
+        case Qt.Key_Escape: Engine.stopCwx(); break
         case Qt.Key_Space:
             page.spacePtt = true
             Engine.setPtt(true)
