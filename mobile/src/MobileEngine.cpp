@@ -19,6 +19,9 @@
 #include "core/AppActivity.h"
 #include "core/AppSettings.h"
 #include "core/AudioEngine.h"
+#include "core/ClientComp.h"
+#include "core/ClientEq.h"
+#include "core/ClientGate.h"
 #include "core/RadioDiscovery.h"
 #include "core/backends/IRadioBackend.h"
 #include "core/backends/flex/PanadapterStream.h"
@@ -111,6 +114,14 @@ MobileEngine::MobileEngine(QObject* parent)
     m_audio->moveToThread(m_audioThread);
     connect(m_audio, &AudioEngine::txClipRecorded, this, &MobileEngine::onVoiceClipRecorded);
     connect(m_audio, &AudioEngine::txClipFinished, this, &MobileEngine::onVoiceClipFinished);
+    m_txChainSaveTimer.setSingleShot(true);
+    m_txChainSaveTimer.setInterval(1000);
+    connect(&m_txChainSaveTimer, &QTimer::timeout, this, [this] {
+        m_audio->saveClientGateSettings();
+        m_audio->saveClientCompSettings();
+        m_audio->saveClientEqSettings();
+        AppSettings::instance().save();
+    });
     // This device's microphone: the radio's MIC meter only sees its own
     // jacks, so the level is measured from what is sent (as AetherSDR's
     // P/CW applet), with VU ballistics: fast attack, ~20 dB/s decay.
@@ -969,6 +980,113 @@ bool MobileEngine::micMeterLive() const
         return false;
     }
     return m_session.radioModel().transmitModel().micSelection() != kDeviceMicSelection || radioTransmitting();
+}
+
+namespace {
+// The app's EQ layout on the client TX EQ: a low cut, a bass shelf and a
+// presence peak (the radio's own 8-band TX EQ is in the Audio tab).
+constexpr float kBassHz = 250.0f;
+constexpr float kPresenceHz = 2000.0f;
+bool isAppEqLayout(const ClientEq& eq)
+{
+    return eq.activeBandCount() >= 3 && eq.band(0).type == ClientEq::FilterType::HighPass
+        && eq.band(1).type == ClientEq::FilterType::LowShelf && eq.band(2).type == ClientEq::FilterType::Peak;
+}
+void ensureAppEqLayout(ClientEq& eq)
+{
+    if (isAppEqLayout(eq)) {
+        return;
+    }
+    ClientEq::BandParams lowCut;
+    lowCut.type = ClientEq::FilterType::HighPass;
+    lowCut.freqHz = 100.0f;
+    lowCut.enabled = false;
+    lowCut.slopeDbPerOct = 12;
+    ClientEq::BandParams bass;
+    bass.type = ClientEq::FilterType::LowShelf;
+    bass.freqHz = kBassHz;
+    ClientEq::BandParams presence;
+    presence.type = ClientEq::FilterType::Peak;
+    presence.freqHz = kPresenceHz;
+    presence.q = 1.0f;
+    eq.setBand(0, lowCut);
+    eq.setBand(1, bass);
+    eq.setBand(2, presence);
+    eq.setActiveBandCount(3);
+}
+} // namespace
+
+QVariantMap MobileEngine::txChain() const
+{
+    ClientGate* gate = m_audio->clientGateTx();
+    ClientComp* comp = m_audio->clientCompTx();
+    ClientEq* eq = m_audio->clientEqTx();
+    if (!gate || !comp || !eq) {
+        return {};
+    }
+    const bool ours = isAppEqLayout(*eq);
+    return {
+        {QStringLiteral("gateOn"), gate->isEnabled()},
+        {QStringLiteral("gateThreshold"), gate->thresholdDb()},
+        {QStringLiteral("eqOn"), eq->isEnabled()},
+        {QStringLiteral("lowCut"), ours && eq->band(0).enabled ? qRound(eq->band(0).freqHz) : 0},
+        {QStringLiteral("bass"), ours ? eq->band(1).gainDb : 0.0f},
+        {QStringLiteral("presence"), ours ? eq->band(2).gainDb : 0.0f},
+        {QStringLiteral("compOn"), comp->isEnabled()},
+        {QStringLiteral("compThreshold"), comp->thresholdDb()},
+        {QStringLiteral("compRatio"), comp->ratio()},
+        {QStringLiteral("compMakeup"), comp->makeupDb()},
+    };
+}
+
+void MobileEngine::setTxChain(const QString& key, const QVariant& value)
+{
+    ClientGate* gate = m_audio->clientGateTx();
+    ClientComp* comp = m_audio->clientCompTx();
+    ClientEq* eq = m_audio->clientEqTx();
+    if (!gate || !comp || !eq) {
+        return;
+    }
+    const float v = value.toFloat();
+    if (key == QLatin1String("gateOn")) {
+        gate->setEnabled(value.toBool());
+    } else if (key == QLatin1String("gateThreshold")) {
+        gate->setThresholdDb(std::clamp(v, -80.0f, 0.0f));
+    } else if (key == QLatin1String("compOn")) {
+        comp->setEnabled(value.toBool());
+    } else if (key == QLatin1String("compThreshold")) {
+        comp->setThresholdDb(std::clamp(v, -60.0f, 0.0f));
+    } else if (key == QLatin1String("compRatio")) {
+        comp->setRatio(std::clamp(v, 1.0f, 20.0f));
+    } else if (key == QLatin1String("compMakeup")) {
+        comp->setMakeupDb(std::clamp(v, -12.0f, 24.0f));
+    } else if (key == QLatin1String("eqOn")) {
+        ensureAppEqLayout(*eq);
+        eq->setEnabled(value.toBool());
+    } else if (key == QLatin1String("lowCut") || key == QLatin1String("bass") || key == QLatin1String("presence")) {
+        ensureAppEqLayout(*eq);
+        const int index = key == QLatin1String("lowCut") ? 0 : key == QLatin1String("bass") ? 1 : 2;
+        ClientEq::BandParams band = eq->band(index);
+        if (index == 0) {
+            band.enabled = v > 0.0f;
+            if (band.enabled) {
+                band.freqHz = std::clamp(v, 50.0f, 400.0f);
+            }
+        } else {
+            band.gainDb = std::clamp(v, -12.0f, 12.0f);
+        }
+        eq->setBand(index, band);
+    } else {
+        return;
+    }
+    m_txChainSaveTimer.start();
+    emit txChainChanged();
+}
+
+double MobileEngine::compReductionDb() const
+{
+    ClientComp* comp = m_audio->clientCompTx();
+    return comp && comp->isEnabled() ? std::min(0.0f, comp->gainReductionDb()) : 0.0;
 }
 
 bool MobileEngine::transmitAvailable() const

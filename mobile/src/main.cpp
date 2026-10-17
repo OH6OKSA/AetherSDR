@@ -36,6 +36,9 @@ static QList<QObject*> findNamedObjects(QObject* root, const QString& name)
 {
     QList<QObject*> found = root->findChildren<QObject*>(name);
     std::function<void(QQuickItem*)> walk = [&](QQuickItem* item) {
+        if (item->objectName() == name && !found.contains(item)) {
+            found << item;
+        }
         for (QObject* child : item->children()) {
             if (child->objectName() == name && !found.contains(child)) {
                 found << child;
@@ -127,6 +130,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption controlsTabOption(QStringLiteral("controls-tab"),
         QStringLiteral("With --controls drawer: tab to show (0 Mode … 4 CW)."), QStringLiteral("index"));
     parser.addOption(controlsTabOption);
+    const QCommandLineOption controlsScrollOption(QStringLiteral("controls-scroll"),
+        QStringLiteral("With --controls drawer: scroll the shown tab down by <px> (screenshots)."), QStringLiteral("px"));
+    parser.addOption(controlsScrollOption);
     const QCommandLineOption reconnectTestOption(QStringLiteral("reconnect-test"),
         QStringLiteral("With --connect: disconnect after 8 s and reconnect at 11 s."));
     parser.addOption(reconnectTestOption);
@@ -148,6 +154,10 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: key TUNE (the radio's tune power) 10 s after start for <ms>, then unkey. "
                        "Transmits: only with the operator's consent."), QStringLiteral("ms"));
     parser.addOption(tuneTestOption);
+    const QCommandLineOption txChainOption(QStringLiteral("tx-chain"),
+        QStringLiteral("Development: set this device's TX processing, e.g. compOn=1,compThreshold=-30 "
+                       "(remembered)."), QStringLiteral("settings"));
+    parser.addOption(txChainOption);
     const QCommandLineOption pttTestOption(QStringLiteral("ptt-test"),
         QStringLiteral("Development: transmit for <ms> with this device's microphone at 10 W on 14.250 MHz "
                        "(only if this app's slice transmits), logging the Mic meter; power restored after."),
@@ -400,6 +410,15 @@ int main(int argc, char* argv[])
             });
         });
     }
+    if (parser.isSet(txChainOption)) {
+        for (const QString& kv : parser.value(txChainOption).split(QLatin1Char(','), Qt::SkipEmptyParts)) {
+            const QStringList p = kv.split(QLatin1Char('='));
+            if (p.size() == 2) {
+                engine.setTxChain(p.at(0).trimmed(), p.at(1).trimmed().toDouble());
+            }
+        }
+        qInfo() << "tx-chain:" << engine.txChain();
+    }
     if (parser.value(tnfTestOption) == QLatin1String("add")) {
         QTimer::singleShot(5000, &app, [&engine] { engine.addTnf(0.0); });
         QTimer::singleShot(6000, &app, [&engine] {
@@ -439,10 +458,11 @@ int main(int argc, char* argv[])
             engine.setRfPower(10);
             auto* sampler = new QTimer(&engine);
             QObject::connect(sampler, &QTimer::timeout, &engine, [&engine] {
-                qInfo().noquote() << QStringLiteral("ptt-test: tx=%1 micLive=%2 mic=%3 dB peak=%4 dB power=%5 W")
+                qInfo().noquote() << QStringLiteral("ptt-test: tx=%1 micLive=%2 mic=%3 dB peak=%4 dB power=%5 W comp=%6 dB")
                                          .arg(engine.radioTransmitting()).arg(engine.micMeterLive())
                                          .arg(engine.micLevelDbfs(), 0, 'f', 1).arg(engine.micPeakDbfs(), 0, 'f', 1)
-                                         .arg(engine.forwardPowerW(), 0, 'f', 1);
+                                         .arg(engine.forwardPowerW(), 0, 'f', 1)
+                                         .arg(engine.compReductionDb(), 0, 'f', 1);
             });
             QTimer::singleShot(1000, &engine, [&engine, sampler, ms, power] {
                 qInfo() << "ptt-test: PTT on for" << ms << "ms";
@@ -482,6 +502,21 @@ int main(int argc, char* argv[])
                         // A dialog that needs content offers preview() with sample data.
                         const bool hasPreview = chooser->metaObject()->indexOfMethod("preview()") >= 0;
                         QMetaObject::invokeMethod(chooser, hasPreview ? "preview" : "open");
+                    }
+                }
+            }
+        });
+    }
+    if (parser.isSet(controlsScrollOption)) {
+        const qreal px = parser.value(controlsScrollOption).toDouble();
+        QTimer::singleShot(7000, &app, [&qml, px] {
+            for (QObject* root : qml.rootObjects()) {
+                for (QObject* scroll : findNamedObjects(root, QStringLiteral("controlsTabScroll"))) {
+                    auto* item = qobject_cast<QQuickItem*>(scroll);
+                    auto* flick = qvariant_cast<QObject*>(scroll->property("contentItem"));
+                    if (item && item->isVisible() && flick) {
+                        const qreal room = flick->property("contentHeight").toReal() - item->height();
+                        flick->setProperty("contentY", std::clamp(px, 0.0, std::max(0.0, room)));
                     }
                 }
             }

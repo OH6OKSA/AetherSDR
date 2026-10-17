@@ -86,6 +86,7 @@ ColumnLayout {
             model: panel.multiSelect ? [] : panel.sections
             delegate: ScrollView {
                 id: tabScroll
+                objectName: "controlsTabScroll"
                 required property var modelData
                 clip: true
                 contentWidth: availableWidth

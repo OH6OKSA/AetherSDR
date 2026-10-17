@@ -226,6 +226,12 @@ class MobileEngine : public QObject {
     // jacks all the time; this device's microphone is measured here, while
     // it is sent (on the air).
     Q_PROPERTY(bool micMeterLive READ micMeterLive NOTIFY txMetersChanged)
+    // This device's microphone processing before it is sent (AetherSDR's
+    // client-side TX chain): gateOn, gateThreshold (dB), eqOn, lowCut (Hz,
+    // 0 = off), bass, presence (dB), compOn, compThreshold, compRatio,
+    // compMakeup. compReductionDb: the compressor's gain reduction now (<= 0).
+    Q_PROPERTY(QVariantMap txChain READ txChain NOTIFY txChainChanged)
+    Q_PROPERTY(double compReductionDb READ compReductionDb NOTIFY txMetersChanged)
     Q_PROPERTY(double forwardPowerW READ forwardPowerW NOTIFY txMetersChanged)
     Q_PROPERTY(double swr READ swr NOTIFY txMetersChanged)
     Q_PROPERTY(bool swrValid READ swrValid NOTIFY txMetersChanged)
@@ -560,6 +566,9 @@ public:
     double micLevelDbfs() const { return m_micLevelDbfs; }
     double micPeakDbfs() const { return m_micPeakDbfs; }
     bool micMeterLive() const;
+    QVariantMap txChain() const;
+    Q_INVOKABLE void setTxChain(const QString& key, const QVariant& value);
+    double compReductionDb() const;
     double forwardPowerW() const { return m_forwardPowerW; }
     double swr() const { return m_swr; }
     bool swrValid() const { return m_swrValid; }
@@ -743,6 +752,7 @@ signals:
     void rfGainChanged();
     void memoriesChanged();
     void tnfsChanged();
+    void txChainChanged();
     void profilesChanged();
     void txFilterChanged();
     void eqChanged();
@@ -869,6 +879,9 @@ private:
     int m_voiceActiveId{-1};
     // Listening to one of the app's own clips on this device: the clip as
     // 24 kHz stereo float, fed into the receive output in real time.
+    // TX chain settings are written a moment after the last change (a
+    // slider drag would otherwise write the settings file on every step).
+    QTimer m_txChainSaveTimer;
     QTimer m_voicePreviewTimer;
     QElapsedTimer m_voicePreviewClock;
     QByteArray m_voicePreviewPcm;

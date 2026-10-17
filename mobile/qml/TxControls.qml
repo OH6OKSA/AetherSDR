@@ -239,6 +239,119 @@ ColumnLayout {
         }
     }
 
+    // ---- This device's microphone processing (AetherSDR's client-side TX
+    // chain): gate, EQ (low cut, bass, presence) and compressor, applied
+    // before the audio is sent. Only with this device's microphone. ----
+    component ChainSlider: RowLayout {
+        id: cs
+        property string key: ""
+        property string toggleKey: ""
+        property string title: ""
+        property real from: 0
+        property real to: 100
+        property real step: 1
+        property string unit: " dB"
+        Layout.fillWidth: true
+        AppButton {
+            visible: cs.toggleKey.length > 0
+            text: cs.title
+            checked: !!Engine.txChain[cs.toggleKey]
+            Layout.preferredWidth: 64
+            onClicked: Engine.setTxChain(cs.toggleKey, !checked)
+        }
+        Label {
+            visible: cs.toggleKey.length === 0
+            text: cs.title
+            color: Theme.textDim
+            font.pixelSize: 13
+            elide: Text.ElideRight
+            Layout.preferredWidth: 64
+        }
+        Slider {
+            id: csSlider
+            Layout.fillWidth: true
+            from: cs.from; to: cs.to; stepSize: cs.step
+            onMoved: Engine.setTxChain(cs.key, value)
+            Binding on value {
+                when: !csSlider.pressed
+                value: Engine.txChain[cs.key] || 0
+            }
+        }
+        Label {
+            text: (csSlider.value > 0 && cs.from < 0 ? "+" : "") + csSlider.value.toFixed(0) + cs.unit
+            color: Theme.textDim
+            font.pixelSize: 13
+            Layout.preferredWidth: 52
+            horizontalAlignment: Text.AlignRight
+        }
+    }
+    ColumnLayout {
+        id: chain
+        visible: !Engine.cwMode && Engine.transmitAvailable
+        Layout.fillWidth: true
+        Layout.topMargin: Theme.spacing / 2
+        spacing: Theme.spacing / 2
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("This device's microphone: processing before it is sent")
+            color: Theme.textDim
+            font.pixelSize: 15
+            wrapMode: Text.WordWrap
+        }
+        ChainSlider { title: qsTr("Gate"); toggleKey: "gateOn"; key: "gateThreshold"; from: -80; to: 0 }
+        RowLayout {
+            Layout.fillWidth: true
+            AppButton {
+                text: qsTr("EQ")
+                checked: !!Engine.txChain.eqOn
+                Layout.preferredWidth: 64
+                onClicked: Engine.setTxChain("eqOn", !checked)
+            }
+            Label { text: qsTr("Low cut"); color: Theme.textDim; font.pixelSize: 13 }
+            Repeater {
+                model: [0, 100, 150, 200, 300]
+                delegate: AppButton {
+                    required property int modelData
+                    text: modelData === 0 ? qsTr("Off") : modelData
+                    checked: (Engine.txChain.lowCut || 0) === modelData
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    leftPadding: 2
+                    rightPadding: 2
+                    onClicked: Engine.setTxChain("lowCut", modelData)
+                }
+            }
+        }
+        ChainSlider { title: qsTr("Bass"); key: "bass"; from: -12; to: 12 }
+        ChainSlider { title: qsTr("Presence"); key: "presence"; from: -12; to: 12 }
+        ChainSlider { title: qsTr("Comp"); toggleKey: "compOn"; key: "compThreshold"; from: -60; to: 0 }
+        RowLayout {
+            Layout.fillWidth: true
+            Label { text: qsTr("Ratio"); color: Theme.textDim; font.pixelSize: 13; Layout.preferredWidth: 64 }
+            Repeater {
+                model: [2, 3, 4, 8]
+                delegate: AppButton {
+                    required property int modelData
+                    text: modelData + ":1"
+                    checked: Math.round(Engine.txChain.compRatio || 0) === modelData
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    onClicked: Engine.setTxChain("compRatio", modelData)
+                }
+            }
+            // The compressor's work while on the air.
+            Label {
+                text: Engine.radioTransmitting && Engine.txChain.compOn
+                      ? Engine.compReductionDb.toFixed(0) + " dB" : ""
+                color: Theme.warning
+                font.pixelSize: 13
+                Layout.preferredWidth: 52
+                horizontalAlignment: Text.AlignRight
+            }
+        }
+        ChainSlider { title: qsTr("Makeup"); key: "compMakeup"; from: 0; to: 18 }
+    }
+
     // ---- Voice keyer: the radio's DVK where it is licensed (12 slots of up
     // to 10 s kept in the radio), otherwise the app's own voice macros (12
     // slots of up to 15 s on this device, played into the TX audio). Tap
