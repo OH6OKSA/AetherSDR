@@ -67,7 +67,14 @@ radio interface, with no computer running alongside.
   tab, remembered on the device; plus the radio's own FFT average, FFT
   frames/s and waterfall speed.
 - **Band** beside −/+ zooms out to the whole band.
-- RF gain; the radio's memory channels (recall, save, delete).
+- RF gain; the radio's memory channels (recall, save, edit name,
+  frequency and mode, delete).
+- **Spots and DX cluster**: the radio's spots (from every program on it)
+  as callsigns on the display, tap to tune; the app's own DX cluster
+  connection sends its spots to the radio, as the desktop does.
+- **Notch filters (TNF)**: press and hold on the display for a notch, tap
+  it for width, depth, permanent or remove; drawn through spectrum and
+  waterfall as on the desktop.
 - The radio's global, TX and mic profiles: load, save and delete, as in
   SmartSDR and AetherSDR.
 - Filter passband drawn on the display, on the correct side for USB/LSB and
@@ -124,7 +131,10 @@ radio interface, with no computer running alongside.
   and radio mic level.
 - **Voice keyer**: twelve voice macros F1–F12. With SmartSDR+ they are the
   radio's DVK; without it the app records and plays them itself, kept on
-  the device.
+  the device. *Listen* plays one back without transmitting.
+- **Processing of the device's microphone**, AetherSDR's client-side TX
+  chain: gate, EQ (low cut, bass, presence) and compressor, with the Mic
+  meter reading the processed audio on the air.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input is
   set to `PC` when the app connects), with RF power and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
@@ -204,6 +214,8 @@ refreshed with every user-interface change.</sub>
 | SmartLink remote (sign in, connect from anywhere, Opus audio) | ✅ Supported |
 | Remote over your own VPN (connect by IP) | ✅ In use by testers (OpenVPN, WireGuard) |
 | Several slices and panadapters, multiFLEX | ✅ Supported |
+| Spots and DX cluster, TNF, memory editing | ✅ Tested against a FLEX-6600M (build 77) |
+| TX processing (gate, EQ, compressor) | ✅ Measured on the FLEX with a test tone; testers' on-air reports welcome |
 | CW keying, CWX and decoder on air | ⏳ Not yet verified |
 | LAN discovery on iOS | ⏳ Needs Apple's multicast entitlement. Connect by IP for now. |
 | LAN discovery on Android | 🧪 Built in; to be verified on the radio's own network |

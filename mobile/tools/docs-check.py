@@ -15,8 +15,9 @@ have yet) and the docs as they are at HEAD:
   * every relative link, image and #anchor in the docs resolves;
   * the docs carry no old repository names, phone numbers or radio serials.
 
-A rule that does not apply to a change is waived with a commit trailer
-anywhere in the range, which also records why:
+A rule that does not apply to a change is waived with a commit trailer,
+which also records why; every commit in the range that calls for the rule
+must carry it:
 
     Manual: unchanged (internal fix)
     Screenshots: unchanged (no visible change)
@@ -41,7 +42,7 @@ IOS_WORKFLOW = ROOT / ".github/workflows/mobile-ios.yml"
 NOTES = "mobile/TESTFLIGHT_WHATS_NEW.txt"
 ROADMAP = "mobile/ROADMAP.md"
 MANUAL = "docs/mobile/MANUAL.md"
-DOCS = ["README.md", "docs/mobile/*.md", "mobile/*.md"]
+DOCS = ["README.md", "docs/mobile/*.md", "mobile/*.md", "mobile/android/*.md"]
 SCREENSHOTS = ["docs/mobile/*.jpg", "docs/mobile/manual/*.jpg"]
 NOTES_LIMIT = 4000
 
@@ -174,16 +175,31 @@ def main():
 
     if base:
         changed = [p for p in git("diff", "--name-only", f"{base}..{args.head}").splitlines() if p]
-        messages = git("log", "--format=%B", f"{base}..{args.head}")
-        waived = {m.group(1).lower() for m in re.finditer(r"^(Manual|Screenshots|Roadmap|Notes):\s*unchanged",
-                                                           messages, re.M | re.I)}
-        app = [p for p in changed if any(matches(p, pat) for pat in app_patterns())]
+        patterns = app_patterns()
+        app = [p for p in changed if any(matches(p, pat) for pat in patterns)]
         ui = [p for p in changed if p.startswith("mobile/qml/")]
+
+        # Per commit: what it touched and which rules its message waives. A
+        # rule is waived only when every commit that calls for it says so,
+        # so one commit's trailer cannot excuse the others.
+        commits = []
+        for sha in git("rev-list", f"{base}..{args.head}").split():
+            files = git("diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha).split()
+            message = git("log", "-1", "--format=%B", sha)
+            waives = {m.group(1).lower() for m in re.finditer(
+                r"^(Manual|Screenshots|Roadmap|Notes):\s*unchanged", message, re.M | re.I)}
+            commits.append((files, waives))
+
+        def calls_for(rule, files):
+            if rule in ("notes", "roadmap"):
+                return any(any(matches(p, pat) for pat in patterns) for p in files)
+            return any(p.startswith("mobile/qml/") for p in files)
 
         def need(rule, ok, message):
             if ok:
                 return
-            if rule in waived:
+            callers = [w for files, w in commits if calls_for(rule, files)]
+            if callers and all(rule in w for w in callers):
                 notes.append(f"{message} (waived: \"{rule.capitalize()}: unchanged\")")
             else:
                 errors.append(message)

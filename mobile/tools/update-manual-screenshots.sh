@@ -59,7 +59,7 @@ shot network 1366x1024 "${src[@]}" --controls visible --popup networkDialog
 shot setup 1366x1024 "${src[@]}" --controls visible --popup radioSetup
 shot tnf 1366x1024 "${src[@]}" --controls visible --popup tnfPopup
 shot memory-edit 440x956 "${src[@]}" --controls drawer --controls-tab 6 --popup memoryEditDialog
-shot tx-processing 440x956 "${src[@]}" --controls drawer --controls-tab 2 --controls-scroll 380
+shot tx-processing 440x956 "${src[@]}" --controls drawer --controls-tab 2 --controls-scroll 500
 tabs=(dsp audio tx cw view profiles memory)
 for i in "${!tabs[@]}"; do
     shot "tab-${tabs[$i]}" 440x956 "${src[@]}" --controls drawer --controls-tab "$i"

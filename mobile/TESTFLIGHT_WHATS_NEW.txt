@@ -9,19 +9,19 @@ GETTING STARTED
 - The Manual button (top row) opens the user manual.
 
 NEW IN THIS BUILD
-- Radios on the connect page are clearly buttons (a card with Connect).
-- Pan control reads C at centre, or L/R and how far, and snaps to centre.
-- iPhone: the controls open from the button beside PTT; the top row keeps the rest behind the dots button.
-- The controls drawer reaches the bottom edge, its PTT where the page's is.
-- View: FFT frames/s and waterfall speed keep the value you set (they sprang back). Setup: muting the radio's own audio while remote sticks.
+- DX cluster spots: View > Spots connects to a DX cluster (your radio's callsign, or set one); spots show as callsigns on the display, tap one to tune. Spots from other programs on the radio show too.
+- Notch filters (TNF): press and hold on the display to put a notch there; tap it for width, depth, permanent or remove. DSP tab: TNF on/off and + TNF.
+- TX tab, with this device's microphone: processing before it is sent - gate, EQ (low cut, bass, presence) and compressor. [TX]
+- Memories: press and hold one to edit its name, frequency and mode.
+- Voice keyer: Listen plays a recording back to you without transmitting.
+- The Mic meter now moves with this device's microphone while you transmit (it stayed at the bottom).
 
 RECENT
-- New app icon: the OksaSDR mark.
-- Volume and pan sliders follow your finger (they jumped back while dragging).
-- Meter peak hold no longer sticks at the top of the SWR scale; ALC and Mic below their scale read "< -20 dB".
-- Simpler TX tab: MOX removed (hold PTT to transmit), one Mic level (the radio's). This device's microphone trim moved to Setup > Phone/CW.
-- The callsign is set in Setup > Radio; the CW tab shows it.
-- The Manual button opens the manual at its new address.
+- Radios on the connect page are clearly buttons; the pan control reads C, L or R and snaps to centre.
+- iPhone: the controls open from the button beside PTT; the drawer reaches the bottom edge.
+- View: FFT frames/s and waterfall speed keep the value you set.
+- New app icon; volume and pan sliders follow your finger; meter peak hold fixed.
+- Simpler TX tab: MOX removed (hold PTT), one Mic level. The callsign is set in Setup > Radio.
 
 PLEASE TRY
 - Receive on a few bands, with zoom, the Band button and the 3D view.
@@ -29,6 +29,7 @@ PLEASE TRY
 - Both portrait and landscape; on iPad also Split View.
 - Voice transmit with the device mic or a Bluetooth headset, and tell me how it sounds at the other end. [TX]
 - CW keying, CWX memories (F1–F12 on a keyboard) and the decoder. [TX]
+- New: spots and the DX cluster, a notch on a carrier, the TX processing at low power with a second receiver. [TX]
 
 REPORTING A PROBLEM
 Right after it happens, open Log in the top row, tap Copy, and paste the text into an email to oh6oksa@gmail.com. Add your device model, radio model and what you were doing. Screenshots or a screen recording help a lot.

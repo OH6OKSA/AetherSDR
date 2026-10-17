@@ -5,6 +5,14 @@ queued, waiting on someone, or still to verify follows.
 
 ## Released
 
+**Build 77** (2026-10-17), iPhone and iPad, and Android beta 2:
+- Spots on the display and a DX cluster connection (spots go to the radio); tap to tune.
+- TNF: hold on the display to add a notch, tap it to adjust; TNF switch in DSP.
+- TX processing of this device's microphone: gate, EQ, compressor.
+- Memory editing (name, frequency, mode).
+- Voice keyer: Listen also for clips kept on the device.
+- Mic meter reads this device's microphone; very low windows show bar meters.
+
 **Build 76** (2026-10-17), iPhone and iPad:
 - Radios on the connect page read as buttons.
 - Pan slider shows C / L n / R n and snaps to centre.
@@ -38,22 +46,26 @@ service, Qt kept running), SmartLink with the sign-in kept in the Android
 Keystore, Bluetooth headsets (hands-free), log sharing, LAN discovery
 (multicast lock), crash reasons logged on the next start.
 
+Beta 2: what iOS build 77 brings (spots and DX cluster, TNF, TX
+processing, memory editing, voice keyer Listen, Mic meter). Published by CI
+from `mobile/android/release.env`.
+
 Next: verify LAN discovery on the radio's network; APK size (about 150 MB).
 
 ## Later
 
 From the comparison with upstream main and tester requests:
-- DX cluster spots on the panadapter
-- TNF (tracking notch filters)
 - Filter edge drag and custom widths
-- Memory editing (name, mode, offsets)
+- Memory offsets and tones (repeaters); memory groups
+- Dragging a notch; spot filters (band, mode, age)
 - ATU tools and per-band TX settings
 - Profile import and export
 - QSO recording
 - 3D with 768 columns
 - Upstream FFT Smooth and De-comb
 - Optional VOX mode (microphone always open)
-- The desktop's client-side TX chain (gate, EQ, compressor: CHAIN)
+- More of the desktop's TX chain (de-esser, tube, exciter, reverb) and a
+  chain order
 - CW profiles (new in SmartSDR 4.3)
 
 ## Waiting
@@ -79,6 +91,8 @@ From the comparison with upstream main and tester requests:
 | RX audio, background audio | ✅ | ✅ (foreground service) |
 | Voice TX (device mic, Bluetooth headset) | ✅ | ✅ |
 | CW, CWX, decoder, voice keyer | ✅ (CW on air to verify) | built in, to verify |
+| Spots and DX cluster, TNF, memory editing | ✅ | ✅ |
+| TX processing (gate, EQ, compressor) | ✅ | ✅ |
 | Keyboard, pencil/stylus | ✅ | to verify |
 | Phone and tablet layouts | ✅ | ✅ |
 | Distribution | TestFlight | APK in GitHub Releases (beta) |

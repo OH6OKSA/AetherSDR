@@ -84,9 +84,11 @@ The Android beta needs no invitation: download it and install it.
    *Downloads* and choose *Keep*.
 3. Android asks to allow installing apps from the browser or file
    manager: allow it, then *Install*.
-4. Open OksaSDR. On the first connect allow notifications and "no battery
-   optimization", so receive keeps going in the background (see the
-   [manual](MANUAL.md#13-android)).
+4. Open OksaSDR. On the first connect allow notifications, the microphone
+   and "no battery optimization", so receive keeps going in the background
+   and PTT can transmit (see the [manual](MANUAL.md#13-android)). Beta 1
+   did not ask for the microphone: turn it on in Settings → Apps →
+   OksaSDR → Permissions, or update to beta 2.
 
 You need Android 9 or newer on a 64-bit ARM phone or tablet. A newer beta
 installs over the old one. Report problems the same way as on the iPhone

@@ -94,10 +94,13 @@ the time show. Tap it for the details:
   per stream (audio, spectrum, waterfall, meters). Packets that merely
   arrive out of order are not counted as lost.
 - **Traffic** — receive and send rates and totals.
-- **Performance** — the app's CPU, as a share of all cores (also shown in the
-  top row) and of one core, and the screen frames drawn per second. iOS gives
-  apps no GPU load; frames drawn falling well below the display's rate means
-  the graphics are not keeping up.
+- **Performance** — the app's CPU as a share of all cores (also shown in the
+  top row), the same added up over all its threads with one core = 100 %
+  (102 % is about one core's worth spread over several threads, not one
+  core full), on Android the **busiest threads** (UI, render, audio…; one
+  near 100 % is a core at its limit), and the screen frames drawn per
+  second. iOS and Android give apps no GPU load; frames drawn falling well
+  below the display's rate means the graphics are not keeping up.
 
 ## 3. Frequency, mode and the info panel
 
@@ -186,7 +189,10 @@ remembered.
 ![Meter chooser](manual/meter.jpg)
 
 Available: S, Power, SWR, ALC, Mic, Compression, PA temperature, supply
-voltage. Transmit meters read only while transmitting.
+voltage. Transmit meters read only while transmitting. **Mic** with this
+device's microphone shows the level of the audio as it is sent (after the
+processing in Controls → TX), while you transmit; with a microphone on the
+radio it is the radio's own meter.
 
 **Peak hold.** Each meter keeps its highest reading for 1.5 s — an amber
 needle on the analog meter, an amber tick on the bar — then lets it fall
@@ -229,6 +235,21 @@ transmit slice carries a red **TX** tag. Two fit side by side, four make
   USB/LSB and centred for CW/AM. Other slices are marked; tap one to select it.
 - Your own transmission shows in the waterfall.
 - In CW, decoded text runs along the top of the waterfall.
+- **Spots** — callsigns along the top of the spectrum at their frequency:
+  the spots the radio holds, from this app's DX cluster connection and
+  from any other program on the radio. Tap one to tune to it (the mode
+  follows the spot, as on the desktop). Close ones stack in up to four
+  rows; zoom in to see more. *Spots* in View turns them off and connects
+  the DX cluster.
+- **Notches (TNF)** — **press and hold** on the display to put a notch
+  there, or *+ TNF* in Controls → DSP for one in the middle of the
+  passband. A notch shows as a band through spectrum and waterfall
+  (yellow, or green when permanent; dim while TNF is off). Tap it for its
+  width (50–500 Hz), depth, *Permanent*, a 10 Hz nudge either way and
+  *Remove*; *TNF on/off* there is the radio's switch for all notches —
+  they only work while it is on.
+
+![Notch settings](manual/tnf.jpg)
 
 **View** (in Controls) switches between the 2D waterfall and the **3D**
 stacked trace and sets the levels. They work as on the desktop AetherSDR:
@@ -309,8 +330,9 @@ them back into the drawer.
 | ![DSP](manual/tab-dsp.jpg) | ![Audio](manual/tab-audio.jpg) | ![TX](manual/tab-tx.jpg) |
 
 - **DSP** — RIT and XIT (on/off; − and + step 10 Hz and run while held,
-  faster the longer: 10, then 50, then 100 Hz; tap the value to reset), and
-  squelch.
+  faster the longer: 10, then 50, then 100 Hz; tap the value to reset),
+  squelch, and **TNF** (the radio's notch filters on/off, *+ TNF* for a
+  notch in the passband; see [Panadapter and waterfall](#5-panadapter-and-waterfall)).
 - **Audio** — **Receive audio**: *Auto* uses Opus (compressed, made for
   the internet) over SmartLink or when the radio is reached through a VPN,
   and uncompressed audio on the local network; *Opus* or *Uncompressed* fix
@@ -332,13 +354,24 @@ them back into the drawer.
   microphone — the AM **carrier** level in
   AM/SAM/DSB, monitor (MON), **Mic level** (the radio's, as SmartSDR's MIC), microphone
   choice and the transmit filter (low and high cut).
+  - **This device's microphone: processing** (voice modes, with this
+    device's microphone) — AetherSDR's client-side transmit chain, run on
+    the phone or tablet before the audio is sent: **Gate** (mutes the
+    background between words below the threshold), **EQ** (low cut
+    100–300 Hz, bass and presence ±12 dB) and **Comp** (threshold, ratio
+    2:1–8:1 and makeup; while you transmit, how much it is taking off shows
+    beside the ratio). The radio's own 8-band transmit EQ is in Audio.
+    Check the result with MON or a second receiver at low power first.
+
+    ![Processing](manual/tx-processing.jpg)
   - **Voice keyer** (voice modes) — twelve voice macros F1–F12. Tap one to
     transmit it, tap again to stop; press and hold to record (from this
     device's microphone; recording does not transmit), rename or clear. On a
     radio with SmartSDR+ these are the radio's own DVK slots (up to 10 s,
-    shared with other programs, with *Listen* to hear one without
-    transmitting); otherwise the app keeps them on this device (up to 15 s)
-    and plays them into the transmit audio as if spoken. Features that need
+    shared with other programs); otherwise the app keeps them on this
+    device (up to 15 s) and plays them into the transmit audio as if
+    spoken. Either way **Listen** plays a recording to you without
+    transmitting, so you can check it before naming it. Features that need
     SmartSDR+ appear only when the radio reports the subscription.
 
 | CW | View | Profiles | Memory |
@@ -358,11 +391,22 @@ them back into the drawer.
   - Speed, pitch, **Break-in** (QSK) and the **Decoder**. Decoded text shows
     here and along the top of the waterfall; what you send shows there too,
     marked `[TX]`.
-- **View** — 2D waterfall or 3D, waterfall levels, spectrum range, 3D floor, smoothing and gain.
+- **View** — band plan, **Spots** (shown or hidden) and the **DX cluster**,
+  2D waterfall or 3D, waterfall levels, spectrum range, 3D floor, smoothing
+  and gain.
+  - **DX cluster** — tap to connect, again to disconnect. Set the server and
+    port (default dxc.nc7j.com 7300) and the callsign it logs in with (the
+    radio's own when left empty); **Auto** connects whenever the radio
+    does. Its spots go to the radio, so SmartSDR and every other program
+    on it show them too; they expire after 30 minutes.
 - **Profiles** — the radio's global, TX and mic profiles: load, save,
   delete, as in SmartSDR.
 - **Memory** — the radio's memory channels: tap to tune, *Save* stores the
-  current frequency, press and hold to delete.
+  current frequency under the name typed. **Press and hold** one to edit
+  its name, frequency (MHz) and mode — *Current* takes the slice's
+  frequency and mode — or to *Delete* it.
+
+  ![Editing a memory](manual/memory-edit.jpg)
 
 ## 9. Radio Setup
 
@@ -452,9 +496,12 @@ Android 9 or newer, 64-bit ARM (practically every phone and tablet from the
 last years).
 
 **Permissions, asked once.**
-- *Microphone* — the first time you press PTT.
-- *Notifications* and *battery optimization* — the first time you connect.
-  Allow both: while connected, OksaSDR runs a service with a notification
+- *Notifications*, *microphone* and *battery optimization* — the first
+  time you connect. The microphone is used only while PTT is held (or a
+  voice macro is recorded); if you refused it, PTT asks again, and when
+  Android no longer asks, turn it on in Settings → Apps → OksaSDR →
+  Permissions → Microphone.
+- Allow notifications and battery: while connected, OksaSDR runs a service with a notification
   (*OksaSDR — Connected to the radio*) so receive audio and the connection
   keep going when another app is in front or the screen is off. Some phones
   (OnePlus, Xiaomi, Huawei) also have their own setting: Settings → Apps →
