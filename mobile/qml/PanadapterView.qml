@@ -808,20 +808,42 @@ Rectangle {
     function mhzAt(x) {
         return Engine.panCenterMhz + (x / panArea.width - 0.5) * Engine.panBandwidthMhz
     }
+    // Whether (x, y) is on something with its own tap (a spot, a notch,
+    // another slice's marker): the display's tap and hold leave it to that.
+    function overlayHit(x, y) {
+        const bw = Engine.panBandwidthMhz
+        if (!(bw > 0)) return false
+        for (const t of spotLayout) {
+            const top = 4 + t.row * 24
+            if (Math.abs(x - t.x) <= t.w / 2 && y >= top && y <= top + 20) return true
+        }
+        for (const n of shownTnfs) {
+            const cx = (n.freq - Engine.panCenterMhz) / bw * panArea.width + panArea.width / 2
+            if (Math.abs(x - cx) <= Math.max(16, n.width / 1e6 / bw * panArea.width / 2)) return true
+        }
+        for (const sl of Engine.slices) {
+            if (sl.active || sl.panId !== activePanId) continue
+            const sx = (sl.frequency - Engine.panCenterMhz) / bw * panArea.width + panArea.width / 2
+            if (Math.abs(x - sx) <= 18) return true
+        }
+        return false
+    }
 
     // Tap (finger, Pencil or pointer) tunes to the touched point on
     // the tuning-step grid.
     TapHandler {
         id: panTap
         onTapped: (eventPoint) => {
-            if (Engine.panBandwidthMhz > 0) {
+            if (Engine.panBandwidthMhz > 0
+                    && !panArea.overlayHit(eventPoint.position.x, eventPoint.position.y)) {
                 Engine.tuneToSnapped(panArea.mhzAt(eventPoint.position.x))
             }
         }
         // Press and hold: a notch (TNF) at that point.
         onLongPressed: {
-            if (Engine.panBandwidthMhz > 0 && Engine.canAddTnf) {
-                Engine.addTnf(panArea.mhzAt(panTap.point.position.x))
+            const p = panTap.point.position
+            if (Engine.panBandwidthMhz > 0 && Engine.canAddTnf && !panArea.overlayHit(p.x, p.y)) {
+                Engine.addTnf(panArea.mhzAt(p.x))
             }
         }
     }
