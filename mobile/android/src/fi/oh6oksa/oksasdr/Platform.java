@@ -185,13 +185,27 @@ public final class Platform {
     public static String askBackgroundPermissions(Context context) {
         StringBuilder out = new StringBuilder();
         Activity activity = context instanceof Activity ? (Activity) context : null;
+        // One request for both, so Android shows its dialogs one after the
+        // other: the notification (background receive) and the microphone
+        // (PTT; asked here, at the first connect, rather than at the first
+        // press, where a press would be lost to the dialog).
+        java.util.ArrayList<String> ask = new java.util.ArrayList<>();
         if (Build.VERSION.SDK_INT >= 33) {
             boolean granted = context.checkSelfPermission("android.permission.POST_NOTIFICATIONS")
                     == PackageManager.PERMISSION_GRANTED;
-            if (!granted && activity != null) {
-                activity.requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, 4801);
+            if (!granted) {
+                ask.add("android.permission.POST_NOTIFICATIONS");
             }
             out.append("notifications ").append(granted ? "allowed" : "asked");
+        }
+        boolean mic = context.checkSelfPermission("android.permission.RECORD_AUDIO")
+                == PackageManager.PERMISSION_GRANTED;
+        if (!mic) {
+            ask.add("android.permission.RECORD_AUDIO");
+        }
+        out.append(out.length() > 0 ? ", " : "").append("microphone ").append(mic ? "allowed" : "asked");
+        if (!ask.isEmpty() && activity != null) {
+            activity.requestPermissions(ask.toArray(new String[0]), 4801);
         }
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         boolean exempt = pm.isIgnoringBatteryOptimizations(context.getPackageName());

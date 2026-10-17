@@ -922,20 +922,32 @@ void MobileEngine::applyTxAudioCapabilities(bool connected, const RadioCapabilit
 bool MobileEngine::ensureMicrophonePermission()
 {
     QMicrophonePermission permission;
+    auto request = [this, &permission] {
+        qCInfo(lcMobile) << "asking for the microphone";
+        qApp->requestPermission(permission, this, [this](const QPermission& result) {
+            qCInfo(lcMobile) << "microphone" << (result.status() == Qt::PermissionStatus::Granted ? "allowed" : "refused");
+            if (result.status() != Qt::PermissionStatus::Granted) {
+                setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
+            }
+        });
+    };
     switch (qApp->checkPermission(permission)) {
     case Qt::PermissionStatus::Granted:
         return true;
     case Qt::PermissionStatus::Denied:
+#ifdef Q_OS_ANDROID
+        // Android cannot tell "never asked" from "refused" (a fresh install
+        // reads Denied): ask. The system shows its dialog again unless the
+        // user chose "Don't ask again"; then the refusal comes straight back.
+        request();
+#else
         setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
+#endif
         return false;
     case Qt::PermissionStatus::Undetermined:
         if (!m_micPermissionRequested) {
             m_micPermissionRequested = true;
-            qApp->requestPermission(permission, this, [this](const QPermission& result) {
-                if (result.status() != Qt::PermissionStatus::Granted) {
-                    setLastError(tr("Microphone access is off. Allow it in Settings to transmit."));
-                }
-            });
+            request();
         }
         return false;
     }
