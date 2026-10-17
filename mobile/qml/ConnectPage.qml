@@ -10,6 +10,9 @@ Page {
     background: Rectangle { color: Theme.background }
 
     // One tappable radio row (LAN or SmartLink).
+    // A radio to connect to: a raised card with an accent edge and a
+    // Connect chip, so it reads as something to tap (a tester took the plain
+    // row for a label).
     component RadioRow: ItemDelegate {
         id: row
         property string title
@@ -18,13 +21,34 @@ Page {
         implicitHeight: 2 * Theme.touchTarget
         enabled: Engine.connectionState === "idle"
         background: Rectangle {
-            color: row.down ? Theme.surfaceRaised : Theme.surface
+            color: row.down ? Qt.lighter(Theme.surfaceRaised, 1.3) : Theme.surfaceRaised
             radius: Theme.radius
+            border.width: 2
+            border.color: row.enabled ? Theme.accent : Theme.surface
+            opacity: row.enabled ? 1.0 : 0.6
         }
-        contentItem: ColumnLayout {
-            spacing: 2
-            Label { text: row.title; color: Theme.text; font.pixelSize: 20; elide: Text.ElideRight; Layout.fillWidth: true }
-            Label { text: row.subtitle; color: Theme.textDim; font.pixelSize: 15; elide: Text.ElideRight; Layout.fillWidth: true }
+        contentItem: RowLayout {
+            spacing: Theme.spacing
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label { text: row.title; color: Theme.text; font.pixelSize: 20; elide: Text.ElideRight; Layout.fillWidth: true }
+                Label { text: row.subtitle; color: Theme.textDim; font.pixelSize: 15; elide: Text.ElideRight; Layout.fillWidth: true }
+            }
+            Rectangle {
+                visible: row.enabled
+                implicitWidth: connectChip.implicitWidth + 2 * Theme.spacing
+                implicitHeight: Theme.touchTarget * 0.8
+                radius: Theme.radius
+                color: row.down ? "#bdbdbd" : "#e0e0e0"
+                Label {
+                    id: connectChip
+                    anchors.centerIn: parent
+                    text: qsTr("Connect ›")
+                    color: "#202020"
+                    font.pixelSize: 16
+                }
+            }
         }
     }
 
