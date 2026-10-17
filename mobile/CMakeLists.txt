@@ -27,6 +27,8 @@ qt_add_executable(aether-mobile
     src/ScreenAwake.h
     src/LogBuffer.cpp
     src/DevLink.cpp
+    src/EchoAudit.cpp
+    src/EchoAudit.h
     src/DevLink.h
     src/LogBuffer.h
     src/SecureStore.h

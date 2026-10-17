@@ -2042,9 +2042,18 @@ void MobileEngine::setPanDisplay(const QString& key, int value)
     if (key == QLatin1String("average")) {
         rm.requestPanAverage(id, std::clamp(value, 0, 100));
     } else if (key == QLatin1String("fps")) {
-        rm.requestPanDisplayRates(id, std::clamp(value, 5, 60), rate);
+        // The radio accepts fps and line_duration (code 0) but echoes neither
+        // in its status (FLEX-6600M, 4.2.20): hold the accepted value here,
+        // or the slider would spring back to the old one.
+        const int v = std::clamp(value, 5, 60);
+        if (rm.requestPanDisplayRates(id, v, rate)) {
+            m_pan->setDisplayRates(v, 0);
+        }
     } else if (key == QLatin1String("wfRate")) {
-        rm.requestPanDisplayRates(id, fps, std::clamp(value, 1, 100));
+        const int v = std::clamp(value, 1, 100);
+        if (rm.requestPanDisplayRates(id, fps, v)) {
+            m_pan->setDisplayRates(0, v);
+        }
     } else if (key == QLatin1String("bandZoom")) {
         // FlexLib's per-pan band zoom: the radio fits the pan to the band.
         rm.sendCommand(QStringLiteral("display pan set %1 band_zoom=%2").arg(id).arg(value ? 1 : 0));
@@ -3670,7 +3679,7 @@ void MobileEngine::setRadioSetup(const QString& key, const QVariant& value)
     } else if (key == QLatin1String("remoteOn")) {
         rm.setRemoteOnEnabled(value.toBool());
     } else if (key == QLatin1String("muteLocalWhenRemote") && flex) {
-        rm.sendCommand(QStringLiteral("radio set mute_local_audio_when_remote=%1").arg(value.toBool() ? 1 : 0));
+        rm.setMuteLocalWhenRemote(value.toBool());
     } else if (key == QLatin1String("maxPower") && flex) {
         rm.sendCommand(QStringLiteral("transmit set max_power_level=%1").arg(std::clamp(value.toInt(), 0, 100)));
     } else if (key == QLatin1String("txDelay") && flex) {

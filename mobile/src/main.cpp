@@ -1,5 +1,6 @@
 #include "AudioSession.h"
 #include "DevLink.h"
+#include "EchoAudit.h"
 #include "LogBuffer.h"
 #include "MobileEngine.h"
 #ifdef Q_OS_ANDROID
@@ -122,6 +123,14 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: key TUNE (the radio's tune power) 10 s after start for <ms>, then unkey. "
                        "Transmits: only with the operator's consent."), QStringLiteral("ms"));
     parser.addOption(tuneTestOption);
+    const QCommandLineOption panDisplayOption(QStringLiteral("pan-display"),
+        QStringLiteral("Development: 12 s after start set this app's pan display setting <key>=<value> "
+                       "(average, fps, wfRate)."), QStringLiteral("setting"));
+    parser.addOption(panDisplayOption);
+    const QCommandLineOption echoAuditOption(QStringLiteral("echo-audit"),
+        QStringLiteral("Development: change each radio setting a little, check the radio's status brings it "
+                       "back, restore it, then quit (no keying; VOX, antennas, MTU, callsign left out)."));
+    parser.addOption(echoAuditOption);
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
@@ -273,6 +282,23 @@ int main(int argc, char* argv[])
                 qInfo() << "dvk-record-test: slot after clear" << engine.dvkSlots().at(slot - 1);
             });
         });
+    }
+    if (parser.isSet(echoAuditOption)) {
+        auto* audit = new AetherSDR::mobile::EchoAudit(engine, &app);
+        QObject::connect(audit, &AetherSDR::mobile::EchoAudit::finished, &app, &QCoreApplication::quit);
+        QTimer::singleShot(14000, audit, &AetherSDR::mobile::EchoAudit::start);
+    }
+    if (parser.isSet(panDisplayOption)) {
+        const QStringList kv = parser.value(panDisplayOption).split(QLatin1Char('='));
+        if (kv.size() == 2) {
+            QTimer::singleShot(12000, &app, [&engine, kv] {
+                qInfo() << "pan-display test: before" << engine.panDisplay();
+                engine.setPanDisplay(kv.at(0), kv.at(1).toInt());
+                QTimer::singleShot(3000, &engine, [&engine] {
+                    qInfo() << "pan-display test: after" << engine.panDisplay();
+                });
+            });
+        }
     }
     if (parser.isSet(tuneTestOption)) {
         const int ms = std::clamp(parser.value(tuneTestOption).toInt(), 500, 5000);

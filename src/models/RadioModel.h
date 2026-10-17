@@ -570,6 +570,10 @@ public:
     void setProducerCwPaddleHeld(const TxCoordinator::Request& input, bool held);
     void    setBinauralRx(bool on);  // optimistic update + radio command
     bool    muteLocalWhenRemote() const { return m_muteLocalWhenRemote; }
+    // Sends mute_local_audio_when_remote and holds it: the radio takes the
+    // setting without echoing it in status (FLEX-6600M, 4.2.20), and this
+    // preference is reasserted on every remote_audio_rx create and remove.
+    void setMuteLocalWhenRemote(bool on);
     bool    autoSave() const { return m_autoSave; }
     int     freqErrorPpb() const { return m_freqErrorPpb; }
     double  calFreqMhz() const { return m_calFreqMhz; }

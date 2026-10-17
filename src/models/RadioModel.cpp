@@ -9514,6 +9514,15 @@ void RadioModel::createRxAudioStream()
         });
 }
 
+void RadioModel::setMuteLocalWhenRemote(bool on)
+{
+    sendCmd(QString("radio set mute_local_audio_when_remote=%1").arg(on ? 1 : 0));
+    if (m_muteLocalWhenRemote != on) {
+        m_muteLocalWhenRemote = on;
+        emit infoChanged();
+    }
+}
+
 void RadioModel::removeRxAudioStream()
 {
     if (m_rxAudio.streamId == 0) {
