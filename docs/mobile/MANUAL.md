@@ -1,6 +1,7 @@
 # OksaSDR — User Manual
 
-OksaSDR turns an iPad or iPhone into a complete FlexRadio client:
+OksaSDR turns an iPad, iPhone or Android phone or tablet into a complete
+FlexRadio client:
 panadapter and waterfall, all receive controls, transmit (voice, CW, tune)
 and SmartLink remote operation, with no computer alongside.
 
@@ -20,6 +21,7 @@ button (top row) opens this page.
 - [10. Notices and problems](#10-notices-and-problems)
 - [11. Keyboard and Apple Pencil](#11-keyboard-and-apple-pencil)
 - [12. Reporting a problem](#12-reporting-a-problem)
+- [13. Android](#13-android)
 
 ---
 
@@ -29,12 +31,14 @@ button (top row) opens this page.
 
 The first page lists the ways to reach a radio:
 
-- **On this network** — FlexRadios found on the local network. Tap one to
-  connect. *AetherSDR Demo* is a built-in receive-only demo radio for trying
+- **On this network** — FlexRadios found on the local network (on an
+  iPhone or iPad, connect by IP address for now). Tap a radio's card, or its
+  **Connect ›**, to connect. *AetherSDR Demo* is a built-in receive-only demo radio for trying
   the app without a radio.
 - **SmartLink (remote)** — sign in with your FlexRadio SmartLink account
-  to use your radio from anywhere. The sign-in is kept in the iOS Keychain
-  on this device only; the password is never stored.
+  to use your radio from anywhere. The sign-in is kept on this device only
+  (the iOS Keychain; on Android, encrypted under a key in the Android
+  Keystore); the password is never stored.
 - **By IP address** — tap the address field and enter your radio's IP
   address on the keypad (SmartSDR's radio chooser and your router's device
   list both show it), then *Connect*. A hardware keyboard works in the
@@ -55,7 +59,7 @@ From top to bottom:
 
 | Area | What it is |
 |---|---|
-| Top row | Radio name, [network quality](#network-quality), app version, **Controls** (open or hide the controls), **Setup** ([Radio Setup](#9-radio-setup)), **Manual**, **Log**, **Disconnect** (on an iPhone Setup, Manual, Log and Disconnect are behind **⋯**) |
+| Top row | Radio name, [network quality](#network-quality), app version, **Controls** (open or hide the controls), **Setup** ([Radio Setup](#9-radio-setup)), **Manual**, **Log**, **Disconnect** (on a phone Setup, Manual, Log and Disconnect are behind **⋯**, and the controls open from the button beside PTT) |
 | Frequency row | Frequency, mode, and the [info panel](#3-frequency-mode-and-the-info-panel) |
 | Band buttons | 160 m … 6 m, WWV, GEN |
 | Slice row | The two [meters](#4-meters-and-slices) at the ends, the slices in between |
@@ -63,8 +67,10 @@ From top to bottom:
 | Step buttons | Tune by −1 kHz … +1 kHz |
 | PTT / KEY | [Transmit](#7-transmitting-ptt-key-and-tune) |
 
-On an iPad the controls can stay pinned at the side (as above) or open as a
-drawer. On an iPhone they open as a drawer from **Controls**.
+On an iPad or tablet the controls can stay pinned at the side (as above) or
+open as a drawer. On a phone they open as a drawer from the **Controls**
+button beside PTT (three bars in landscape); the drawer carries its own PTT
+in the same place.
 
 | iPhone, portrait | iPhone, landscape |
 |---|---|
@@ -132,7 +138,7 @@ is a touch target with its choices behind it:
 | **ANT1** (red) | Transmit antenna | Choose the TX antenna |
 | **2.7K** | Receive filter width | Filters and DSP |
 | **AGC-M** | AGC mode | AGC mode, AGC threshold and RF gain |
-| Speaker | Audio on (blue) / muted (red) | Every slice's volume (AF gain), Mute and pan (left–right; double-tap centres) |
+| Speaker | Audio on (blue) / muted (red) | Every slice's volume (AF gain), Mute and pan (left–right, read as C, L n or R n; it snaps to centre near the middle, and double-tap centres) |
 | Lock | Tuning lock open / locked | Lock or unlock tuning (flashes when a tune is refused) |
 | **SPLIT** | Split on (amber) or off (grey) | Start or end [split](#6-split); hold to pick the offset |
 | **NB NR ANF NRL …** | Every DSP the radio offers, bright when on (on an iPhone the rarer ones only while on) | Filters and DSP |
@@ -426,3 +432,36 @@ With a Magic Keyboard or trackpad:
 Open **Log** right after the problem, tap **Copy** (or **Share**) and send
 the text together with your device model. The log header shows the app
 version and build.
+
+
+## 13. Android
+
+OksaSDR for Android is in beta. It is the same app as on the iPhone and
+iPad, built from the same code; this section covers what is particular to
+Android.
+
+**Installing.** Download the newest APK from
+[Releases](https://github.com/OH6OKSA/OksaSDR/releases) on the phone, open
+it, and allow installing from your browser or file manager when Android
+asks. A newer beta installs over the old one and keeps your settings.
+Android 9 or newer, 64-bit ARM (practically every phone and tablet from the
+last years).
+
+**Permissions, asked once.**
+- *Microphone* — the first time you press PTT.
+- *Notifications* and *battery optimization* — the first time you connect.
+  Allow both: while connected, OksaSDR runs a service with a notification
+  (*OksaSDR — Connected to the radio*) so receive audio and the connection
+  keep going when another app is in front or the screen is off. Some phones
+  (OnePlus, Xiaomi, Huawei) also have their own setting: Settings → Apps →
+  OksaSDR → Battery → allow background activity.
+
+**Bluetooth headsets.** With a headset connected when you connect to the
+radio, receive audio and the microphone go through it (the hands-free link,
+as on the iPhone). Without one, the phone's speaker and microphone are used.
+
+**Finding the radio.** On the radio's own network, *On this network* lists
+it. Over SmartLink or a VPN, use those sections instead (the radio's
+broadcasts do not cross a VPN).
+
+**Log.** *Log → Share* opens Android's share sheet (Gmail, Messages, …).

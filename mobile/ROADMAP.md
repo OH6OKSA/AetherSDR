@@ -5,6 +5,12 @@ queued, waiting on someone, or still to verify follows.
 
 ## Released
 
+**Build 76** (2026-10-17), iPhone and iPad:
+- Radios on the connect page read as buttons.
+- Pan slider shows C / L n / R n and snaps to centre.
+- Phones open the controls only from the button beside PTT.
+- The controls drawer reaches the window's bottom edge.
+
 **Build 75** (2026-10-17), iPhone and iPad:
 - OksaSDR app icon.
 - Volume and pan sliders follow the finger.
@@ -21,14 +27,18 @@ offsets, meter peak hold.
 
 Earlier builds: see the git log and `TESTFLIGHT_WHATS_NEW.txt`.
 
-## Android (test APKs)
+## Android (beta)
 
-Same code as iOS (`mobile/android/` holds the platform parts). Test APK 7:
-receive, spectrum and waterfall, TX, background receive (foreground
-service), OpenSSL for SmartLink, OksaSDR launcher icon.
+Same code as iOS (`mobile/android/` holds the platform parts), built and
+signed in GitHub Actions (`mobile-android.yml`); betas in
+[Releases](https://github.com/OH6OKSA/OksaSDR/releases).
 
-Next: GitHub Actions APK build, SmartLink sign-in kept in the Android
-Keystore, log sharing, Bluetooth headsets, LAN discovery.
+Beta 1: receive, spectrum and waterfall, TX, background receive (foreground
+service, Qt kept running), SmartLink with the sign-in kept in the Android
+Keystore, Bluetooth headsets (hands-free), log sharing, LAN discovery
+(multicast lock), crash reasons logged on the next start.
+
+Next: verify LAN discovery on the radio's network; APK size (about 150 MB).
 
 ## Later
 
@@ -63,12 +73,12 @@ From the comparison with upstream main and tester requests:
 
 | Area | iOS / iPadOS | Android |
 |---|---|---|
-| Connect by IP, SmartLink, VPN | ✅ | ✅ (test APK; SmartLink sign-in not kept yet) |
-| LAN discovery | ⏳ needs Apple's multicast entitlement | — |
+| Connect by IP, SmartLink, VPN | ✅ | ✅ (SmartLink sign-in kept) |
+| LAN discovery | ⏳ needs Apple's multicast entitlement | 🧪 built in, to verify |
 | Spectrum, waterfall, 3D | ✅ | ✅ |
 | RX audio, background audio | ✅ | ✅ (foreground service) |
-| Voice TX (device mic, Bluetooth headset) | ✅ | device mic ✅, Bluetooth to do |
-| CW, CWX, decoder, voice keyer | ✅ (CW on air to verify) | — |
-| Keyboard, pencil/stylus | ✅ | — |
+| Voice TX (device mic, Bluetooth headset) | ✅ | ✅ |
+| CW, CWX, decoder, voice keyer | ✅ (CW on air to verify) | built in, to verify |
+| Keyboard, pencil/stylus | ✅ | to verify |
 | Phone and tablet layouts | ✅ | ✅ |
-| Distribution | TestFlight | test APK (GitHub Actions to do) |
+| Distribution | TestFlight | APK in GitHub Releases (beta) |

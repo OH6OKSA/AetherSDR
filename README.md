@@ -1,10 +1,11 @@
 # OksaSDR
 
-**A FlexRadio client for iPad and iPhone, built on the [AetherSDR](https://github.com/aethersdr/AetherSDR) engine.**
+**A FlexRadio client for iPad, iPhone and Android, built on the [AetherSDR](https://github.com/aethersdr/AetherSDR) engine.**
 
 [![Mobile iOS build](https://github.com/OH6OKSA/OksaSDR/actions/workflows/mobile-ios.yml/badge.svg?branch=mobile/oksasdr)](https://github.com/OH6OKSA/OksaSDR/actions/workflows/mobile-ios.yml)
-![Platform](https://img.shields.io/badge/platform-iPadOS%20%7C%20iOS%2018%2B-blue)
-![Status](https://img.shields.io/badge/status-TestFlight%20beta-orange)
+[![Mobile Android build](https://github.com/OH6OKSA/OksaSDR/actions/workflows/mobile-android.yml/badge.svg?branch=mobile/oksasdr)](https://github.com/OH6OKSA/OksaSDR/actions/workflows/mobile-android.yml)
+![Platform](https://img.shields.io/badge/platform-iPadOS%20%7C%20iOS%2018%2B%20%7C%20Android%209%2B-blue)
+![Status](https://img.shields.io/badge/status-beta-orange)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 OksaSDR runs the AetherSDR engine (`libaethercore`) on the iPad or
@@ -24,7 +25,10 @@ SmartLink (or your own VPN), it is a complete station control surface.
   <img src="docs/mobile/iphone-portrait.jpg" width="22%" alt="OksaSDR on iPhone in portrait"/>
 </p>
 
-**[Join the TestFlight test group](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md)**: what you need and how to join.
+**[Join the TestFlight test group](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md)** (iPhone, iPad): what you need and how to join.
+
+**[Android beta: download the APK](https://github.com/OH6OKSA/OksaSDR/releases)** (Android 9 or newer, 64-bit ARM): see the
+[tester guide](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md#android) for installing it.
 
 **[User manual](docs/mobile/MANUAL.md)** — every function, with screenshots
 (also the app's *Manual* button).
@@ -184,6 +188,8 @@ refreshed with every user-interface change.</sub>
 | Connect by IP, slice and panadapter, spectrum and waterfall, S-meter | ✅ Tested against a FLEX on SmartSDR API 1.4 |
 | Mode, filters, DSP, AGC, band stack, RF power and mic level | ✅ Tested against a FLEX |
 | iPad and iPhone builds, signing, TestFlight delivery | ✅ Automated in GitHub Actions |
+| Android APK (arm64), signed, from the same code | 🧪 Beta in GitHub Releases, built in GitHub Actions |
+| Android: background receive, Bluetooth headsets, SmartLink sign-in kept | ✅ Tested on a OnePlus Open (Android 16) |
 | RX audio on device | ✅ In daily use by testers, also with Bluetooth headsets |
 | Voice transmit on air (device mic, Bluetooth headset) | ✅ Used on air by testers. Test at low power or into a dummy load first. |
 | SmartLink remote (sign in, connect from anywhere, Opus audio) | ✅ Supported |
@@ -191,6 +197,7 @@ refreshed with every user-interface change.</sub>
 | Several slices and panadapters, multiFLEX | ✅ Supported |
 | CW keying, CWX and decoder on air | ⏳ Not yet verified |
 | LAN discovery on iOS | ⏳ Needs Apple's multicast entitlement. Connect by IP for now. |
+| LAN discovery on Android | 🧪 Built in; to be verified on the radio's own network |
 
 **Next:** CW on air, and offering the engine-side work
 (beat cancel, packet-loss tracking) upstream; see
@@ -202,6 +209,11 @@ refreshed with every user-interface change.</sub>
   **[how to join the test group](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md)** for what to send.
   You need iPadOS or iOS 18 or newer and a FlexRadio: on the same network,
   through SmartLink from anywhere, or over your own VPN.
+- **Android beta.** Download the APK from
+  **[Releases](https://github.com/OH6OKSA/OksaSDR/releases)** and install it
+  (Android 9 or newer, 64-bit ARM); the
+  [tester guide](https://github.com/OH6OKSA/OksaSDR/blob/mobile/oksasdr/docs/mobile/TESTING.md#android)
+  has the steps.
 - **Build it yourself.** Linux or macOS works for development with the
   built-in demo radio; see [`mobile/README.md`](mobile/README.md):
 

@@ -1,12 +1,14 @@
 # Joining the OksaSDR test group
 
-OksaSDR is tested through Apple's **TestFlight** by a small group of
-amateur radio operators. This page explains what you need, what to send, and
-what happens after you join.
+OksaSDR is tested through Apple's **TestFlight** (iPhone, iPad) by a small
+group of amateur radio operators, and as an Android beta anyone can download
+(see [Android](#android)). This page explains what you need, what to send,
+and what happens after you join.
 
 ## What you need
 
-- **An iPhone or iPad** with iOS or iPadOS 18 or newer.
+- **An iPhone or iPad** with iOS or iPadOS 18 or newer, or an **Android**
+  phone or tablet (Android 9 or newer, 64-bit ARM; see [Android](#android)).
 - **A FlexRadio.** The FLEX-6400, FLEX-6600 and FLEX-6600M are tested so
   far; other FLEX-6000/8000 models and Aurora should work. If yours is one of
   those, say so: reports on new models are especially welcome.
@@ -70,6 +72,27 @@ every function.
   app's top row. Screenshots or a screen recording help a lot.
 - Leave **Log → Developer link** off; it is only for the developer's own
   devices.
+
+## Android
+
+The Android beta needs no invitation: download it and install it.
+
+1. On the phone, open
+   **[github.com/OH6OKSA/OksaSDR/releases](https://github.com/OH6OKSA/OksaSDR/releases)**
+   and download the newest `OksaSDR-android-….apk` (about 150 MB).
+2. Open the downloaded file. If Chrome keeps it waiting, open ⋮ →
+   *Downloads* and choose *Keep*.
+3. Android asks to allow installing apps from the browser or file
+   manager: allow it, then *Install*.
+4. Open OksaSDR. On the first connect allow notifications and "no battery
+   optimization", so receive keeps going in the background (see the
+   [manual](MANUAL.md#13-android)).
+
+You need Android 9 or newer on a 64-bit ARM phone or tablet. A newer beta
+installs over the old one. Report problems the same way as on the iPhone
+(*Log → Share* or *Copy*), and say "Android", your phone model and Android
+version. An email to oh6oksa@gmail.com with what you would like to test is
+welcome, but not needed to start.
 
 ## Privacy
 

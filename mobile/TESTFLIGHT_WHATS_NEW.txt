@@ -9,22 +9,18 @@ GETTING STARTED
 - The Manual button (top row) opens the user manual.
 
 NEW IN THIS BUILD
+- Radios on the connect page are clearly buttons (a card with Connect).
+- Pan control reads C at centre, or L/R and how far, and snaps to centre.
+- iPhone: the controls open from the button beside PTT; the top row keeps the rest behind the dots button.
+- The controls drawer reaches the bottom edge, its PTT where the page's is.
+
+RECENT
 - New app icon: the OksaSDR mark.
 - Volume and pan sliders follow your finger (they jumped back while dragging).
 - Meter peak hold no longer sticks at the top of the SWR scale; ALC and Mic below their scale read "< -20 dB".
 - Simpler TX tab: MOX removed (hold PTT to transmit), one Mic level (the radio's). This device's microphone trim moved to Setup > Phone/CW.
 - The callsign is set in Setup > Radio; the CW tab shows it.
 - The Manual button opens the manual at its new address.
-
-RECENT
-- New name: OksaSDR. Your settings and voice macros carry over.
-- Tuning step: STEP under the mode; every step from the radio's list works.
-- Spectrum and 3D keep the right scale after a band change.
-- View: the radio's FFT average, FFT frames/s and waterfall speed.
-- Band button (next to − / +) zooms out to the whole band. New WWV and GEN band buttons.
-- Press and hold SPLIT for +1, +5 or +10 kHz. [TX]
-- Meters hold their peak for 1.5 s.
-- Smoother transmit start: no delay and no whoosh at key-up. [TX]
 
 PLEASE TRY
 - Receive on a few bands, with zoom, the Band button and the 3D view.
