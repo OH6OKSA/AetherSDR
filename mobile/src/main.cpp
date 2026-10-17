@@ -16,6 +16,7 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontMetrics>
+#include <QLoggingCategory>
 #include <QGuiApplication>
 #include <QSysInfo>
 #include <QQmlApplicationEngine>
@@ -28,6 +29,7 @@
 #include <cmath>
 
 #ifdef Q_OS_ANDROID
+Q_LOGGING_CATEGORY(lcFonts, "aether.mobile.android")
 // Qt falls back from Roboto only to a few Android fonts, so symbols the UI
 // uses (☰ ⋯ ▾ ⌫ ● ✓) drew as boxes. The system's Noto symbol fonts carry
 // them: register those files as fallbacks for common-script text.
@@ -55,7 +57,7 @@ static void addAndroidSymbolFallbacks()
             missing += c;
         }
     }
-    qInfo().noquote() << "symbol fonts:" << families.join(QStringLiteral(", "))
+    qCInfo(lcFonts).noquote() << "symbol fonts:" << families.join(QStringLiteral(", "))
                       << "missing:" << (missing.isEmpty() ? QStringLiteral("none") : missing);
 }
 #endif

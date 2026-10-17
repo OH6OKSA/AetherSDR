@@ -122,7 +122,7 @@ Item {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
-            Label { text: "▾"; color: Theme.textDim; font.pixelSize: meter.compact ? 11 : 13 }
+            Caret { color: Theme.textDim; size: meter.compact ? 9 : 11; Layout.alignment: Qt.AlignVCenter }
         }
         Rectangle {
             Layout.fillWidth: true
