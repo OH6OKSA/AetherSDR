@@ -23,9 +23,14 @@ public class RadioService extends Service {
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
 
-    public static void start(Context context) {
-        Intent intent = new Intent(context, RadioService.class);
-        context.startForegroundService(intent);
+    // Returns "started" or why not, for the app's log.
+    public static String start(Context context) {
+        try {
+            context.startForegroundService(new Intent(context, RadioService.class));
+            return "started";
+        } catch (Exception e) {
+            return "not started: " + e;
+        }
     }
 
     public static void stop(Context context) {

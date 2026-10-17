@@ -36,8 +36,24 @@ void setKeepScreenAwake(bool awake)
             window.callMethod<void>(awake ? "addFlags" : "clearFlags", "(I)V", kFlagKeepScreenOn);
         }
     });
-    QJniObject::callStaticMethod<void>("fi/oh6oksa/oksasdr/RadioService", awake ? "start" : "stop",
-                                       "(Landroid/content/Context;)V", androidContext().object());
+    if (awake) {
+        const QString service = QJniObject::callStaticObjectMethod("fi/oh6oksa/oksasdr/RadioService", "start",
+            "(Landroid/content/Context;)Ljava/lang/String;", androidContext().object()).toString();
+        qCInfo(lcAndroid).noquote() << "foreground service:" << service;
+        static bool asked = false;
+        if (!asked) {
+            asked = true;
+            QNativeInterface::QAndroidApplication::runOnAndroidMainThread([] {
+                const QString result = QJniObject::callStaticObjectMethod(kPlatformClass,
+                    "askBackgroundPermissions", "(Landroid/content/Context;)Ljava/lang/String;",
+                    androidContext().object()).toString();
+                qCInfo(lcAndroid).noquote() << "background:" << result;
+            });
+        }
+    } else {
+        QJniObject::callStaticMethod<void>("fi/oh6oksa/oksasdr/RadioService", "stop",
+                                           "(Landroid/content/Context;)V", androidContext().object());
+    }
     const QString headset = QJniObject::callStaticObjectMethod(kPlatformClass, "useHeadset",
         "(Landroid/content/Context;Z)Ljava/lang/String;", androidContext().object(),
         jboolean(awake)).toString();

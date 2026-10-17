@@ -1,14 +1,19 @@
 package fi.oh6oksa.oksasdr;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.wifi.WifiManager;
+import android.net.Uri;
 import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
@@ -147,7 +152,7 @@ public final class Platform {
                 if (t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || t == AudioDeviceInfo.TYPE_BLE_HEADSET) {
                     am.setMode(AudioManager.MODE_IN_COMMUNICATION);
                     if (am.setCommunicationDevice(d)) {
-                        return String.valueOf(d.getProductName());
+                        return describe(d);
                     }
                     am.setMode(AudioManager.MODE_NORMAL);
                 }
@@ -159,10 +164,50 @@ public final class Platform {
                 am.setMode(AudioManager.MODE_IN_COMMUNICATION);
                 am.startBluetoothSco();
                 am.setBluetoothScoOn(true);
-                return String.valueOf(d.getProductName());
+                return describe(d);
             }
         }
         return "";
+    }
+
+    // Some phones give a Bluetooth route their own model name as product
+    // name, so the link type leads.
+    private static String describe(AudioDeviceInfo d) {
+        String kind = d.getType() == AudioDeviceInfo.TYPE_BLE_HEADSET ? "LE Audio" : "hands-free";
+        return "Bluetooth (" + kind + ", reported as " + d.getProductName() + ")";
+    }
+
+    // ---- Keeping the app alive in the background: Android 13+ hides a
+    // foreground service's notification without the notification permission,
+    // and battery optimization (aggressive on some phones) can still freeze
+    // the app. Both asked once, through the system's own dialogs.
+
+    public static String askBackgroundPermissions(Context context) {
+        StringBuilder out = new StringBuilder();
+        Activity activity = context instanceof Activity ? (Activity) context : null;
+        if (Build.VERSION.SDK_INT >= 33) {
+            boolean granted = context.checkSelfPermission("android.permission.POST_NOTIFICATIONS")
+                    == PackageManager.PERMISSION_GRANTED;
+            if (!granted && activity != null) {
+                activity.requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, 4801);
+            }
+            out.append("notifications ").append(granted ? "allowed" : "asked");
+        }
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        boolean exempt = pm.isIgnoringBatteryOptimizations(context.getPackageName());
+        if (!exempt) {
+            try {
+                Intent ask = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:" + context.getPackageName()));
+                ask.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(ask);
+            } catch (Exception e) {
+                out.append(", battery dialog failed: ").append(e);
+            }
+        }
+        out.append(out.length() > 0 ? ", " : "").append("battery optimization ")
+           .append(exempt ? "off for OksaSDR" : "asked");
+        return out.toString();
     }
 
     // ---- Why the previous run ended: reason and description, and for a
