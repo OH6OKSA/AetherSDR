@@ -35,28 +35,22 @@ Path: `mobile/ios/Assets.xcassets/AppIcon.appiconset/`
 
 Nothing else to do for iOS. Rebuild and the new icon appears.
 
-## Android — NOT WIRED (files staged here for when Android build exists)
+## Android — wired
 
-There is currently **no Android build** in this repo: `mobile/CMakeLists.txt`
-only has an `if(IOS)` branch — no manifest, no Gradle, no `mipmap` tree. So
-the Android icons live here as ready-made assets, not yet referenced by any
-build.
+The launcher set lives in `mobile/android/res/` (part of the Android
+package source, `QT_ANDROID_PACKAGE_SOURCE_DIR`), and
+`mobile/android/AndroidManifest.xml` points at it:
 
-When an Android target is added, copy `android/res/` into the Android
-project's `app/src/main/res/` (merge with existing `mipmap-*` dirs):
+```xml
+android:icon="@mipmap/ic_launcher"
+android:roundIcon="@mipmap/ic_launcher_round"
+```
 
 - `mipmap-anydpi-v26/ic_launcher.xml` + `ic_launcher_round.xml` — adaptive icon
 - `mipmap-*/ic_launcher_foreground.png` — the mark (transparent)
 - `mipmap-*/ic_launcher_background.png` — solid white
 - `mipmap-*/ic_launcher.png` / `ic_launcher_round.png` — legacy icons
 - densities: mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi
-
-Then in `AndroidManifest.xml`:
-
-```xml
-android:icon="@mipmap/ic_launcher"
-android:roundIcon="@mipmap/ic_launcher_round"
-```
 
 The mark is sized to the 108dp adaptive canvas with the symbol kept inside
 the ~62dp safe zone, so round / squircle / square masks don't clip it.
