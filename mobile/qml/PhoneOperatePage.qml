@@ -322,11 +322,10 @@ Page {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.spacing
-            // The same bottom inset as the page's own bottom row, so the
+            // Qt already pads a popup's content by the safe area; on top of
+            // that the same bottom inset as the page's own bottom row, so the
             // drawer's PTT lands where the page's was.
-            anchors.topMargin: Theme.spacing + (page.landscape ? controlsDrawer.SafeArea.margins.top : 0)
-            anchors.bottomMargin: Theme.spacing / 2 + Math.max(controlsDrawer.SafeArea.margins.bottom, 8)
-            anchors.rightMargin: Theme.spacing + (page.landscape ? controlsDrawer.SafeArea.margins.right : 0)
+            anchors.bottomMargin: Theme.spacing / 2 + Math.max(0, 8 - controlsDrawer.SafeArea.margins.bottom)
             spacing: Theme.spacing
             ControlsPanel {
                 Layout.fillWidth: true

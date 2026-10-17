@@ -376,9 +376,8 @@ Page {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.spacing
-            anchors.topMargin: Theme.spacing + controlsDrawer.SafeArea.margins.top
-            anchors.bottomMargin: Theme.spacing + Math.max(controlsDrawer.SafeArea.margins.bottom, 12)
-            anchors.rightMargin: Theme.spacing + controlsDrawer.SafeArea.margins.right
+            // Qt already pads a popup's content by the safe area.
+            anchors.bottomMargin: Theme.spacing + Math.max(0, 12 - controlsDrawer.SafeArea.margins.bottom)
             spacing: Theme.spacing
             ControlsPanel {
                 Layout.fillWidth: true
