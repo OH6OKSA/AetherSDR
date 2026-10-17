@@ -2,6 +2,9 @@
 #include "DevLink.h"
 #include "LogBuffer.h"
 #include "MobileEngine.h"
+#ifdef Q_OS_ANDROID
+#include "../android/AndroidJni.h"
+#endif
 
 #include "core/AppSettings.h"
 #include "core/QtAudioBackendGuard.h"
@@ -64,6 +67,7 @@ int main(int argc, char* argv[])
     AetherSDR::mobile::LogBuffer::install();
 #ifdef Q_OS_ANDROID
     addAndroidSymbolFallbacks();
+    AetherSDR::mobile::androidStartup();
 #endif
     // Before any audio device opens: play-and-record session (iOS).
     AetherSDR::mobile::configureAudioSession();

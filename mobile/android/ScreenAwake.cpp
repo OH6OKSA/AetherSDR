@@ -1,27 +1,43 @@
 #include "ScreenAwake.h"
 
-#include <QCoreApplication>
-#include <QJniObject>
-#include <QtCore/qcoreapplication_platform.h>
+#include "AndroidJni.h"
+
+#include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(lcAndroid, "aether.mobile.android")
 
 namespace AetherSDR::mobile {
 
-// Android: the window's keep-screen-on flag, and the RadioService foreground
-// service (notification, wake and Wi-Fi locks) so receive keeps running while
-// another app is in front.
+void androidStartup()
+{
+    QJniObject::callStaticMethod<void>(kPlatformClass, "setMulticast", "(Landroid/content/Context;Z)V",
+                                       androidContext().object(), jboolean(true));
+    qCInfo(lcAndroid) << "multicast lock held for LAN discovery";
+}
+
+// Android, while a radio is connected: the window's keep-screen-on flag; the
+// RadioService foreground service (notification, wake and Wi-Fi locks) so
+// receive keeps running while another app is in front; and voice through a
+// connected Bluetooth headset's hands-free link, as on iOS.
 void setKeepScreenAwake(bool awake)
 {
     static constexpr jint kFlagKeepScreenOn = 0x00000080;  // WindowManager.LayoutParams
     QNativeInterface::QAndroidApplication::runOnAndroidMainThread([awake] {
-        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
-        const QJniObject window = activity.callMethod<jobject>("getWindow", "()Landroid/view/Window;");
+        const QJniObject window = androidContext().callMethod<jobject>("getWindow", "()Landroid/view/Window;");
         if (window.isValid()) {
             window.callMethod<void>(awake ? "addFlags" : "clearFlags", "(I)V", kFlagKeepScreenOn);
         }
     });
-    const QJniObject context = QNativeInterface::QAndroidApplication::context();
     QJniObject::callStaticMethod<void>("fi/oh6oksa/oksasdr/RadioService", awake ? "start" : "stop",
-                                       "(Landroid/content/Context;)V", context.object());
+                                       "(Landroid/content/Context;)V", androidContext().object());
+    const QString headset = QJniObject::callStaticObjectMethod(kPlatformClass, "useHeadset",
+        "(Landroid/content/Context;Z)Ljava/lang/String;", androidContext().object(),
+        jboolean(awake)).toString();
+    if (awake) {
+        qCInfo(lcAndroid).noquote() << "Bluetooth headset:"
+                                    << (headset.isEmpty() ? QStringLiteral("none (device speaker and mic)") : headset);
+    }
 }
 
 } // namespace AetherSDR::mobile
