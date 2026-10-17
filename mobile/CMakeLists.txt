@@ -123,6 +123,18 @@ set(AETHER_MOBILE_TEAM_ID "" CACHE STRING "Apple Developer Team ID that signs ae
 # The build number in the app too (Log, developer link), to tell builds apart.
 target_compile_definitions(aether-mobile PRIVATE AETHER_MOBILE_BUILD_NUMBER="${AETHER_MOBILE_BUILD_NUMBER}")
 
+if(ANDROID)
+    # Manifest (package fi.oh6oksa.oksasdr, permissions) and later Java glue.
+    set_target_properties(aether-mobile PROPERTIES
+        QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
+        QT_ANDROID_APP_NAME "OksaSDR"
+        QT_ANDROID_MIN_SDK_VERSION 28
+        QT_ANDROID_TARGET_SDK_VERSION 35
+        QT_ANDROID_VERSION_CODE "${AETHER_MOBILE_BUILD_NUMBER}"
+        QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
+    )
+endif()
+
 if(IOS)
     # Audio goes through the Darwin multimedia backend; the FFmpeg plugin
     # would need FFmpeg frameworks the app neither ships nor uses.

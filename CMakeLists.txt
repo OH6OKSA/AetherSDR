@@ -34,17 +34,17 @@ option(USE_SYSTEM_SQLITE       "Use system sqlite3"      OFF)
 # desktop app, desktop peripherals (serial, HID, PortAudio, D-Bus) or features
 # whose dependencies have no mobile build. Always ON when targeting iOS. The
 # desktop-only feature switches below default to OFF under it.
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR ANDROID)
     set(_aether_mobile_default ON)
 else()
     set(_aether_mobile_default OFF)
 endif()
 option(AETHER_MOBILE "Build the engine for a mobile touch client (no desktop app or desktop peripherals)" ${_aether_mobile_default})
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT AETHER_MOBILE)
-    message(FATAL_ERROR "iOS builds require AETHER_MOBILE=ON: the desktop app needs QtWidgets and desktop peripherals")
+if((CMAKE_SYSTEM_NAME STREQUAL "iOS" OR ANDROID) AND NOT AETHER_MOBILE)
+    message(FATAL_ERROR "iOS and Android builds require AETHER_MOBILE=ON: the desktop app needs QtWidgets and desktop peripherals")
 endif()
 if(AETHER_MOBILE AND WIN32)
-    message(FATAL_ERROR "AETHER_MOBILE targets iOS, with Linux and macOS as development hosts; Windows is not supported")
+    message(FATAL_ERROR "AETHER_MOBILE targets iOS and Android, with Linux and macOS as development hosts; Windows is not supported")
 endif()
 if(AETHER_MOBILE)
     set(_aether_desktop_feature_default OFF)
@@ -1214,7 +1214,7 @@ set(CORE_SOURCES
 if(APPLE)
     list(APPEND CORE_SOURCES src/core/VirtualAudioBridge.cpp src/core/MacMicPermission.mm
                              src/core/AppActivity.mm)
-elseif(UNIX)
+elseif(UNIX AND NOT ANDROID)
     # Linux DAX uses PulseAudio pipe modules via pactl (works with PipeWire too).
     # When libpipewire-0.3 dev headers are present we additionally compile a
     # native pw_stream-based RX source for sub-100ms DAX RX latency.
@@ -1852,9 +1852,9 @@ if(NOT AETHER_MOBILE)
     )
 endif()
 
-# A daemon has no place on iOS; a Linux AETHER_MOBILE build keeps it as the
-# headless proof that the mobile engine links on its own.
-if(NOT IOS)
+# A daemon has no place on iOS or Android; a Linux AETHER_MOBILE build keeps it
+# as the headless proof that the mobile engine links on its own.
+if(NOT IOS AND NOT ANDROID)
     add_executable(aetherd
         src/aetherd/main.cpp
         src/aetherd/CredentialStartup.cpp
@@ -2876,6 +2876,9 @@ elseif(WIN32)
     target_compile_definitions(aethercore PUBLIC __WINDOWS_MM__)
     target_link_libraries(aethercore PRIVATE winmm)
     target_link_libraries(aethercore PRIVATE dxgi)  # GpuSelector adapter enumeration
+elseif(ANDROID)
+    # No ALSA sequencer on Android; MIDI controllers are not offered there.
+    target_compile_definitions(aethercore PUBLIC __RTMIDI_DUMMY__)
 else()
     target_compile_definitions(aethercore PUBLIC __LINUX_ALSA__)
     find_package(PkgConfig REQUIRED)
