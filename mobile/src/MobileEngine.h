@@ -10,6 +10,7 @@
 #include "models/RadioSession.h"
 #include "models/TxController.h"
 
+#include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
@@ -29,6 +30,7 @@ class QThread;
 
 namespace AetherSDR {
 class AudioEngine;
+class DxClusterClient;
 class CwRxModel;
 class DecoderAudioModel;
 class PanadapterModel;
@@ -133,6 +135,14 @@ class MobileEngine : public QObject {
     Q_PROPERTY(bool tnfAvailable READ tnfAvailable NOTIFY tnfsChanged)
     Q_PROPERTY(bool canAddTnf READ canAddTnf NOTIFY tnfsChanged)
     Q_PROPERTY(bool tnfHasDepth READ tnfHasDepth NOTIFY tnfsChanged)
+    // Spots the radio holds (from every client, and from this app's DX
+    // cluster connection): {index, call, freq (MHz), mode, comment, spotter,
+    // color, source}; empty while showSpots is off.
+    Q_PROPERTY(QVariantList spots READ spots NOTIFY spotsChanged)
+    Q_PROPERTY(bool showSpots READ showSpots WRITE setShowSpots NOTIFY spotsChanged)
+    // DX cluster: {host, port, callsign (the radio's when not set),
+    // callsignFromRadio, autoConnect, state off/connecting/connected, error}.
+    Q_PROPERTY(QVariantMap dxCluster READ dxCluster NOTIFY dxClusterChanged)
     Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
     Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
     // The slice's step list from the radio (Hz), for the step chooser.
@@ -460,6 +470,20 @@ public:
     // key: freq (MHz), width (Hz), depth (1-3) or permanent (bool).
     Q_INVOKABLE void setTnf(int id, const QString& key, const QVariant& value);
     Q_INVOKABLE void removeTnf(int id);
+    QVariantList spots() const;
+    bool showSpots() const;
+    void setShowSpots(bool on);
+    QVariantMap dxCluster() const;
+    // key: host, port, callsign or autoConnect.
+    Q_INVOKABLE void setDxCluster(const QString& key, const QVariant& value);
+    Q_INVOKABLE void connectDxCluster();
+    Q_INVOKABLE void disconnectDxCluster();
+    // Tunes the active slice to a spot (and its mode, as the desktop), and
+    // tells the radio it was chosen (for loggers).
+    Q_INVOKABLE void tuneToSpot(int index);
+    // Development (--spot-test): "add" three test spots near the slice on
+    // the radio (source OksaSDR-test, 5 min), "clear" removes them.
+    void spotTest(const QString& action);
     QStringList globalProfiles() const;
     QString activeGlobalProfile() const;
     QStringList txProfiles() const;
@@ -753,6 +777,8 @@ signals:
     void memoriesChanged();
     void tnfsChanged();
     void txChainChanged();
+    void spotsChanged();
+    void dxClusterChanged();
     void profilesChanged();
     void txFilterChanged();
     void eqChanged();
@@ -882,6 +908,20 @@ private:
     // TX chain settings are written a moment after the last change (a
     // slider drag would otherwise write the settings file on every step).
     QTimer m_txChainSaveTimer;
+    // DX cluster: its spots go to the radio ("spot add", as the desktop),
+    // deduplicated per call within 1 kHz and sent at most RbnRateLimit a
+    // second; the radio shows them to every client and brings them back
+    // into its spot list.
+    DxClusterClient* m_dx{nullptr};
+    bool m_dxWanted{false};
+    QString m_dxState{QStringLiteral("off")};
+    QString m_dxError;
+    QHash<QString, QPair<double, qint64>> m_dxSeen;
+    QStringList m_dxQueue;
+    QTimer m_dxSendTimer;
+    QTimer m_spotsNotifyTimer;   // at most two spot list updates a second
+    void setupDxCluster();
+    QString dxCallsign() const;
     QTimer m_voicePreviewTimer;
     QElapsedTimer m_voicePreviewClock;
     QByteArray m_voicePreviewPcm;

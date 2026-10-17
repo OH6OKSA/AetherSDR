@@ -175,6 +175,15 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: save a memory \"OksaSDR test\", edit its name, frequency and mode, "
                        "log what the radio holds, remove it, then quit (other memories untouched)."));
     parser.addOption(memoryEditTestOption);
+    const QCommandLineOption spotTestOption(QStringLiteral("spot-test"),
+        QStringLiteral("Development: add (three test spots near the slice on the radio, 5 min) or clear them."),
+        QStringLiteral("action"));
+    parser.addOption(spotTestOption);
+    const QCommandLineOption dxClusterOption(QStringLiteral("dx-cluster"),
+        QStringLiteral("Development: set the DX cluster to <host>:<port>,<callsign> (remembered) and "
+                       "connect 5 s after start; with no callsign only set it (the radio's is then used)."),
+        QStringLiteral("server"));
+    parser.addOption(dxClusterOption);
     const QCommandLineOption tnfTestOption(QStringLiteral("tnf-test"),
         QStringLiteral("Development: add (a notch at the passband centre, 200 Hz, deep) or clear "
                        "(remove every notch on the radio)."), QStringLiteral("action"));
@@ -418,6 +427,23 @@ int main(int argc, char* argv[])
             }
         }
         qInfo() << "tx-chain:" << engine.txChain();
+    }
+    if (parser.isSet(dxClusterOption)) {
+        const QStringList parts = parser.value(dxClusterOption).split(QLatin1Char(','));
+        const QStringList hostPort = parts.value(0).split(QLatin1Char(':'));
+        engine.setDxCluster(QStringLiteral("host"), hostPort.value(0));
+        engine.setDxCluster(QStringLiteral("port"), hostPort.value(1, QStringLiteral("7300")).toInt());
+        engine.setDxCluster(QStringLiteral("callsign"), parts.value(1));
+        // Without a callsign only the settings change (e.g. back to defaults).
+        if (!parts.value(1).isEmpty()) {
+            QTimer::singleShot(5000, &app, [&engine] { engine.connectDxCluster(); });
+        }
+        QTimer::singleShot(9000, &app, [&engine] { qInfo() << "dx-cluster:" << engine.dxCluster(); });
+    }
+    if (parser.isSet(spotTestOption)) {
+        const QString action = parser.value(spotTestOption);
+        QTimer::singleShot(5000, &app, [&engine, action] { engine.spotTest(action); });
+        QTimer::singleShot(7000, &app, [&engine] { qInfo() << "spot-test: spots" << engine.spots().size(); });
     }
     if (parser.value(tnfTestOption) == QLatin1String("add")) {
         QTimer::singleShot(5000, &app, [&engine] { engine.addTnf(0.0); });

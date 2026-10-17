@@ -147,6 +147,7 @@ public:
     TnfModel&         tnfModel()         { return m_tnfModel; }
     const TnfModel&   tnfModel()   const { return m_tnfModel; }
     SpotModel&        spotModel()        { return m_spotModel; }
+    const SpotModel&  spotModel()  const { return m_spotModel; }
     CwxModel&         cwxModel()         { return m_cwxModel; }
     DvkModel&         dvkModel()         { return m_dvkModel; }
     NavtexModel&      navtexModel()      { return m_navtexModel; }

@@ -3,7 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// Display: 2D waterfall or 3D, waterfall black level and colour gain (on
+// Display: band plan, spots and the DX cluster, 2D waterfall or 3D,
+// waterfall black level and colour gain (on
 // top of the auto-tracked noise floor; Auto off holds it), and the spectrum
 // trace's range (Auto, or reference level and range). Remembered on this
 // device.
@@ -29,6 +30,86 @@ ColumnLayout {
                 onClicked: Engine.bandPlan = modelData
             }
         }
+    }
+    // Spots on the display (the radio's, from every client) and this app's
+    // DX cluster connection, whose spots go to the radio.
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.topMargin: Theme.spacing / 2
+        Label { text: qsTr("Spots"); color: Theme.textDim; font.pixelSize: 16; Layout.fillWidth: true }
+        AppButton {
+            text: Engine.showSpots ? qsTr("Shown") : qsTr("Hidden")
+            checked: Engine.showSpots
+            leftPadding: 10
+            rightPadding: 10
+            onClicked: Engine.showSpots = !Engine.showSpots
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        AppButton {
+            readonly property string state: Engine.dxCluster.state || "off"
+            text: state === "off" ? qsTr("DX cluster") : state === "connected" ? qsTr("DX cluster ✓") : qsTr("Connecting…")
+            checked: state !== "off"
+            enabled: Engine.connectionState === "connected"
+            Layout.preferredWidth: 140
+            onClicked: state === "off" ? Engine.connectDxCluster() : Engine.disconnectDxCluster()
+        }
+        Label {
+            Layout.fillWidth: true
+            text: Engine.dxCluster.error && Engine.dxCluster.state !== "connected" ? Engine.dxCluster.error
+                : (Engine.dxCluster.host || "") + ":" + (Engine.dxCluster.port || "")
+            color: Engine.dxCluster.error && Engine.dxCluster.state !== "connected" ? Theme.warning : Theme.textDim
+            font.pixelSize: 13
+            elide: Text.ElideRight
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        TextField {
+            id: dxHost
+            Layout.fillWidth: true
+            placeholderText: qsTr("Cluster server")
+            text: Engine.dxCluster.host || ""
+            font.pixelSize: 14
+            inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhUrlCharactersOnly
+            onEditingFinished: if (text !== Engine.dxCluster.host) Engine.setDxCluster("host", text)
+        }
+        TextField {
+            Layout.preferredWidth: 72
+            placeholderText: qsTr("Port")
+            text: Engine.dxCluster.port || ""
+            font.pixelSize: 14
+            inputMethodHints: Qt.ImhDigitsOnly
+            validator: IntValidator { bottom: 1; top: 65535 }
+            onEditingFinished: Engine.setDxCluster("port", Number(text))
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        TextField {
+            Layout.fillWidth: true
+            placeholderText: qsTr("Callsign (the radio's if empty)")
+            text: Engine.dxCluster.callsignFromRadio ? "" : (Engine.dxCluster.callsign || "")
+            font.pixelSize: 14
+            inputMethodHints: Qt.ImhUppercaseOnly | Qt.ImhNoPredictiveText
+            onEditingFinished: Engine.setDxCluster("callsign", text)
+        }
+        AppButton {
+            text: qsTr("Auto")
+            checked: !!Engine.dxCluster.autoConnect
+            leftPadding: 10
+            rightPadding: 10
+            onClicked: Engine.setDxCluster("autoConnect", !checked)
+        }
+    }
+    Label {
+        Layout.fillWidth: true
+        text: qsTr("Logs in as %1. Spots go to the radio, so every program on it shows them; tap one on the display to tune to it. Auto connects with the radio.")
+              .arg(Engine.dxCluster.callsign || qsTr("(no callsign)"))
+        color: Theme.textDim
+        font.pixelSize: 12
+        wrapMode: Text.WordWrap
     }
     // 2D waterfall or the 3D stacked trace.
     RowLayout {

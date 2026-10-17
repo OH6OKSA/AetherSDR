@@ -139,8 +139,12 @@ Rectangle {
     // permanent green, dimmer while TNF is off) with a handle on top, deeper
     // notches a bigger one. A tap opens its settings; holding a finger on
     // the display adds one there.
+    // Screenshots without a notch on the radio: a sample one, drawn here
+    // only (tnfPopup.preview()); nothing is sent.
+    property var previewTnfs: []
+    readonly property var shownTnfs: Engine.tnfs.length > 0 ? Engine.tnfs : previewTnfs
     Repeater {
-        model: Engine.panBandwidthMhz > 0 ? Engine.tnfs : []
+        model: Engine.panBandwidthMhz > 0 ? panArea.shownTnfs : []
         delegate: Item {
             id: notch
             required property var modelData
@@ -195,6 +199,78 @@ Rectangle {
                     tnfPopup.open()
                 }
             }
+        }
+    }
+
+    // Spots the radio holds (the DX cluster's and other programs'):
+    // callsigns along the top of the spectrum at their frequency, in up to
+    // four rows so they do not overlap (the rest wait for a zoom); a tap
+    // tunes to the spot.
+    readonly property var spotLayout: {
+        const out = []
+        const bw = Engine.panBandwidthMhz
+        const list = Engine.spots
+        if (!(bw > 0) || list.length === 0) return out
+        const rows = Math.max(1, Math.min(4, Math.floor((panArea.height * spectrum.spectrumFraction - 30) / 24)))
+        const rowEnd = []
+        for (let r = 0; r < rows; ++r) rowEnd.push(-1e9)
+        const items = []
+        for (let i = 0; i < list.length; ++i) {
+            const x = (list[i].freq - Engine.panCenterMhz) / bw * panArea.width + panArea.width / 2
+            if (x >= 0 && x <= panArea.width)
+                items.push({ spot: list[i], x: x, w: list[i].call.length * 7.5 + 12 })
+        }
+        items.sort((a, b) => a.x - b.x)
+        for (let i = 0; i < items.length && out.length < 80; ++i) {
+            const it = items[i]
+            for (let r = 0; r < rows; ++r) {
+                if (it.x - it.w / 2 > rowEnd[r] + 3) {
+                    rowEnd[r] = it.x + it.w / 2
+                    out.push({ spot: it.spot, x: it.x, w: it.w, row: r })
+                    break
+                }
+            }
+        }
+        return out
+    }
+    // A spot's own colour, or the cluster tan when it has none (a spot from
+    // another program can come with a transparent one).
+    function spotColor(c) {
+        return !c || c.length < 7 || c.toUpperCase().startsWith("#00") ? "#D2B48C" : c
+    }
+    Repeater {
+        model: panArea.spotLayout
+        delegate: Item {
+            id: spotTag
+            required property var modelData
+            x: modelData.x - modelData.w / 2
+            y: 4 + modelData.row * 24
+            width: modelData.w
+            height: 20
+            z: 2
+            Rectangle {
+                anchors.fill: parent
+                radius: 4
+                color: "#d90f1419"
+                border.color: panArea.spotColor(spotTag.modelData.spot.color)
+                border.width: 1
+            }
+            Text {
+                anchors.centerIn: parent
+                text: spotTag.modelData.spot.call
+                color: panArea.spotColor(spotTag.modelData.spot.color)
+                font.pixelSize: 11
+                font.bold: true
+            }
+            // Points at the spot's frequency.
+            Rectangle {
+                x: parent.width / 2 - 0.5
+                y: parent.height
+                width: 1
+                height: 5
+                color: panArea.spotColor(spotTag.modelData.spot.color)
+            }
+            TapHandler { onTapped: Engine.tuneToSpot(spotTag.modelData.spot.index) }
         }
     }
 
@@ -566,7 +642,7 @@ Rectangle {
         property int tnfId: -1
         property real anchorX: panArea.width / 2
         readonly property var tnf: {
-            const list = Engine.tnfs
+            const list = panArea.shownTnfs
             for (let i = 0; i < list.length; ++i) {
                 if (list[i].id === tnfId) return list[i]
             }
@@ -582,12 +658,17 @@ Rectangle {
         }
         // Gone (removed here or by another client): close.
         onTnfChanged: if (opened && !tnf) close()
-        // Screenshots (--popup tnfPopup): the first notch.
+        // Screenshots (--popup tnfPopup): the first notch, or a sample one
+        // in the passband when the radio has none.
         function preview() {
-            if (Engine.tnfs.length > 0) {
-                tnfId = Engine.tnfs[0].id
-                open()
+            if (Engine.tnfs.length === 0) {
+                panArea.previewTnfs = [{ id: -1, width: 200, depth: 2, permanent: false,
+                                         freq: Engine.frequencyMhz + (Engine.filterLow + Engine.filterHigh) / 2e6 }]
             }
+            const first = panArea.shownTnfs[0]
+            tnfId = first.id
+            anchorX = (first.freq - Engine.panCenterMhz) / Engine.panBandwidthMhz * panArea.width + panArea.width / 2
+            open()
         }
         readonly property bool roomy: !Theme.compactHeight
         parent: Overlay.overlay

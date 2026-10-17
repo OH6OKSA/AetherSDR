@@ -19,6 +19,9 @@
 #include "core/AppActivity.h"
 #include "core/AppSettings.h"
 #include "core/AudioEngine.h"
+#include "core/DxClusterClient.h"
+#include "core/DxSpot.h"
+#include "core/SpotModeResolver.h"
 #include "core/ClientComp.h"
 #include "core/ClientEq.h"
 #include "core/ClientGate.h"
@@ -35,6 +38,7 @@
 #include "models/MeterModel.h"
 #include "models/PanadapterModel.h"
 #include "models/SliceModel.h"
+#include "models/SpotModel.h"
 #include "models/TnfModel.h"
 #include "models/TransmitModel.h"
 #include "models/XvtrPolicy.h"
@@ -114,6 +118,7 @@ MobileEngine::MobileEngine(QObject* parent)
     m_audio->moveToThread(m_audioThread);
     connect(m_audio, &AudioEngine::txClipRecorded, this, &MobileEngine::onVoiceClipRecorded);
     connect(m_audio, &AudioEngine::txClipFinished, this, &MobileEngine::onVoiceClipFinished);
+    setupDxCluster();
     m_txChainSaveTimer.setSingleShot(true);
     m_txChainSaveTimer.setInterval(1000);
     connect(&m_txChainSaveTimer, &QTimer::timeout, this, [this] {
@@ -2940,6 +2945,246 @@ void MobileEngine::removeTnf(int id)
     }
 }
 
+void MobileEngine::setupDxCluster()
+{
+    m_dx = new DxClusterClient(this);
+    m_dx->initialize();
+    connect(m_dx, &DxClusterClient::connected, this, [this] {
+        m_dxState = QStringLiteral("connected");
+        m_dxError.clear();
+        qCInfo(lcMobile) << "DX cluster connected to" << m_dx->host() << m_dx->port();
+        emit dxClusterChanged();
+    });
+    connect(m_dx, &DxClusterClient::disconnected, this, [this] {
+        // It reconnects by itself until disconnect() is called.
+        if (m_dxState != QLatin1String("off")) {
+            m_dxState = QStringLiteral("connecting");
+            emit dxClusterChanged();
+        }
+    });
+    connect(m_dx, &DxClusterClient::connectionError, this, [this](const QString& error) {
+        m_dxError = error;
+        qCInfo(lcMobile) << "DX cluster:" << error;
+        emit dxClusterChanged();
+    });
+    connect(m_dx, &DxClusterClient::spotReceived, this, [this](const DxSpot& spot) {
+        RadioModel& rm = m_session.radioModel();
+        if (!m_connected || spot.dxCall.trimmed().isEmpty() || spot.freqMhz <= 0.0) {
+            return;
+        }
+        AppSettings& settings = AppSettings::instance();
+        int lifetime = spot.lifetimeSec > 0 ? spot.lifetimeSec
+                                            : settings.value(QStringLiteral("DxClusterSpotLifetimeSec"), 0).toInt();
+        if (lifetime <= 0) {
+            lifetime = settings.value(QStringLiteral("DxClusterSpotLifetime"), 30).toInt() * 60;
+        }
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        const auto seen = m_dxSeen.constFind(spot.dxCall);
+        if (seen != m_dxSeen.constEnd() && std::abs(seen->first - spot.freqMhz) < 0.001
+            && now - seen->second <= qint64(lifetime) * 1000) {
+            return;
+        }
+        m_dxSeen.insert(spot.dxCall, {spot.freqMhz, now});
+        QString color = spot.color.isEmpty()
+            ? settings.value(QStringLiteral("DxClusterSpotColor"), QStringLiteral("#D2B48C")).toString()
+            : spot.color;
+        if (color.length() == 7) {
+            color = QStringLiteral("#FF") + color.mid(1);
+        }
+        const QString freq = QString::number(spot.freqMhz, 'f', 6);
+        // trigger_action=none: a tap on the spot never retunes or changes
+        // the mode of another client's slice (the desktop's #1846).
+        QString cmd = QStringLiteral("spot add callsign=%1 rx_freq=%2 tx_freq=%2 source=DXCluster "
+                                     "spotter_callsign=%3 trigger_action=none lifetime_seconds=%4")
+                          .arg(QString(spot.dxCall).replace(QLatin1Char(' '), QChar(0x7f)), freq,
+                               spot.spotterCall)
+                          .arg(lifetime);
+        if (!spot.comment.isEmpty()) {
+            cmd += QStringLiteral(" comment=") + QString(spot.comment).replace(QLatin1Char(' '), QChar(0x7f));
+        }
+        cmd += QStringLiteral(" color=") + color;
+        m_dxQueue.append(cmd);
+        Q_UNUSED(rm);
+    });
+    m_dxSendTimer.setInterval(1000);
+    connect(&m_dxSendTimer, &QTimer::timeout, this, [this] {
+        if (m_dxQueue.isEmpty() || !m_connected) {
+            return;
+        }
+        const int n = std::min<int>(m_dxQueue.size(),
+                                    std::max(1, AppSettings::instance().value(QStringLiteral("RbnRateLimit"), 10).toInt()));
+        for (int i = 0; i < n; ++i) {
+            m_session.radioModel().sendCommand(m_dxQueue.at(i));
+        }
+        m_dxQueue.remove(0, n);
+    });
+    m_dxSendTimer.start();
+
+    m_spotsNotifyTimer.setSingleShot(true);
+    m_spotsNotifyTimer.setInterval(500);
+    connect(&m_spotsNotifyTimer, &QTimer::timeout, this, &MobileEngine::spotsChanged);
+    SpotModel& spots = m_session.radioModel().spotModel();
+    auto spotsMoved = [this] {
+        if (!m_spotsNotifyTimer.isActive()) {
+            m_spotsNotifyTimer.start();
+        }
+    };
+    connect(&spots, &SpotModel::spotAdded, this, spotsMoved);
+    connect(&spots, &SpotModel::spotUpdated, this, spotsMoved);
+    connect(&spots, &SpotModel::spotRemoved, this, spotsMoved);
+    connect(&spots, &SpotModel::spotsCleared, this, spotsMoved);
+    connect(&spots, &SpotModel::spotsRefreshed, this, spotsMoved);
+    // The radio's callsign is the cluster login when none is set here.
+    connect(&m_session.radioModel(), &RadioModel::infoChanged, this, &MobileEngine::dxClusterChanged);
+}
+
+void MobileEngine::spotTest(const QString& action)
+{
+    RadioModel& rm = m_session.radioModel();
+    if (!m_connected || !m_slice) {
+        return;
+    }
+    if (action == QLatin1String("add")) {
+        const double f = m_slice->frequency();
+        const struct { const char* call; double offsetKhz; const char* comment; } tests[] = {
+            {"OH0TEST", 2.0, "test spot"}, {"OH0TST2", 2.3, "close by"}, {"OH0TST3", -3.0, "CW 599"}};
+        for (const auto& t : tests) {
+            const QString freq = QString::number(f + t.offsetKhz / 1000.0, 'f', 6);
+            rm.sendCommand(QStringLiteral("spot add callsign=%1 rx_freq=%2 tx_freq=%2 source=OksaSDR-test "
+                                          "trigger_action=none lifetime_seconds=300 color=#FF3FB6FF comment=%3")
+                               .arg(QLatin1String(t.call), freq,
+                                    QString::fromLatin1(t.comment).replace(QLatin1Char(' '), QChar(0x7f))));
+        }
+    } else if (action == QLatin1String("clear")) {
+        for (const SpotData& s : rm.spotModel().spots()) {
+            if (s.source == QLatin1String("OksaSDR-test") || s.callsign.startsWith(QLatin1String("OH0TEST"))) {
+                rm.sendCommand(QStringLiteral("spot remove %1").arg(s.index));
+            }
+        }
+    }
+}
+
+QString MobileEngine::dxCallsign() const
+{
+    const QString own = AppSettings::instance().value(QStringLiteral("DxClusterCallsign")).toString().trimmed();
+    return own.isEmpty() ? m_session.radioModel().callsign().trimmed() : own;
+}
+
+QVariantList MobileEngine::spots() const
+{
+    QVariantList out;
+    if (!m_connected || !showSpots()) {
+        return out;
+    }
+    for (const SpotData& s : m_session.radioModel().spotModel().spots()) {
+        out << QVariantMap{{QStringLiteral("index"), s.index}, {QStringLiteral("call"), s.callsign},
+                           {QStringLiteral("freq"), s.rxFreqMhz}, {QStringLiteral("mode"), s.mode},
+                           {QStringLiteral("comment"), s.comment}, {QStringLiteral("spotter"), s.spotterCallsign},
+                           {QStringLiteral("color"), s.color}, {QStringLiteral("source"), s.source}};
+    }
+    return out;
+}
+
+bool MobileEngine::showSpots() const
+{
+    return AppSettings::instance().value(QStringLiteral("MobileShowSpots"), QStringLiteral("True")).toString()
+        == QLatin1String("True");
+}
+
+void MobileEngine::setShowSpots(bool on)
+{
+    if (on != showSpots()) {
+        AppSettings::instance().setValue(QStringLiteral("MobileShowSpots"), on ? QStringLiteral("True") : QStringLiteral("False"));
+        AppSettings::instance().save();
+        emit spotsChanged();
+    }
+}
+
+QVariantMap MobileEngine::dxCluster() const
+{
+    const AppSettings& settings = AppSettings::instance();
+    const QString own = settings.value(QStringLiteral("DxClusterCallsign")).toString().trimmed();
+    return {
+        {QStringLiteral("host"), settings.value(QStringLiteral("DxClusterHost"), QStringLiteral("dxc.nc7j.com")).toString()},
+        {QStringLiteral("port"), settings.value(QStringLiteral("DxClusterPort"), 7300).toInt()},
+        {QStringLiteral("callsign"), dxCallsign()},
+        {QStringLiteral("callsignFromRadio"), own.isEmpty()},
+        {QStringLiteral("autoConnect"),
+         settings.value(QStringLiteral("DxClusterAutoConnect"), QStringLiteral("False")).toString() == QLatin1String("True")},
+        {QStringLiteral("state"), m_dxState},
+        {QStringLiteral("error"), m_dxError},
+    };
+}
+
+void MobileEngine::setDxCluster(const QString& key, const QVariant& value)
+{
+    AppSettings& settings = AppSettings::instance();
+    if (key == QLatin1String("host")) {
+        settings.setValue(QStringLiteral("DxClusterHost"), value.toString().trimmed());
+    } else if (key == QLatin1String("port")) {
+        settings.setValue(QStringLiteral("DxClusterPort"), std::clamp(value.toInt(), 1, 65535));
+    } else if (key == QLatin1String("callsign")) {
+        settings.setValue(QStringLiteral("DxClusterCallsign"), value.toString().trimmed().toUpper());
+    } else if (key == QLatin1String("autoConnect")) {
+        settings.setValue(QStringLiteral("DxClusterAutoConnect"), value.toBool() ? QStringLiteral("True") : QStringLiteral("False"));
+    } else {
+        return;
+    }
+    settings.save();
+    emit dxClusterChanged();
+}
+
+void MobileEngine::connectDxCluster()
+{
+    const QVariantMap cfg = dxCluster();
+    const QString call = cfg.value(QStringLiteral("callsign")).toString();
+    if (!m_connected || call.isEmpty()) {
+        if (call.isEmpty()) {
+            setLastError(tr("The DX cluster needs a callsign: set it in Radio Setup or under Spots."));
+        }
+        return;
+    }
+    m_dxWanted = true;
+    m_dxState = QStringLiteral("connecting");
+    m_dxError.clear();
+    qCInfo(lcMobile) << "DX cluster connect" << cfg.value(QStringLiteral("host")).toString()
+                     << cfg.value(QStringLiteral("port")).toInt();
+    m_dx->connectToCluster(cfg.value(QStringLiteral("host")).toString(),
+                           quint16(cfg.value(QStringLiteral("port")).toInt()), call);
+    emit dxClusterChanged();
+}
+
+void MobileEngine::disconnectDxCluster()
+{
+    m_dxWanted = false;
+    m_dxState = QStringLiteral("off");
+    m_dxQueue.clear();
+    m_dx->disconnect();
+    emit dxClusterChanged();
+}
+
+void MobileEngine::tuneToSpot(int index)
+{
+    RadioModel& rm = m_session.radioModel();
+    const auto it = rm.spotModel().spots().constFind(index);
+    if (!m_connected || !m_slice || it == rm.spotModel().spots().constEnd()) {
+        return;
+    }
+    const SpotData spot = it.value();
+    if (m_pan && index >= 0) {
+        rm.sendCommand(QStringLiteral("spot trigger %1 pan=%2").arg(index).arg(m_pan->panId()));
+    }
+    if (AppSettings::instance().value(QStringLiteral("SpotAutoSwitchMode"), QStringLiteral("True")).toString()
+        == QLatin1String("True")) {
+        const QString mode = SpotModeResolver::resolveSpotRadioMode(spot.mode, spot.comment, spot.rxFreqMhz);
+        if (!mode.isEmpty() && mode != m_slice->mode() && m_slice->modeList().contains(mode)) {
+            m_slice->setMode(mode);
+        }
+    }
+    qCInfo(lcMobile) << "tune to spot" << spot.callsign << spot.rxFreqMhz;
+    tuneTo(spot.rxFreqMhz);
+}
+
 bool MobileEngine::locked() const
 {
     return m_slice && m_slice->isLocked();
@@ -3458,6 +3703,14 @@ void MobileEngine::onConnectionStateChanged(bool connected)
     emit tnfsChanged();
     if (!connected) {
         stopVoicePreview();
+        // The cluster feeds the radio; without one it waits (and comes back
+        // with the radio when it was on).
+        if (m_dx && m_dxState != QLatin1String("off")) {
+            m_dx->disconnect();
+            m_dxState = QStringLiteral("off");
+            m_dxQueue.clear();
+            emit dxClusterChanged();
+        }
     }
     if (connected) {
         defaultMicToDevice();
@@ -3487,6 +3740,15 @@ void MobileEngine::onConnectionStateChanged(bool connected)
         setKeepScreenAwake(true);
         setConnectionState(QStringLiteral("connected"));
         selectActiveSlice();
+        // The DX cluster, when it was on or is set to connect by itself
+        // (after the radio's status has brought its callsign).
+        QTimer::singleShot(3000, this, [this] {
+            if (m_connected && m_dxState == QLatin1String("off")
+                && (m_dxWanted || dxCluster().value(QStringLiteral("autoConnect")).toBool())
+                && !dxCallsign().isEmpty()) {
+                connectDxCluster();
+            }
+        });
         emit transmitStateChanged();
         emit rfPowerChanged();
         emit tuneStateChanged();
