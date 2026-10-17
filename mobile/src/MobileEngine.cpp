@@ -56,6 +56,9 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#if defined(Q_OS_LINUX) || defined(Q_OS_ANDROID)
+#include <unistd.h>
+#endif
 
 Q_LOGGING_CATEGORY(lcMobile, "aether.mobile")
 
@@ -187,15 +190,18 @@ MobileEngine::MobileEngine(QObject* parent)
             m_lastCpuUsecs = *cpu;
         }
         m_uiFps = elapsedUs > 0 ? qRound(m_framesThisPeriod.exchange(0) * 1e6 / double(elapsedUs)) : 0;
+        sampleThreads(elapsedUs);
         emit performanceChanged();
         // Once a minute in the log while connected (30 samples of 2 s).
         static int samples = 0;
         if (m_connected && ++samples >= 30) {
             samples = 0;
             qCInfo(lcMobile).noquote()
-                << QStringLiteral("performance: CPU %1 % of %2 cores (%3 % of one core), %4 frames/s")
+                << QStringLiteral("performance: CPU %1 % of %2 cores (%3 % of one core), %4 frames/s%5")
                        .arg(qRound(m_cpuPercent)).arg(cpuCores())
-                       .arg(qRound(m_cpuPercentOfCore)).arg(m_uiFps);
+                       .arg(qRound(m_cpuPercentOfCore)).arg(m_uiFps)
+                       .arg(m_busyThreads.isEmpty() ? QString()
+                                                    : QStringLiteral("; busiest threads: ") + m_busyThreads.join(QStringLiteral(", ")));
         }
     });
     m_perfTimer.start();
@@ -989,6 +995,59 @@ void MobileEngine::stopDeviceMicrophoneCapture()
             audio->stopTxStream();
         }
     }, Qt::QueuedConnection);
+}
+
+void MobileEngine::sampleThreads(quint64 elapsedUs)
+{
+#if defined(Q_OS_LINUX) || defined(Q_OS_ANDROID)
+    // /proc/self/task/<tid>/stat: utime and stime (fields 14 and 15, clock
+    // ticks) after the name in parentheses; the name also from "comm".
+    static const long ticksPerSecond = sysconf(_SC_CLK_TCK);
+    QHash<int, quint64> now;
+    QList<QPair<double, QString>> busy;
+    const QDir tasks(QStringLiteral("/proc/self/task"));
+    for (const QString& entry : tasks.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        QFile stat(tasks.filePath(entry + QStringLiteral("/stat")));
+        if (!stat.open(QIODevice::ReadOnly)) {
+            continue;
+        }
+        const QByteArray line = stat.readAll();
+        const int open = line.indexOf('(');
+        const int close = line.lastIndexOf(')');
+        if (open < 0 || close < open) {
+            continue;
+        }
+        const QList<QByteArray> fields = line.mid(close + 2).split(' ');
+        if (fields.size() < 13) {
+            continue;
+        }
+        // After ")": state is field 3, so utime (14) and stime (15) sit at 11 and 12.
+        const quint64 ticks = fields.at(11).toULongLong() + fields.at(12).toULongLong();
+        const int tid = entry.toInt();
+        now.insert(tid, ticks);
+        const auto before = m_threadTicks.constFind(tid);
+        if (before == m_threadTicks.constEnd() || ticks < *before || elapsedUs == 0 || ticksPerSecond <= 0) {
+            continue;
+        }
+        const double percent = 100.0 * double(ticks - *before) / double(ticksPerSecond) * 1e6 / double(elapsedUs);
+        if (percent >= 1.0) {
+            // The main thread carries the process name: call it what it is.
+            QString name = tid == int(getpid()) ? QStringLiteral("UI") : QString::fromUtf8(line.mid(open + 1, close - open - 1));
+            if (name == QLatin1String("QSGRenderThread")) {
+                name = QStringLiteral("render");
+            }
+            busy.append({percent, name});
+        }
+    }
+    m_threadTicks = now;
+    std::sort(busy.begin(), busy.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    m_busyThreads.clear();
+    for (int i = 0; i < busy.size() && i < 4; ++i) {
+        m_busyThreads << QStringLiteral("%1 %2 %").arg(busy.at(i).second).arg(qRound(busy.at(i).first));
+    }
+#else
+    Q_UNUSED(elapsedUs);
+#endif
 }
 
 bool MobileEngine::micMeterLive() const

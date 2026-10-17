@@ -73,6 +73,9 @@ class MobileEngine : public QObject {
     // iOS: a falling frame rate is what shows the graphics not keeping up).
     Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY performanceChanged)
     Q_PROPERTY(double cpuPercentOfCore READ cpuPercentOfCore NOTIFY performanceChanged)
+    // The app's busiest threads in the last 2 s, "name 48 %" each (% of one
+    // core), busiest first; empty where the system does not tell (iOS).
+    Q_PROPERTY(QStringList busyThreads READ busyThreads NOTIFY performanceChanged)
     Q_PROPERTY(int cpuCores READ cpuCores CONSTANT)
     Q_PROPERTY(int uiFps READ uiFps NOTIFY performanceChanged)
     // "26.10.1 (54)": app version and TestFlight build, for the header.
@@ -313,6 +316,7 @@ public:
     QString networkQuality() const;
     double cpuPercent() const { return m_cpuPercent; }
     double cpuPercentOfCore() const { return m_cpuPercentOfCore; }
+    QStringList busyThreads() const { return m_busyThreads; }
     int cpuCores() const;
     int uiFps() const { return m_uiFps; }
     // Counts drawn frames (main.cpp connects the window's frameSwapped).
@@ -849,6 +853,11 @@ private:
     quint64 m_lastCpuUsecs{0};
     double m_cpuPercent{0.0};
     double m_cpuPercentOfCore{0.0};
+    // Per-thread CPU (Linux and Android, from /proc/self/task): ticks at
+    // the last sample, by thread id.
+    QHash<int, quint64> m_threadTicks;
+    QStringList m_busyThreads;
+    void sampleThreads(quint64 elapsedUs);
     std::atomic<int> m_framesThisPeriod{0};
     int m_uiFps{0};
     // Audio diagnostics: underruns seen at the last 10 s check.

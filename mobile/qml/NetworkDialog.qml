@@ -89,9 +89,18 @@ Popup {
             value: Math.round(Engine.cpuPercent) + " %"
             valueColor: Engine.cpuPercent >= 80 ? Theme.transmit : Engine.cpuPercent >= 50 ? Theme.warning : Theme.text
         }
+        // All threads summed, one core = 100 %: 102 % is about one core's
+        // worth of work, not one core full. The busiest thread tells that.
         Row2 {
-            label: qsTr("App CPU, of one core")
+            label: qsTr("App CPU, one core = 100 %")
             value: Math.round(Engine.cpuPercentOfCore) + " %"
+        }
+        Row2 {
+            visible: Engine.busyThreads.length > 0
+            label: qsTr("Busiest threads")
+            value: Engine.busyThreads.slice(0, 2).join(", ")
+            valueColor: Engine.busyThreads.length > 0 && parseInt(Engine.busyThreads[0].split(" ").slice(-2)[0]) >= 90
+                        ? Theme.warning : Theme.text
         }
         Row2 {
             label: qsTr("Screen frames drawn")
@@ -100,7 +109,8 @@ Popup {
         }
         Label {
             Layout.fillWidth: true
-            text: qsTr("iOS shows apps no GPU load; frames drawn per second falling well below the display's rate means the graphics are not keeping up.")
+            text: qsTr("App CPU adds up all the app's threads; a thread near 100 % is one core full. %1 shows apps no GPU load: frames drawn per second falling well below the display's rate means the graphics are not keeping up.")
+                  .arg(Qt.platform.os === "ios" ? "iOS" : Qt.platform.os === "android" ? "Android" : qsTr("The system"))
             color: Theme.textDim
             font.pixelSize: 12
             wrapMode: Text.Wrap
