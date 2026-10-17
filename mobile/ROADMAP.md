@@ -5,26 +5,30 @@ queued, waiting on someone, or still to verify follows.
 
 ## Released
 
-**Build 70** (2026-10-16), iPhone and iPad:
-- Tuning step fixed; **STEP** sits under the mode.
-- Spectrum and 3D keep the right dBm scale after a band change.
-- Info panel: always-on settings first (antennas, width, AGC, speaker,
-  lock), then split and the DSP flags; tighter iPhone header.
-- View: the radio's FFT average, FFT frames/s and waterfall speed.
-- **Band** zoom beside −/+; **WWV** and **GEN** band buttons.
-- Press and hold **SPLIT** for +1, +5 or +10 kHz.
-- Meters hold their peak for 1.5 s.
-- VOX and DEXP shown only with the radio's own microphone.
+**Build 75** (2026-10-17), iPhone and iPad:
+- OksaSDR app icon.
+- Volume and pan sliders follow the finger.
+- Meter peak hold resets with the meter's quantity; ALC/Mic below scale read "< min".
+- MOX removed; one Mic level; device mic trim in Setup → Phone/CW.
+- Callsign edited in Setup → Radio only.
+
+**Build 74** (2026-10-17): the app is called **OksaSDR** (formerly AetherSDR
+Mobile); TX soft start limited to iOS.
+
+**Build 70** (2026-10-16): STEP fix and placement, dBm scale after band
+change, info panel order, View pan settings, Band zoom, WWV/GEN, split
+offsets, meter peak hold.
 
 Earlier builds: see the git log and `TESTFLIGHT_WHATS_NEW.txt`.
 
-## Next build
+## Android (test APKs)
 
-- New name: **OksaSDR** (formerly AetherSDR Mobile), at the AetherSDR
-  maintainer's request. Settings and voice macros carry over.
-- TX soft start (60 ms mute + 40 ms ramp at key-up) limited to iOS, so the
-  shared engine's desktop path is unchanged.
-- iOS workflow builds only for changes that go into the app.
+Same code as iOS (`mobile/android/` holds the platform parts). Test APK 7:
+receive, spectrum and waterfall, TX, background receive (foreground
+service), OpenSSL for SmartLink, OksaSDR launcher icon.
+
+Next: GitHub Actions APK build, SmartLink sign-in kept in the Android
+Keystore, log sharing, Bluetooth headsets, LAN discovery.
 
 ## Later
 
@@ -59,12 +63,12 @@ From the comparison with upstream main and tester requests:
 
 | Area | iOS / iPadOS | Android |
 |---|---|---|
-| Connect by IP, SmartLink, VPN | ✅ | — not started |
+| Connect by IP, SmartLink, VPN | ✅ | ✅ (test APK; SmartLink sign-in not kept yet) |
 | LAN discovery | ⏳ needs Apple's multicast entitlement | — |
-| Spectrum, waterfall, 3D | ✅ | — |
-| RX audio, background audio | ✅ | — |
-| Voice TX (device mic, Bluetooth headset) | ✅ | — |
+| Spectrum, waterfall, 3D | ✅ | ✅ |
+| RX audio, background audio | ✅ | ✅ (foreground service) |
+| Voice TX (device mic, Bluetooth headset) | ✅ | device mic ✅, Bluetooth to do |
 | CW, CWX, decoder, voice keyer | ✅ (CW on air to verify) | — |
 | Keyboard, pencil/stylus | ✅ | — |
-| Phone and tablet layouts | ✅ | — |
-| Distribution | TestFlight | — |
+| Phone and tablet layouts | ✅ | ✅ |
+| Distribution | TestFlight | test APK (GitHub Actions to do) |
