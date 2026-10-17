@@ -13,6 +13,7 @@ NEW IN THIS BUILD
 - Pan control reads C at centre, or L/R and how far, and snaps to centre.
 - iPhone: the controls open from the button beside PTT; the top row keeps the rest behind the dots button.
 - The controls drawer reaches the bottom edge, its PTT where the page's is.
+- View: FFT frames/s and waterfall speed keep the value you set (they sprang back). Setup: muting the radio's own audio while remote sticks.
 
 RECENT
 - New app icon: the OksaSDR mark.
