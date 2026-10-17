@@ -483,7 +483,14 @@ Item {
                             Layout.fillWidth: true
                             from: 0; to: 100; stepSize: 1
                             focusPolicy: Qt.NoFocus
-                            onMoved: Engine.setSliceAudio(sliceAudio.sliceId, "pan", value)
+                            // Within 3 of the middle it snaps to centre, so
+                            // centre is easy to find by feel.
+                            onMoved: {
+                                if (Math.abs(value - 50) <= 3 && value !== 50) {
+                                    value = 50
+                                }
+                                Engine.setSliceAudio(sliceAudio.sliceId, "pan", value)
+                            }
                             // Double-tap centres.
                             TapHandler {
                                 onDoubleTapped: Engine.setSliceAudio(sliceAudio.sliceId, "pan", 50)
@@ -492,8 +499,26 @@ Item {
                                 when: !panSlider.pressed
                                 value: sliceAudio.info.pan
                             }
+                            // Centre mark, above and below the track.
+                            Rectangle {
+                                x: panSlider.leftPadding + panSlider.availableWidth / 2 - width / 2
+                                y: panSlider.topPadding + panSlider.availableHeight / 2 - height / 2
+                                width: 2
+                                height: Math.round(panSlider.availableHeight * 0.9)
+                                color: Math.round(panSlider.value) === 50 ? Theme.accent : Theme.textDim
+                                z: -1
+                            }
                         }
                         Label { text: "R"; color: Theme.textDim; font.pixelSize: Math.round(Theme.buttonFont * 0.75) }
+                        // The balance as read: C at centre, else L/R and how far.
+                        Label {
+                            readonly property int v: Math.round(panSlider.value)
+                            text: v === 50 ? qsTr("C") : (v < 50 ? qsTr("L %1").arg(50 - v) : qsTr("R %1").arg(v - 50))
+                            color: v === 50 ? Theme.accent : Theme.text
+                            font.pixelSize: Math.round(Theme.buttonFont * 0.8)
+                            horizontalAlignment: Text.AlignRight
+                            Layout.preferredWidth: Math.round(Theme.buttonFont * 2.6)
+                        }
                     }
                 }
             }
