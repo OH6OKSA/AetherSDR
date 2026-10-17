@@ -1,5 +1,7 @@
 package fi.oh6oksa.oksasdr;
 
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,6 +13,8 @@ import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.List;
@@ -159,5 +163,73 @@ public final class Platform {
             }
         }
         return "";
+    }
+
+    // ---- Why the previous run ended: reason and description, and for a
+    // crash the readable parts of Android's trace (frames, libraries,
+    // message), so a crash shows in the next run's log.
+
+    public static String lastExit(Context context) {
+        if (Build.VERSION.SDK_INT < 30) {
+            return "";
+        }
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            List<ApplicationExitInfo> list = am.getHistoricalProcessExitReasons(null, 0, 1);
+            if (list.isEmpty()) {
+                return "";
+            }
+            ApplicationExitInfo info = list.get(0);
+            StringBuilder out = new StringBuilder();
+            out.append("reason=").append(info.getReason())
+               .append(" status=").append(info.getStatus())
+               .append(" importance=").append(info.getImportance())
+               .append(" at=").append(new java.util.Date(info.getTimestamp()))
+               .append(" desc=").append(info.getDescription());
+            int reason = info.getReason();
+            if (reason == ApplicationExitInfo.REASON_CRASH_NATIVE || reason == ApplicationExitInfo.REASON_CRASH
+                    || reason == ApplicationExitInfo.REASON_ANR) {
+                InputStream in = info.getTraceInputStream();
+                if (in != null) {
+                    ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                    byte[] chunk = new byte[8192];
+                    int n;
+                    while ((n = in.read(chunk)) > 0 && buf.size() < 512 * 1024) {
+                        buf.write(chunk, 0, n);
+                    }
+                    in.close();
+                    out.append("\n").append(readable(buf.toByteArray()));
+                }
+            }
+            return out.toString();
+        } catch (Exception e) {
+            return "lastExit failed: " + e;
+        }
+    }
+
+    // Printable runs of the trace (a native crash's trace is a binary
+    // tombstone); frames and libraries come out as text.
+    private static String readable(byte[] data) {
+        StringBuilder out = new StringBuilder();
+        StringBuilder run = new StringBuilder();
+        int lines = 0;
+        for (byte b : data) {
+            if (b >= 32 && b < 127) {
+                run.append((char) b);
+                continue;
+            }
+            if (run.length() >= 6) {
+                String t = run.toString();
+                if (t.contains("lib") || t.contains("::") || t.contains("_Z") || t.contains("signal")
+                        || t.contains("Abort") || t.contains("Exception") || t.contains("fault")) {
+                    out.append("  ").append(t).append("\n");
+                    if (++lines >= 80) {
+                        break;
+                    }
+                }
+            }
+            run.setLength(0);
+        }
+        return out.toString();
     }
 }
