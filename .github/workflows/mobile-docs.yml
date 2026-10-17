@@ -1,0 +1,43 @@
+name: Mobile docs
+
+# Keeps what GitHub shows of OksaSDR in step with the app: every push to a
+# mobile/** or android/** branch (and every pull request into one) runs
+# mobile/tools/docs-check.py over the pushed commits: TestFlight notes,
+# roadmap, manual and screenshots must follow app and UI changes, and every
+# link, image and anchor in the docs must resolve. A red mark here means a
+# doc is stale; the log says which and how to fix it. Builds nothing, so it
+# never starts a TestFlight or Android build.
+on:
+  push:
+    branches: ['mobile/**', 'android/**']
+  pull_request:
+    branches: ['mobile/**', 'android/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the docs
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE:-}" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            python3 mobile/tools/docs-check.py --base "$BASE" --head "$GITHUB_SHA" | tee docs-check.log
+          else
+            python3 mobile/tools/docs-check.py --base "$(git merge-base origin/main HEAD 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1)" \
+              --head "$GITHUB_SHA" | tee docs-check.log
+          fi
+      - name: Summary
+        if: always()
+        run: |
+          { echo '```'; cat docs-check.log 2>/dev/null || echo "docs-check did not run"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

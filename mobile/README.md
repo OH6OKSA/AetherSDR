@@ -45,6 +45,29 @@ works with `QT_QPA_PLATFORM=offscreen`.
 iPhone portrait and landscape), plus the LSB passband from the demo radio.
 Run it with every user-interface change and commit the images with it.
 
+## Keeping GitHub up to date
+
+What GitHub shows (README, manual, tester guide, roadmap, TestFlight notes,
+Android releases) is checked and partly published automatically:
+
+- `mobile/tools/update-docs.sh RADIO_IP` refreshes the README and manual
+  screenshots against the radio (receive only), then runs the check below.
+- `mobile/tools/docs-check.py` checks the unpushed commits: an app change
+  needs new `mobile/TESTFLIGHT_WHATS_NEW.txt` and a `mobile/ROADMAP.md`
+  update; a UI change (`mobile/qml`) needs `docs/mobile/MANUAL.md` and new
+  screenshots. The notes must fit 4000 characters in English; every link,
+  image and anchor in the docs must resolve; no old repository names,
+  phone numbers or serial numbers. A rule that does not apply is waived
+  with a commit trailer that says why, e.g. `Manual: unchanged (internal
+  fix)` (also `Screenshots:`, `Roadmap:`, `Notes:`).
+- The pre-push hook runs the check for mobile/** and android/** branches.
+  Turn it on once per clone: `git config core.hooksPath mobile/tools/githooks`.
+- `.github/workflows/mobile-docs.yml` runs the same check on GitHub for
+  every push; a red mark there names the stale doc.
+- Android releases: when `mobile/android/release.env` names a tag that is not
+  on GitHub yet, the Android build of `mobile/oksasdr` publishes the
+  release-signed APK as that prerelease with `mobile/android/RELEASE_NOTES.md`.
+
 ## iOS
 
 `.github/workflows/mobile-ios.yml` builds the engine and the app for iOS arm64

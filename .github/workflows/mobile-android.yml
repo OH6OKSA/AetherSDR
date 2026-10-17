@@ -2,7 +2,10 @@ name: Mobile Android
 
 # Builds the OksaSDR Android APK (arm64) from the same code as the iOS app
 # and uploads it as a run artifact. Runs on mobile/** and android/** branches
-# when something that goes into the app changes, and on demand.
+# when something that goes into the app changes, and on demand. On
+# mobile/oksasdr, a release-signed APK whose mobile/android/release.env names
+# a tag not yet on GitHub is published as that prerelease (see the release
+# job).
 on:
   workflow_dispatch:
   push:
@@ -46,6 +49,8 @@ jobs:
   android-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    outputs:
+      signed: ${{ env.HAS_SIGNING }}
     env:
       # Release signing switches on once these repository secrets exist:
       # ANDROID_KEYSTORE_B64 (base64 of the .jks), ANDROID_KEYSTORE_PASSWORD,
@@ -187,3 +192,48 @@ jobs:
             configure.log
             build.log
           retention-days: 7
+
+  # GitHub Release for testers, from mobile/android/release.env (TAG, TITLE)
+  # and mobile/android/RELEASE_NOTES.md: published once per tag, only from
+  # mobile/oksasdr and only with the release key (a throwaway-signed APK
+  # could not update an installed one).
+  release:
+    needs: android-apk
+    if: github.ref == 'refs/heads/mobile/oksasdr' && needs.android-apk.outputs.signed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release wanted?
+        id: want
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          f=mobile/android/release.env
+          if [ ! -f "$f" ]; then echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # shellcheck disable=SC1090
+          . "$f"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already published; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          { echo "publish=true"; echo "tag=$TAG"; echo "title=$TITLE"; echo "asset=$ASSET"; } >> "$GITHUB_OUTPUT"
+      - name: Download APK
+        if: steps.want.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: OksaSDR-android-${{ github.run_number }}
+      - name: Publish prerelease
+        if: steps.want.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mv OksaSDR-android-${{ github.run_number }}.apk "${{ steps.want.outputs.asset }}"
+          gh release create "${{ steps.want.outputs.tag }}" "${{ steps.want.outputs.asset }}" \
+            --prerelease --target "$GITHUB_SHA" --title "${{ steps.want.outputs.title }}" \
+            --notes-file mobile/android/RELEASE_NOTES.md
+          echo "Published ${{ steps.want.outputs.tag }} with ${{ steps.want.outputs.asset }}." >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Before mobile/** and android/** branches go to GitHub: the docs must keep up
+# with the app (mobile/tools/docs-check.py). Installed with
+#   git config core.hooksPath mobile/tools/githooks
+# OKSA_DOCS_CHECK=skip git push ... bypasses it (say why in the commits).
+set -euo pipefail
+
+[ "${OKSA_DOCS_CHECK:-}" = "skip" ] && exit 0
+root="$(git rev-parse --show-toplevel)"
+zero="0000000000000000000000000000000000000000"
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/mobile/*|refs/heads/android/*) ;;
+        *) continue ;;
+    esac
+    [ "$local_sha" = "$zero" ] && continue   # deleting a branch
+    base="$remote_sha"
+    [ "$base" = "$zero" ] && base=""
+    echo "pre-push: $remote_ref"
+    python3 "$root/mobile/tools/docs-check.py" ${base:+--base "$base"} --head "$local_sha" || status=1
+done
+exit $status
