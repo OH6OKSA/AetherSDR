@@ -356,6 +356,9 @@ Page {
         height: page.portrait ? Math.min(page.height * 0.5, 560)
                               : page.height - page.pttHeight - 2 * Theme.spacing
                                 - Math.max(grid.SafeArea.margins.bottom, 12)
+        // From the window's edge: Qt otherwise keeps popups inside the safe
+        // area (above Android's navigation bar).
+        margins: 0
         dim: false
         dragMargin: 0
         onAboutToShow: {
@@ -373,7 +376,8 @@ Page {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.spacing
-            anchors.bottomMargin: Theme.spacing + controlsDrawer.SafeArea.margins.bottom
+            anchors.topMargin: Theme.spacing + controlsDrawer.SafeArea.margins.top
+            anchors.bottomMargin: Theme.spacing + Math.max(controlsDrawer.SafeArea.margins.bottom, 12)
             anchors.rightMargin: Theme.spacing + controlsDrawer.SafeArea.margins.right
             spacing: Theme.spacing
             ControlsPanel {

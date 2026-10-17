@@ -299,7 +299,11 @@ Page {
         objectName: "controlsDrawer"
         edge: page.landscape ? Qt.RightEdge : Qt.BottomEdge
         width: page.landscape ? Math.min(page.width * 0.5, 460) : page.width
-        height: page.landscape ? page.height : Math.min(page.height * 0.55, 520)
+        height: page.landscape ? (parent ? parent.height : page.height) : Math.min(page.height * 0.55, 520)
+        // To the window's edges: Qt otherwise keeps popups inside the safe
+        // area (above Android's navigation bar) and the drawer stopped short
+        // of the page's bottom row. The content below keeps the insets.
+        margins: 0
         dim: false
         dragMargin: 0
         // A drawer opening while PTT is held would hide the button.
@@ -318,7 +322,10 @@ Page {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.spacing
-            anchors.bottomMargin: Theme.spacing + (page.landscape ? 0 : controlsDrawer.SafeArea.margins.bottom)
+            // The same bottom inset as the page's own bottom row, so the
+            // drawer's PTT lands where the page's was.
+            anchors.topMargin: Theme.spacing + (page.landscape ? controlsDrawer.SafeArea.margins.top : 0)
+            anchors.bottomMargin: Theme.spacing / 2 + Math.max(controlsDrawer.SafeArea.margins.bottom, 8)
             anchors.rightMargin: Theme.spacing + (page.landscape ? controlsDrawer.SafeArea.margins.right : 0)
             spacing: Theme.spacing
             ControlsPanel {
