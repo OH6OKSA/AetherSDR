@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AetherMobile
 
 // Transmit settings shared by the tablet side panel and the controls drawer:
-// tune carrier, MOX, ATU, speech processor, VOX, DEXP, AM carrier, monitor,
+// tune carrier, ATU, speech processor, VOX, DEXP, AM carrier, monitor,
 // power and microphone.
 ColumnLayout {
     id: tx
@@ -28,21 +28,6 @@ ColumnLayout {
                 opacity: tuneButton.enabled ? 1.0 : 0.5
             }
             onClicked: Engine.toggleTune()
-        }
-        // MOX: transmit latched until tapped again (the desktop's MOX).
-        AppButton {
-            id: moxButton
-            readonly property bool on: Engine.transmitting && !Engine.tuning
-            text: on ? qsTr("MOX ●") : qsTr("MOX")
-            enabled: Engine.transmitAvailable || on
-            Layout.fillWidth: true
-            background: Rectangle {
-                implicitHeight: Theme.touchTarget
-                radius: Theme.radius
-                color: moxButton.on ? Theme.transmit : moxButton.down ? "#bdbdbd" : "#e0e0e0"
-                opacity: moxButton.enabled ? 1.0 : 0.5
-            }
-            onClicked: Engine.toggleMox()
         }
         AppButton {
             text: Engine.atuTuned ? qsTr("ATU ✓") : qsTr("ATU")
@@ -205,7 +190,7 @@ ColumnLayout {
 
     // ---- Microphone ----
     Label {
-        text: qsTr("Radio mic level  %1").arg(Engine.radioMicLevel)
+        text: qsTr("Mic level  %1").arg(Engine.radioMicLevel)
         color: Theme.textDim
         font.pixelSize: 15
     }
@@ -216,20 +201,6 @@ ColumnLayout {
         stepSize: 1
         value: Engine.radioMicLevel
         onMoved: Engine.radioMicLevel = Math.round(value)
-    }
-    Label {
-        text: qsTr("Device mic gain  %1").arg(Engine.micGain)
-        color: Theme.textDim
-        font.pixelSize: 15
-    }
-    Slider {
-        Layout.fillWidth: true
-        from: 0
-        to: 100
-        stepSize: 1
-        value: Engine.micGain
-        enabled: Engine.transmitAvailable
-        onMoved: Engine.micGain = Math.round(value)
     }
     AppButton {
         Layout.fillWidth: true

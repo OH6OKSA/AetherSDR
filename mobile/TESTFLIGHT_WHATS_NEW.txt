@@ -10,6 +10,8 @@ GETTING STARTED
 
 NEW IN THIS BUILD
 - The Manual button opens the manual at its new address.
+- Simpler TX tab: MOX removed (hold PTT to transmit), one Mic level (the radio's). This device's microphone trim moved to Setup → Phone/CW.
+- The callsign is set in Setup → Radio; the CW tab shows it.
 
 RECENT
 - New name: OksaSDR. Your settings and voice macros carry over.
