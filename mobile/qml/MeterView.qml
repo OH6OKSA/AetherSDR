@@ -41,13 +41,13 @@ Item {
                      text: "SWR " + (Engine.swrValid ? Engine.swr.toFixed(1) : "–"), red: 2.5 }
         case "ALC":
             return { v: Engine.alcDbfs, min: -20, max: 0, live: tx && Engine.alcAvailable,
-                     text: "ALC " + Engine.alcDbfs.toFixed(0) + " dB", red: -3 }
+                     text: "ALC " + meter.dbText(Engine.alcDbfs, -20), red: -3 }
         case "Mic":
             return { v: Engine.micLevelDbfs, min: -40, max: 0, live: true,
-                     text: "Mic " + Engine.micLevelDbfs.toFixed(0) + " dB", red: -3 }
+                     text: "Mic " + meter.dbText(Engine.micLevelDbfs, -40), red: -3 }
         case "Comp":
             return { v: Engine.compressionDb, min: 0, max: 25, live: tx && Engine.procEnabled,
-                     text: "Comp −" + Engine.compressionDb.toFixed(0) + " dB", red: 1e9 }
+                     text: Math.round(Engine.compressionDb) > 0 ? "Comp −" + Engine.compressionDb.toFixed(0) + " dB" : "Comp 0 dB", red: 1e9 }
         case "PA temp":
             return { v: Engine.paTempC, min: 0, max: 120, live: Engine.hasPaTemp,
                      text: "PA " + Engine.paTempC.toFixed(0) + " °C", red: 70 }
@@ -58,11 +58,25 @@ Item {
         return { v: 0, min: 0, max: 1, live: false, text: kind, red: 1e9 }
     }
 
+    // A dB reading below the scale reads "< min" rather than a raw floor
+    // value such as -150 dB (no signal at all, e.g. ALC during TUNE).
+    function dbText(v, min) {
+        return v < min ? "< " + min + " dB" : v.toFixed(0) + " dB"
+    }
+
     // Peak hold (the desktop meters' peak): the highest reading stays 1.5 s,
-    // then falls back toward the current one.
+    // then falls back toward the current one. It starts over whenever the
+    // meter shows another quantity (receive/transmit switch, a new choice) or
+    // stops reading, so one scale's peak never lands on another's.
     property real peak: reading.min
     property double peakHoldUntil: 0
     readonly property real currentValue: reading.live ? reading.v : reading.min
+    readonly property string scaleKey: reading.min + "/" + reading.max + "/" + reading.live
+    function resetPeak() {
+        peak = currentValue
+        peakHoldUntil = 0
+    }
+    onScaleKeyChanged: resetPeak()
     onCurrentValueChanged: {
         if (currentValue >= peak) {
             peak = currentValue

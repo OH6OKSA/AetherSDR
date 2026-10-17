@@ -16,6 +16,9 @@
 #include <QQuickItem>
 #include <QTimer>
 
+#include <algorithm>
+#include <cmath>
+
 int main(int argc, char* argv[])
 {
     AetherSDR::QtAudioBackendGuard::applyAtStartup();
@@ -71,6 +74,10 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: record 3 s into this empty voice keyer slot, listen to it, then clear it "
                        "(no transmission)."), QStringLiteral("slot"));
     parser.addOption(dvkTestOption);
+    const QCommandLineOption tuneTestOption(QStringLiteral("tune-test"),
+        QStringLiteral("Development: key TUNE (the radio's tune power) 10 s after start for <ms>, then unkey. "
+                       "Transmits: only with the operator's consent."), QStringLiteral("ms"));
+    parser.addOption(tuneTestOption);
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
@@ -80,6 +87,9 @@ int main(int argc, char* argv[])
     const QCommandLineOption metersOption(QStringLiteral("meters"),
         QStringLiteral("Receive meter choices <left>,<right>, e.g. S,Volts (remembered)."), QStringLiteral("kinds"));
     parser.addOption(metersOption);
+    const QCommandLineOption txMetersOption(QStringLiteral("tx-meters"),
+        QStringLiteral("Transmit meter choices <left>,<right>, e.g. SWR,Power (remembered)."), QStringLiteral("kinds"));
+    parser.addOption(txMetersOption);
     const QCommandLineOption devLinkOption(QStringLiteral("devlink"),
         QStringLiteral("Developer link to <host>, or off (remembered)."), QStringLiteral("host"));
     parser.addOption(devLinkOption);
@@ -175,6 +185,13 @@ int main(int argc, char* argv[])
             engine.setMeterRight(kinds.at(1));
         }
     }
+    if (parser.isSet(txMetersOption)) {
+        const QStringList kinds = parser.value(txMetersOption).split(QLatin1Char(','));
+        if (kinds.size() == 2) {
+            engine.setMeter(QStringLiteral("left"), true, kinds.at(0));
+            engine.setMeter(QStringLiteral("right"), true, kinds.at(1));
+        }
+    }
     if (parser.isSet(analogMetersOption)) {
         engine.setAnalogMeters(parser.value(analogMetersOption) == QLatin1String("on"));
     }
@@ -210,6 +227,36 @@ int main(int argc, char* argv[])
             });
             QTimer::singleShot(11000, &engine, [&engine, slot] {
                 qInfo() << "dvk-record-test: slot after clear" << engine.dvkSlots().at(slot - 1);
+            });
+        });
+    }
+    if (parser.isSet(tuneTestOption)) {
+        const int ms = std::clamp(parser.value(tuneTestOption).toInt(), 500, 5000);
+        // A clear frequency first (never the 14.100 beacon), and only when
+        // this app's own slice is the one that transmits.
+        QTimer::singleShot(8000, &app, [&engine] { engine.setFrequencyMhz(14.250); });
+        QTimer::singleShot(10000, &app, [&engine, ms] {
+            bool ownTx = false;
+            for (const QVariant& v : engine.slices()) {
+                const QVariantMap m = v.toMap();
+                if (m.value(QStringLiteral("id")).toInt() == engine.activeSliceId()) {
+                    ownTx = m.value(QStringLiteral("tx")).toBool();
+                }
+            }
+            if (!ownTx || std::abs(engine.frequencyMhz() - 14.250) > 0.0005) {
+                qWarning() << "tune-test: not keying (own slice transmits:" << ownTx
+                           << "frequency:" << engine.frequencyMhz() << ")";
+                return;
+            }
+            if (!engine.tuning()) {
+                qInfo() << "tune-test: TUNE on for" << ms << "ms";
+                engine.toggleTune();
+            }
+            QTimer::singleShot(ms, &engine, [&engine] {
+                if (engine.tuning()) {
+                    engine.toggleTune();
+                }
+                qInfo() << "tune-test: TUNE off";
             });
         });
     }
