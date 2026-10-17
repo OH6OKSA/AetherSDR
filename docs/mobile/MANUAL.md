@@ -440,6 +440,10 @@ OksaSDR for Android is in beta. It is the same app as on the iPhone and
 iPad, built from the same code; this section covers what is particular to
 Android.
 
+| Android phone, inner screen | Controls open |
+|---|---|
+| ![OksaSDR on Android](android-foldable.jpg) | ![Controls drawer on Android](android-foldable-controls.jpg) |
+
 **Installing.** Download the newest APK from
 [Releases](https://github.com/OH6OKSA/OksaSDR/releases) on the phone, open
 it, and allow installing from your browser or file manager when Android

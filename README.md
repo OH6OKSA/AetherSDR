@@ -177,6 +177,13 @@ radio interface, with no computer running alongside.
   <img src="docs/mobile/passband-lsb.jpg" width="38%" alt="LSB filter passband: fill over the spectrum, edge lines through the waterfall"/>
 </p>
 
+<p align="center">
+  <img src="docs/mobile/android-foldable.jpg" width="48%" alt="OksaSDR on Android: a OnePlus Open's inner screen, 3D spectrum and waterfall"/>
+  &nbsp;
+  <img src="docs/mobile/android-foldable-controls.jpg" width="48%" alt="OksaSDR on Android with the controls drawer open on the TX tab"/>
+</p>
+<p align="center"><sub>Android beta on a OnePlus Open (inner screen), taken from the device over the developer link.</sub></p>
+
 <sub>Screenshots are rendered by
 [`mobile/tools/update-screenshots.sh`](mobile/tools/update-screenshots.sh) and
 refreshed with every user-interface change.</sub>
