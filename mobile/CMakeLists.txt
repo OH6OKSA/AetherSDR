@@ -37,6 +37,8 @@ qt_add_executable(aether-mobile
 if(IOS)
     target_sources(aether-mobile PRIVATE ios/ScreenAwake.mm ios/SecureStore.mm ios/AudioSession.mm ios/ShareText.mm)
     target_link_libraries(aether-mobile PRIVATE "-framework Security" "-framework AVFAudio")
+elseif(ANDROID)
+    target_sources(aether-mobile PRIVATE android/ScreenAwake.cpp src/SecureStore.cpp src/AudioSession.cpp src/ShareText.cpp)
 else()
     target_sources(aether-mobile PRIVATE src/ScreenAwake.cpp src/SecureStore.cpp src/AudioSession.cpp src/ShareText.cpp)
 endif()
@@ -133,6 +135,17 @@ if(ANDROID)
         QT_ANDROID_VERSION_CODE "${AETHER_MOBILE_BUILD_NUMBER}"
         QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
     )
+    # Qt loads OpenSSL at run time for TLS (SmartLink, FlexRadio release
+    # checks); Android has none, so the APK carries it. Point this at a
+    # checkout of https://github.com/KDAB/android_openssl (Qt's prebuilt libs).
+    set(AETHER_ANDROID_OPENSSL_DIR "" CACHE PATH "KDAB android_openssl checkout (OpenSSL 3 for the APK)")
+    if(AETHER_ANDROID_OPENSSL_DIR)
+        set(_ssl "${AETHER_ANDROID_OPENSSL_DIR}/ssl_3/${CMAKE_ANDROID_ARCH_ABI}")
+        set_property(TARGET aether-mobile APPEND PROPERTY QT_ANDROID_EXTRA_LIBS
+            "${_ssl}/libcrypto_3.so" "${_ssl}/libssl_3.so")
+    else()
+        message(WARNING "AETHER_ANDROID_OPENSSL_DIR not set: the APK has no OpenSSL, so SmartLink cannot sign in")
+    endif()
 endif()
 
 if(IOS)

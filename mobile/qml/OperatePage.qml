@@ -329,8 +329,11 @@ Page {
 
         // PTT along the bottom: under the display (the pinned panel keeps
         // the side's full height), the full width otherwise.
+        // In portrait the drawer covers this and carries a copy; hidden then
+        // so no second PTT peeks out under the drawer.
         PttButton {
             id: ptt
+            visible: !(controlsDrawer.visible && page.portrait)
             Layout.row: page.twoColumns ? 1 : (Engine.controlsVisible ? 2 : 1)
             Layout.column: 0
             Layout.fillWidth: true

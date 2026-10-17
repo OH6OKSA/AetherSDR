@@ -8,6 +8,10 @@
 #include "models/Nr2SettingsModel.h"
 
 #include <QCommandLineParser>
+#include <QDir>
+#include <QFont>
+#include <QFontDatabase>
+#include <QFontMetrics>
 #include <QGuiApplication>
 #include <QSysInfo>
 #include <QQmlApplicationEngine>
@@ -19,12 +23,48 @@
 #include <algorithm>
 #include <cmath>
 
+#ifdef Q_OS_ANDROID
+// Qt falls back from Roboto only to a few Android fonts, so symbols the UI
+// uses (☰ ⋯ ▾ ⌫ ● ✓) drew as boxes. The system's Noto symbol fonts carry
+// them: register those files as fallbacks for common-script text.
+static void addAndroidSymbolFallbacks()
+{
+    const QString symbols = QStringLiteral("\u2630\u22EF\u25BE\u232B\u25CF\u2713");
+    QStringList families;
+    const QDir dir(QStringLiteral("/system/fonts"));
+    for (const QString& file : dir.entryList({QStringLiteral("*Symbols*.ttf"), QStringLiteral("*Symbols*.otf")})) {
+        const int id = QFontDatabase::addApplicationFont(dir.filePath(file));
+        for (const QString& family : QFontDatabase::applicationFontFamilies(id)) {
+            if (!families.contains(family)) {
+                families << family;
+                QFontDatabase::addApplicationFallbackFontFamily(QChar::Script_Common, family);
+            }
+        }
+    }
+    QString missing;
+    for (const QChar c : symbols) {
+        bool found = false;
+        for (const QString& family : families) {
+            found = found || QFontMetrics(QFont(family)).inFont(c);
+        }
+        if (!found) {
+            missing += c;
+        }
+    }
+    qInfo().noquote() << "symbol fonts:" << families.join(QStringLiteral(", "))
+                      << "missing:" << (missing.isEmpty() ? QStringLiteral("none") : missing);
+}
+#endif
+
 int main(int argc, char* argv[])
 {
     AetherSDR::QtAudioBackendGuard::applyAtStartup();
 
     QGuiApplication app(argc, argv);
     AetherSDR::mobile::LogBuffer::install();
+#ifdef Q_OS_ANDROID
+    addAndroidSymbolFallbacks();
+#endif
     // Before any audio device opens: play-and-record session (iOS).
     AetherSDR::mobile::configureAudioSession();
     // Settings and config paths derive from these names; the mobile client

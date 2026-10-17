@@ -221,8 +221,11 @@ Page {
                     Layout.preferredHeight: Theme.touchTarget
                     onClicked: controlsDrawer.open()
                 }
+                // Hidden while the drawer is open: the drawer carries its own,
+                // and on some devices (Android insets) this one would peek out
+                // under it as a second PTT.
                 PttButton {
-                    visible: page.landscape
+                    visible: page.landscape && !controlsDrawer.visible
                     Layout.preferredWidth: Math.max(150, page.width * 0.2)
                     Layout.preferredHeight: Theme.touchTarget
                     fontPx: 22
@@ -265,6 +268,7 @@ Page {
                 }
                 PttButton {
                     id: ptt
+                    visible: !controlsDrawer.visible
                     Layout.fillWidth: true
                     Layout.preferredHeight: page.pttHeight
                     fontPx: 26
