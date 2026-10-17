@@ -155,7 +155,7 @@ Page {
             ToolButton {
                 // Pinned panel: hide it. Hidden: open it as a drawer over the
                 // waterfall.
-                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("☰ Controls")
+                text: Engine.controlsVisible ? qsTr("Hide controls") : qsTr("Controls")
                 focusPolicy: Qt.NoFocus
                 onClicked: {
                     if (Engine.controlsVisible) {

@@ -56,6 +56,7 @@ qt_add_qml_module(aether-mobile
         qml/LogPage.qml
         qml/PanadapterView.qml
         qml/AppButton.qml
+        qml/MenuIcon.qml
         qml/ControlsPanel.qml
         qml/MeterView.qml
         qml/AnalogGauge.qml
