@@ -58,6 +58,14 @@
             <meta-data
                 android:name="android.app.arguments"
                 android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+
+            <!-- Keep Qt's event loop running when another app is in front:
+                 without it Qt suspends the app on pause, sockets go unserved
+                 and the radio drops the connection (RadioService keeps the
+                 process alive; this keeps it working). -->
+            <meta-data
+                android:name="android.app.background_running"
+                android:value="true" />
         </activity>
 
         <service
