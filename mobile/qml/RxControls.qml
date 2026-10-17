@@ -3,8 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import AetherMobile
 
-// Receive extras of the active slice: RIT, XIT and squelch (antennas, AGC,
-// AGC-T and RF gain are on the info panel). Shared by the tablet side panel
+// Receive extras of the active slice: RIT, XIT, squelch and the notch
+// filters (antennas, AGC, AGC-T and RF gain are on the info panel). Shared by the tablet side panel
 // and the drawer.
 ColumnLayout {
     id: rx
@@ -94,6 +94,37 @@ ColumnLayout {
             value: Engine.squelchLevel
             enabled: Engine.squelchOn
             onMoved: Engine.squelchLevel = Math.round(value)
+        }
+    }
+
+    // Tracking notch filters: the global switch and +TNF (at the passband's
+    // centre, as the desktop); holding a finger on the display adds one
+    // there, a tap on a notch opens its settings.
+    RowLayout {
+        Layout.fillWidth: true
+        visible: Engine.tnfAvailable
+        AppButton {
+            text: qsTr("TNF")
+            checked: Engine.tnfEnabled
+            Layout.preferredWidth: 60
+            leftPadding: 2
+            rightPadding: 2
+            onClicked: Engine.tnfEnabled = !Engine.tnfEnabled
+        }
+        AppButton {
+            text: qsTr("+ TNF")
+            enabled: Engine.canAddTnf
+            Layout.preferredWidth: 72
+            onClicked: Engine.addTnf(0)
+        }
+        Label {
+            Layout.fillWidth: true
+            text: Engine.tnfs.length === 0 ? qsTr("Hold the display to add a notch.")
+                : Engine.tnfs.length === 1 ? qsTr("1 notch; tap it on the display to adjust.")
+                : qsTr("%1 notches; tap one on the display to adjust.").arg(Engine.tnfs.length)
+            color: Theme.textDim
+            font.pixelSize: Theme.smallFont
+            wrapMode: Text.WordWrap
         }
     }
 }

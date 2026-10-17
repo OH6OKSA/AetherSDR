@@ -134,6 +134,70 @@ Rectangle {
         }
     }
 
+    // Tracking notch filters (TNF), as the desktop draws them: a band of the
+    // notch's width through spectrum and waterfall (temporary yellow,
+    // permanent green, dimmer while TNF is off) with a handle on top, deeper
+    // notches a bigger one. A tap opens its settings; holding a finger on
+    // the display adds one there.
+    Repeater {
+        model: Engine.panBandwidthMhz > 0 ? Engine.tnfs : []
+        delegate: Item {
+            id: notch
+            required property var modelData
+            readonly property real pxPerMhz: panArea.width / Engine.panBandwidthMhz
+            readonly property real cx: (modelData.freq - Engine.panCenterMhz) * pxPerMhz + panArea.width / 2
+            readonly property real bandWidth: Math.max(3, modelData.width / 1e6 * pxPerMhz)
+            readonly property color tint: modelData.permanent ? "#3fb950" : Theme.warning
+            readonly property real bandTop: Engine.spectrum3D ? panArea.height * spectrum.spectrumFraction : 0
+            visible: cx + bandWidth / 2 >= 0 && cx - bandWidth / 2 <= panArea.width
+            // A finger's width to tap, however narrow the notch.
+            width: Math.max(bandWidth, 32)
+            height: panArea.height
+            x: cx - width / 2
+            z: 2
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: notch.bandTop
+                width: notch.bandWidth
+                height: parent.height - y
+                color: notch.tint
+                opacity: Engine.tnfEnabled ? 0.22 : 0.08
+                border.color: notch.tint
+                border.width: 1
+            }
+            Canvas {
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: notch.bandTop
+                width: 14
+                height: 10 + notch.modelData.depth * 3
+                opacity: Engine.tnfEnabled ? 0.9 : 0.4
+                onPaint: {
+                    const ctx = getContext("2d")
+                    ctx.reset()
+                    ctx.fillStyle = notch.tint
+                    ctx.beginPath()
+                    ctx.moveTo(0, 0)
+                    ctx.lineTo(width, 0)
+                    ctx.lineTo(width / 2, height)
+                    ctx.closePath()
+                    ctx.fill()
+                }
+                onHeightChanged: requestPaint()
+                Connections {
+                    target: notch
+                    function onTintChanged() { parent.requestPaint() }
+                }
+            }
+            TapHandler {
+                onTapped: {
+                    tnfPopup.tnfId = notch.modelData.id
+                    tnfPopup.anchorX = notch.cx
+                    tnfPopup.open()
+                }
+            }
+        }
+    }
+
     // Latest decoded CW along the top of the waterfall (just under the
     // trace), where no layout's bottom bar can cover it.
     Rectangle {
@@ -492,6 +556,168 @@ Rectangle {
             }
         }
     }
+    // A notch's settings: width, depth, permanent, a fine move, remove.
+    // Over the whole window (a short landscape pan could not hold it), near
+    // the notch; four rows of buttons, the row labels only where there is
+    // height for them.
+    Popup {
+        id: tnfPopup
+        objectName: "tnfPopup"
+        property int tnfId: -1
+        property real anchorX: panArea.width / 2
+        readonly property var tnf: {
+            const list = Engine.tnfs
+            for (let i = 0; i < list.length; ++i) {
+                if (list[i].id === tnfId) return list[i]
+            }
+            return null
+        }
+        // Held -/+: 10 Hz a step, counted from the press (not the echo).
+        property real nudgeMhz: 0
+        function nudge(n, dir) {
+            if (!tnf) return
+            if (n === 0) nudgeMhz = tnf.freq
+            nudgeMhz += dir * 10e-6
+            Engine.setTnf(tnfId, "freq", nudgeMhz)
+        }
+        // Gone (removed here or by another client): close.
+        onTnfChanged: if (opened && !tnf) close()
+        // Screenshots (--popup tnfPopup): the first notch.
+        function preview() {
+            if (Engine.tnfs.length > 0) {
+                tnfId = Engine.tnfs[0].id
+                open()
+            }
+        }
+        readonly property bool roomy: !Theme.compactHeight
+        parent: Overlay.overlay
+        width: Math.min(parent.width - 16, 420)
+        // Placed when it opens (mapToItem is not a live binding).
+        onAboutToShow: {
+            const p = panArea.mapToItem(Overlay.overlay, anchorX, panArea.height * 0.12)
+            x = Math.max(8, Math.min(parent.width - width - 8, p.x - width / 2))
+            y = Math.max(8, Math.min(parent.height - implicitHeight - 8, p.y))
+        }
+        padding: Theme.spacing
+        modal: false
+        background: Rectangle {
+            color: Theme.surface
+            border.color: Theme.surfaceRaised
+            radius: Theme.radius
+            opacity: 0.97
+        }
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing / 2
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    text: tnfPopup.tnf ? qsTr("Notch %1 MHz").arg(tnfPopup.tnf.freq.toFixed(4)) : ""
+                    color: Theme.text
+                    font.pixelSize: Theme.labelFont
+                    font.bold: true
+                    Layout.fillWidth: true
+                }
+                // The radio's global switch: notches only work while it is on.
+                AppButton {
+                    text: Engine.tnfEnabled ? qsTr("TNF on") : qsTr("TNF off")
+                    checked: Engine.tnfEnabled
+                    Layout.preferredHeight: Math.round(Theme.touchTarget * 0.8)
+                    leftPadding: 10
+                    rightPadding: 10
+                    onClicked: Engine.tnfEnabled = !Engine.tnfEnabled
+                }
+            }
+            Label {
+                visible: tnfPopup.roomy
+                text: qsTr("Width")
+                color: Theme.textDim
+                font.pixelSize: Theme.smallFont
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: [50, 100, 200, 500]
+                    delegate: AppButton {
+                        required property int modelData
+                        text: modelData + " Hz"
+                        checked: !!tnfPopup.tnf && tnfPopup.tnf.width === modelData
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.preferredHeight: Theme.touchTarget
+                        onClicked: Engine.setTnf(tnfPopup.tnfId, "width", modelData)
+                    }
+                }
+            }
+            Label {
+                visible: tnfPopup.roomy
+                text: Engine.tnfHasDepth ? qsTr("Depth") : ""
+                color: Theme.textDim
+                font.pixelSize: Theme.smallFont
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: Engine.tnfHasDepth
+                           ? [{ d: 1, label: qsTr("Normal") }, { d: 2, label: qsTr("Deep") }, { d: 3, label: qsTr("Very deep") }]
+                           : []
+                    delegate: AppButton {
+                        required property var modelData
+                        text: modelData.label
+                        checked: !!tnfPopup.tnf && tnfPopup.tnf.depth === modelData.d
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.preferredHeight: Theme.touchTarget
+                        onClicked: Engine.setTnf(tnfPopup.tnfId, "depth", modelData.d)
+                    }
+                }
+                AppButton {
+                    text: qsTr("Permanent")
+                    checked: !!tnfPopup.tnf && tnfPopup.tnf.permanent
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: Engine.setTnf(tnfPopup.tnfId, "permanent", !checked)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                RepeatButton {
+                    text: "−10 Hz"
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: Theme.touchTarget
+                    onStepped: (n) => tnfPopup.nudge(n, -1)
+                }
+                RepeatButton {
+                    text: "+10 Hz"
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: Theme.touchTarget
+                    onStepped: (n) => tnfPopup.nudge(n, 1)
+                }
+                AppButton {
+                    text: qsTr("Remove")
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: {
+                        Engine.removeTnf(tnfPopup.tnfId)
+                        tnfPopup.close()
+                    }
+                }
+                AppButton {
+                    text: qsTr("Close")
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: Theme.touchTarget
+                    onClicked: tnfPopup.close()
+                }
+            }
+        }
+    }
     StationsDialog { id: stationsDialog }
     Connections {
         target: Engine
@@ -505,9 +731,16 @@ Rectangle {
     // Tap (finger, Pencil or pointer) tunes to the touched point on
     // the tuning-step grid.
     TapHandler {
+        id: panTap
         onTapped: (eventPoint) => {
             if (Engine.panBandwidthMhz > 0) {
                 Engine.tuneToSnapped(panArea.mhzAt(eventPoint.position.x))
+            }
+        }
+        // Press and hold: a notch (TNF) at that point.
+        onLongPressed: {
+            if (Engine.panBandwidthMhz > 0 && Engine.canAddTnf) {
+                Engine.addTnf(panArea.mhzAt(panTap.point.position.x))
             }
         }
     }

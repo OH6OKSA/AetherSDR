@@ -126,6 +126,13 @@ class MobileEngine : public QObject {
     // The radio's memory channels: {index, name, freq, mode, group}, by frequency.
     Q_PROPERTY(QVariantList memories READ memories NOTIFY memoriesChanged)
     Q_PROPERTY(bool memoriesWritable READ memoriesWritable NOTIFY memoriesChanged)
+    // The radio's tracking notch filters (Flex TNF): {id, freq (MHz),
+    // width (Hz), depth 1-3, permanent}; tnfEnabled is the global switch.
+    Q_PROPERTY(QVariantList tnfs READ tnfs NOTIFY tnfsChanged)
+    Q_PROPERTY(bool tnfEnabled READ tnfEnabled WRITE setTnfEnabled NOTIFY tnfsChanged)
+    Q_PROPERTY(bool tnfAvailable READ tnfAvailable NOTIFY tnfsChanged)
+    Q_PROPERTY(bool canAddTnf READ canAddTnf NOTIFY tnfsChanged)
+    Q_PROPERTY(bool tnfHasDepth READ tnfHasDepth NOTIFY tnfsChanged)
     Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
     Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
     // The slice's step list from the radio (Hz), for the step chooser.
@@ -435,6 +442,18 @@ public:
     // Changes a memory's name, frequency (MHz) and mode; other fields stay.
     Q_INVOKABLE void editMemory(int index, const QString& name, double freqMhz, const QString& mode);
     bool memoriesWritable() const;
+    QVariantList tnfs() const;
+    bool tnfEnabled() const;
+    void setTnfEnabled(bool on);
+    bool tnfAvailable() const;
+    bool canAddTnf() const;
+    bool tnfHasDepth() const;
+    // A notch at freqMhz, or at the passband's centre when 0 (as the
+    // desktop's +TNF).
+    Q_INVOKABLE void addTnf(double freqMhz = 0.0);
+    // key: freq (MHz), width (Hz), depth (1-3) or permanent (bool).
+    Q_INVOKABLE void setTnf(int id, const QString& key, const QVariant& value);
+    Q_INVOKABLE void removeTnf(int id);
     QStringList globalProfiles() const;
     QString activeGlobalProfile() const;
     QStringList txProfiles() const;
@@ -723,6 +742,7 @@ signals:
     void lockedChanged();
     void rfGainChanged();
     void memoriesChanged();
+    void tnfsChanged();
     void profilesChanged();
     void txFilterChanged();
     void eqChanged();
@@ -847,6 +867,14 @@ private:
     void onVoiceClipFinished();
     QString m_voiceState{QStringLiteral("idle")};
     int m_voiceActiveId{-1};
+    // Listening to one of the app's own clips on this device: the clip as
+    // 24 kHz stereo float, fed into the receive output in real time.
+    QTimer m_voicePreviewTimer;
+    QElapsedTimer m_voicePreviewClock;
+    QByteArray m_voicePreviewPcm;
+    qsizetype m_voicePreviewPos{0};
+    void feedVoicePreview();
+    void stopVoicePreview();
     bool m_cwKeyHeld{false};
     std::unique_ptr<CwRxModel> m_cwDecoder;
     std::unique_ptr<DecoderAudioModel> m_cwAudio;

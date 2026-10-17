@@ -165,6 +165,10 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: save a memory \"OksaSDR test\", edit its name, frequency and mode, "
                        "log what the radio holds, remove it, then quit (other memories untouched)."));
     parser.addOption(memoryEditTestOption);
+    const QCommandLineOption tnfTestOption(QStringLiteral("tnf-test"),
+        QStringLiteral("Development: add (a notch at the passband centre, 200 Hz, deep) or clear "
+                       "(remove every notch on the radio)."), QStringLiteral("action"));
+    parser.addOption(tnfTestOption);
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
@@ -395,6 +399,25 @@ int main(int argc, char* argv[])
                 qInfo() << "tune-test: TUNE off";
             });
         });
+    }
+    if (parser.value(tnfTestOption) == QLatin1String("add")) {
+        QTimer::singleShot(5000, &app, [&engine] { engine.addTnf(0.0); });
+        QTimer::singleShot(6000, &app, [&engine] {
+            const QVariantList list = engine.tnfs();
+            if (!list.isEmpty()) {
+                const int id = list.last().toMap().value(QStringLiteral("id")).toInt();
+                engine.setTnf(id, QStringLiteral("width"), 200);
+                engine.setTnf(id, QStringLiteral("depth"), 2);
+            }
+            qInfo() << "tnf-test: notches" << list;
+        });
+    } else if (parser.value(tnfTestOption) == QLatin1String("clear")) {
+        QTimer::singleShot(5000, &app, [&engine] {
+            for (const QVariant& v : engine.tnfs()) {
+                engine.removeTnf(v.toMap().value(QStringLiteral("id")).toInt());
+            }
+        });
+        QTimer::singleShot(7000, &app, [&engine] { qInfo() << "tnf-test: left" << engine.tnfs(); });
     }
     if (parser.isSet(pttTestOption)) {
         const int ms = std::clamp(parser.value(pttTestOption).toInt(), 500, 5000);

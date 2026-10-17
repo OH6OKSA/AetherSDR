@@ -315,7 +315,7 @@ ColumnLayout {
                       ? qsTr("Record speaks into this device's microphone; the radio keeps up to 10 s. "
                              + "Recording and listening do not transmit.")
                       : qsTr("Record speaks into this device's microphone; this device keeps up to 15 s "
-                             + "(the radio's own voice keyer needs SmartSDR+). Recording does not transmit.")
+                             + "(the radio's own voice keyer needs SmartSDR+). Recording and listening do not transmit.")
             }
             RowLayout {
                 AppButton {
@@ -324,7 +324,10 @@ ColumnLayout {
                     onClicked: Engine.dvkRecord(dvkMenu.slotId)
                 }
                 AppButton {
-                    visible: Engine.dvkOnRadio
+                    // The radio's slot, or the app's own clip once recorded.
+                    readonly property var slot: Engine.dvkSlots[dvkMenu.slotId - 1]
+                    visible: Engine.dvkOnRadio || (!!slot && slot.seconds > 0)
+                    enabled: Engine.dvkState === "idle" || Engine.dvkState === "preview"
                     text: Engine.dvkState === "preview" ? qsTr("Stop") : qsTr("Listen")
                     Layout.fillWidth: true
                     onClicked: Engine.dvkPreview(dvkMenu.slotId)

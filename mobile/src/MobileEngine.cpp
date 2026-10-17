@@ -32,6 +32,7 @@
 #include "models/MeterModel.h"
 #include "models/PanadapterModel.h"
 #include "models/SliceModel.h"
+#include "models/TnfModel.h"
 #include "models/TransmitModel.h"
 #include "models/XvtrPolicy.h"
 
@@ -749,6 +750,9 @@ void MobileEngine::wireTransmit()
     connect(&rm, &RadioModel::memoryChanged, this, &MobileEngine::memoriesChanged);
     connect(&rm, &RadioModel::memoryRemoved, this, &MobileEngine::memoriesChanged);
     connect(&rm, &RadioModel::memoriesCleared, this, &MobileEngine::memoriesChanged);
+    connect(&rm.tnfModel(), &TnfModel::tnfChanged, this, &MobileEngine::tnfsChanged);
+    connect(&rm.tnfModel(), &TnfModel::tnfRemoved, this, &MobileEngine::tnfsChanged);
+    connect(&rm.tnfModel(), &TnfModel::globalEnabledChanged, this, &MobileEngine::tnfsChanged);
     connect(&rm.transmitModel(), &TransmitModel::profileListChanged, this, &MobileEngine::profilesChanged);
     connect(&rm.transmitModel(), &TransmitModel::micProfileListChanged, this, &MobileEngine::profilesChanged);
     connect(&rm.transmitModel(), &TransmitModel::stateChanged, this, &MobileEngine::profilesChanged);
@@ -1380,7 +1384,52 @@ void MobileEngine::onVoiceClipFinished()
 void MobileEngine::dvkPreview(int id)
 {
     if (!dvkOnRadio()) {
-        return;  // the app's clips play only on the air
+        // The app's own clip, played on this device only (nothing is sent).
+        if (m_voiceState == QLatin1String("preview")) {
+            stopVoicePreview();
+            return;
+        }
+        if (m_voiceState != QLatin1String("idle")) {
+            return;
+        }
+        QFile file(voiceClipPath(id));
+        const int rate = AppSettings::instance().value(voiceRateKey(id), 0).toInt();
+        if (rate <= 0 || !file.open(QIODevice::ReadOnly)) {
+            return;
+        }
+        const QByteArray clip = file.readAll();
+        const auto* in = reinterpret_cast<const float*>(clip.constData());
+        const qsizetype inFrames = clip.size() / qsizetype(sizeof(float));
+        if (inFrames < 2) {
+            return;
+        }
+        // To the receive output's 24 kHz stereo (linear interpolation is
+        // plenty for a voice check).
+        constexpr int kOutRate = 24000;
+        const qsizetype outFrames = inFrames * kOutRate / rate;
+        m_voicePreviewPcm.resize(outFrames * 2 * qsizetype(sizeof(float)));
+        auto* out = reinterpret_cast<float*>(m_voicePreviewPcm.data());
+        for (qsizetype i = 0; i < outFrames; ++i) {
+            const double t = double(i) * rate / kOutRate;
+            const qsizetype k = std::min<qsizetype>(qsizetype(t), inFrames - 2);
+            const float v = in[k] + float(t - k) * (in[k + 1] - in[k]);
+            out[2 * i] = v;
+            out[2 * i + 1] = v;
+        }
+        m_voicePreviewPos = 0;
+        m_voiceState = QStringLiteral("preview");
+        m_voiceActiveId = id;
+        m_voicePreviewClock.start();
+        if (!m_voicePreviewTimer.isActive()) {
+            m_voicePreviewTimer.setInterval(20);
+            connect(&m_voicePreviewTimer, &QTimer::timeout, this, &MobileEngine::feedVoicePreview,
+                    Qt::UniqueConnection);
+            m_voicePreviewTimer.start();
+        }
+        feedVoicePreview();
+        qCInfo(lcMobile) << "voice macro listen F" << id << outFrames / double(kOutRate) << "s";
+        emit dvkChanged();
+        return;
     }
     DvkModel& dvk = m_session.radioModel().dvkModel();
     if (dvk.status() == DvkModel::Preview) {
@@ -1392,9 +1441,41 @@ void MobileEngine::dvkPreview(int id)
     }
 }
 
+void MobileEngine::feedVoicePreview()
+{
+    // Kept ~80 ms ahead of real time: the output trims anything much longer.
+    constexpr qsizetype kFrameBytes = 2 * qsizetype(sizeof(float));
+    const qsizetype due = (m_voicePreviewClock.elapsed() + 80) * 24 * kFrameBytes;
+    const qsizetype end = std::min(due, m_voicePreviewPcm.size());
+    if (end > m_voicePreviewPos) {
+        const QByteArray chunk = m_voicePreviewPcm.mid(m_voicePreviewPos, end - m_voicePreviewPos);
+        m_voicePreviewPos = end;
+        AudioEngine* audio = m_audio;
+        QMetaObject::invokeMethod(audio, [audio, chunk] { audio->feedDecodedSpeech(chunk); }, Qt::QueuedConnection);
+    }
+    if (m_voicePreviewPos >= m_voicePreviewPcm.size() && due >= m_voicePreviewPcm.size() + 100 * 24 * kFrameBytes) {
+        stopVoicePreview();
+    }
+}
+
+void MobileEngine::stopVoicePreview()
+{
+    m_voicePreviewTimer.stop();
+    m_voicePreviewPcm.clear();
+    m_voicePreviewPos = 0;
+    if (m_voiceState == QLatin1String("preview")) {
+        m_voiceState = QStringLiteral("idle");
+        emit dvkChanged();
+    }
+}
+
 void MobileEngine::dvkStop()
 {
     if (!dvkOnRadio()) {
+        if (m_voiceState == QLatin1String("preview")) {
+            stopVoicePreview();
+            return;
+        }
         if (m_voiceState == QLatin1String("recording")) {
             QMetaObject::invokeMethod(m_audio, &AudioEngine::stopTxClipRecording, Qt::QueuedConnection);
         } else if (m_voiceState == QLatin1String("playback")) {
@@ -2656,6 +2737,91 @@ bool MobileEngine::memoriesWritable() const
     return m_connected && m_session.radioModel().memoriesWritable();
 }
 
+QVariantList MobileEngine::tnfs() const
+{
+    QVariantList out;
+    if (!m_connected) {
+        return out;
+    }
+    for (const TnfEntry& t : m_session.radioModel().tnfModel().tnfs()) {
+        out << QVariantMap{{QStringLiteral("id"), t.id}, {QStringLiteral("freq"), t.freqMhz},
+                           {QStringLiteral("width"), t.widthHz}, {QStringLiteral("depth"), t.depthDb},
+                           {QStringLiteral("permanent"), t.permanent}};
+    }
+    return out;
+}
+
+bool MobileEngine::tnfEnabled() const
+{
+    return m_session.radioModel().tnfModel().globalEnabled();
+}
+
+void MobileEngine::setTnfEnabled(bool on)
+{
+    if (tnfAvailable() && on != tnfEnabled()) {
+        m_session.radioModel().tnfModel().requestGlobalTnfEnabled(on);
+    }
+}
+
+bool MobileEngine::tnfAvailable() const
+{
+    return m_connected && m_session.radioModel().backendCapabilities().maxNotchFilters > 0;
+}
+
+bool MobileEngine::canAddTnf() const
+{
+    return tnfAvailable()
+        && m_session.radioModel().tnfModel().tnfs().size() < m_session.radioModel().backendCapabilities().maxNotchFilters;
+}
+
+bool MobileEngine::tnfHasDepth() const
+{
+    return tnfAvailable() && m_session.radioModel().backendCapabilities().notchHasDepth;
+}
+
+void MobileEngine::addTnf(double freqMhz)
+{
+    if (!canAddTnf() || !m_slice) {
+        return;
+    }
+    if (freqMhz <= 0.0) {
+        freqMhz = m_slice->frequency() + (m_slice->filterLow() + m_slice->filterHigh()) / 2.0 / 1e6;
+    }
+    qCInfo(lcMobile) << "add TNF at" << freqMhz;
+    m_session.radioModel().tnfModel().createTnf(freqMhz);
+}
+
+void MobileEngine::setTnf(int id, const QString& key, const QVariant& value)
+{
+    if (!tnfAvailable()) {
+        return;
+    }
+    TnfModel& tm = m_session.radioModel().tnfModel();
+    if (!tm.tnf(id)) {
+        return;
+    }
+    const RadioCapabilities caps = m_session.radioModel().backendCapabilities();
+    if (key == QLatin1String("freq")) {
+        tm.setTnfFreq(id, value.toDouble());
+    } else if (key == QLatin1String("width")) {
+        const int lo = caps.notchMinWidthHz > 0 ? int(caps.notchMinWidthHz) : 10;
+        const int hi = caps.notchMaxWidthHz > 0 ? int(caps.notchMaxWidthHz) : 6000;
+        tm.setTnfWidth(id, std::clamp(value.toInt(), lo, hi));
+    } else if (key == QLatin1String("depth") && caps.notchHasDepth) {
+        tm.setTnfDepth(id, std::clamp(value.toInt(), 1, 3));
+    } else if (key == QLatin1String("permanent")) {
+        tm.setTnfPermanent(id, value.toBool());
+    }
+}
+
+void MobileEngine::removeTnf(int id)
+{
+    if (tnfAvailable() && m_session.radioModel().tnfModel().tnf(id)) {
+        qCInfo(lcMobile) << "remove TNF" << id;
+        m_session.radioModel().tnfModel().requestRemoveTnf(id);
+    }
+}
+
 bool MobileEngine::locked() const
 {
     return m_slice && m_slice->isLocked();
@@ -3171,6 +3337,10 @@ void MobileEngine::onConnectionStateChanged(bool connected)
     m_sentPanWidth = 0;
     emit networkChanged();
     emit memoriesChanged();
+    emit tnfsChanged();
+    if (!connected) {
+        stopVoicePreview();
+    }
     if (connected) {
         defaultMicToDevice();
         // Display diagnostics for the Log page (e.g. SmartLink without a
