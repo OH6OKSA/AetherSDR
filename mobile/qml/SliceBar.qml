@@ -23,7 +23,8 @@ RowLayout {
     readonly property real chipHeight: Theme.touchTarget
     // Meter dial height: two chip rows on a phone, more on a tablet; low
     // (iPhone landscape) keeps it small.
-    readonly property real dialHeight: Theme.compactHeight ? Theme.touchTarget * 1.3
+    readonly property real dialHeight: Theme.tightHeight ? 40
+                                     : Theme.compactHeight ? Theme.touchTarget * 1.3
                                      : Theme.phoneLayout ? 2 * chipHeight + 4 - 8
                                      : Theme.touchTarget * 2.3
     // The chips' column keeps room for two chips side by side.

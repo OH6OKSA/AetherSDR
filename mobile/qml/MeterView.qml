@@ -188,6 +188,14 @@ Item {
                     }
                 }
             }
+            Label {
+                visible: (meter.side === "left" ? Engine.analogLeft : Engine.analogRight) && !meter.analogAllowed
+                text: qsTr("Bars here: an analog face needs more room. It returns where there is space.")
+                color: Theme.textDim
+                font.pixelSize: Math.round(Theme.buttonFont * 0.8)
+                wrapMode: Text.Wrap
+                Layout.preferredWidth: chooser.cellWidth * 4 + 8
+            }
             Repeater {
                 model: [{ title: qsTr("Receive"), tx: false }, { title: qsTr("Transmit"), tx: true }]
                 delegate: ColumnLayout {
