@@ -52,11 +52,8 @@ Page {
                 color: Theme.textDim
                 font.pixelSize: 11
             }
-            ToolButton {
-                text: qsTr("Controls")
-                focusPolicy: Qt.NoFocus
-                onClicked: controlsDrawer.open()
-            }
+            // Controls open from the button beside PTT (thumb reach); the
+            // top row keeps only the rest.
             // The rest behind one button: a phone's top row has no room.
             ToolButton {
                 id: moreButton
@@ -263,10 +260,23 @@ Page {
                 Layout.fillWidth: true
                 spacing: Theme.spacing / 2
                 AppButton {
-                    text: qsTr("Controls")
+                    Accessible.name: qsTr("Controls")
                     Layout.preferredWidth: Math.max(110, page.width * 0.22)
                     Layout.preferredHeight: page.pttHeight
                     onClicked: controlsDrawer.open()
+                    contentItem: Item {
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 8
+                            MenuIcon { width: 18; height: 14; anchors.verticalCenter: parent.verticalCenter }
+                            Label {
+                                text: qsTr("Controls")
+                                color: "#202020"
+                                font.pixelSize: 15
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                    }
                 }
                 PttButton {
                     id: ptt
