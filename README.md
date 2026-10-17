@@ -114,7 +114,7 @@ radio interface, with no computer running alongside.
 **Transmit**
 - TX audio passband (low and high cut) and the radio's 8-band RX and TX
   equalizer, as in SmartSDR.
-- TUNE carrier with tune power, MOX, the radio's ATU (tune or bypass,
+- TUNE carrier with tune power, the radio's ATU (tune or bypass,
   memories) and the speech processor (PROC NOR/DX/DX+), VOX (level, delay)
   and DEXP when the radio's own microphone is in use, AM carrier, monitor
   and radio mic level.
@@ -122,15 +122,15 @@ radio interface, with no computer running alongside.
   radio's DVK; without it the app records and plays them itself, kept on
   the device.
 - Hold-to-talk PTT from the device's microphone (the radio's mic input is
-  set to `PC` when the app connects), with RF power, mic gain and mic level, plus forward power and SWR
+  set to `PC` when the app connects), with RF power and mic level, plus forward power and SWR
   while transmitting. The microphone is open only while PTT is held.
 - CW: in CW modes the PTT button is the straight key (radio-side keyer and
   sidetone); editable memories ({CALL} = your callsign) and CWX text
   sent by the radio at the set speed; speed, pitch and break-in, plus the CW decoder
   with the decoded text along the top of the waterfall (what you send shows
   there too). Twelve memories, also on F1–F12 from a keyboard (Esc stops),
-  and a Live mode that sends letters as you type; the callsign {CALL} sends
-  can be set in the app (written to the radio).
+  and a Live mode that sends letters as you type; {CALL} sends the
+  radio's callsign, set in Radio Setup.
 - Safety first. Keying goes through AetherSDR's `TxController`, and every TX
   audio packet passes the engine's `TxCoordinator` dispatch fence. The
   transmitter unkeys on release, on disconnect, when the app loses focus,

@@ -318,13 +318,13 @@ them back into the drawer.
   and once a minute a "performance" line (CPU, frames drawn). Below, the radio's
   8-band receive and transmit equalizer
   (volume is on the info panel's speaker).
-- **TX** — TUNE, **MOX** (transmit latched on until tapped again) and the
+- **TX** — TUNE and the
   ATU (tune, bypass, memories), tune power, RF power, speech processor (PROC
   NOR/DX/DX+), **VOX** (on/off, level and delay) and **DEXP** (the downward
   expander, on/off and level) in voice modes — shown only when the radio's
   own microphone input is selected, as they do nothing with this device's
   microphone — the AM **carrier** level in
-  AM/SAM/DSB, monitor (MON), radio mic level, device mic gain, microphone
+  AM/SAM/DSB, monitor (MON), **Mic level** (the radio's, as SmartSDR's MIC), microphone
   choice and the transmit filter (low and high cut).
   - **Voice keyer** (voice modes) — twelve voice macros F1–F12. Tap one to
     transmit it, tap again to stop; press and hold to record (from this
@@ -340,8 +340,8 @@ them back into the drawer.
 | ![CW](manual/tab-cw.jpg) | ![View](manual/tab-view.jpg) | ![Profiles](manual/tab-profiles.jpg) | ![Memory](manual/tab-memory.jpg) |
 
 - **CW**
-  - **Callsign** — the callsign `{CALL}` sends; *Set/Change* writes it to
-    the radio (the same setting as SmartSDR's Radio Setup).
+  - **Callsign** — the callsign `{CALL}` sends, the radio's own. Set or
+    change it in [Radio Setup](#9-radio-setup) → Radio.
   - **Memories M1–M12** — tap to send (through the radio's CWX keyer at the
     set speed), press and hold to edit, or F1–F12 on a keyboard. `{CALL}`
     becomes your callsign. They are the app's own; the radio's stored CWX
@@ -374,7 +374,10 @@ radio.
   frees its slices), and the model, serial, firmware, region and address.
 - **Transmit** — maximum power, TX delay, transmit timeout (0 = off) and the
   TUNE signal (single or two tone).
-- **Phone/CW** — microphone bias and boost; the CW keyer's break-in delay,
+- **Phone/CW** — microphone bias and boost; *This device's microphone
+  (trim)*, which lowers the device microphone before it reaches the radio
+  (100 % = as captured; adjust the TX tab's Mic level normally); the CW
+  keyer's break-in delay,
   iambic mode (off, A, B) and swapped paddles.
 - **Audio** — the radio's line out and headphone levels and muting.
 - **Network** — the network MTU: the largest packet the radio sends the app
@@ -400,7 +403,7 @@ Notices and refusals pop up in the middle of the display; tap one, or wait
 | *No slice transmits* | No slice has transmit | Press and hold a slice → **Make TX slice** |
 | *Interlock / did not accept the transmit request* | The radio refused to transmit; its reason is shown | Check TX antenna, band, other clients |
 | A band button opens another band | The radio's band stack (in its global profile) holds that frequency | Tune the band where you want it and save the profile |
-| *The radio has no callsign for {CALL}* | No callsign in the radio | Controls → CW → Callsign → *Set* |
+| *The radio has no callsign for {CALL}* | No callsign in the radio | Setup → Radio → Callsign |
 
 ## 11. Keyboard and Apple Pencil
 

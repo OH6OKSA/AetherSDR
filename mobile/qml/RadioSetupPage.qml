@@ -252,6 +252,16 @@ Popup {
                     Heading { text: qsTr("Microphone") }
                     OnOff { label: qsTr("Mic bias (electret microphones)"); on: !!setup.d.micBias; onToggled: (v) => setup.set("micBias", v) }
                     OnOff { label: qsTr("Mic boost (+20 dB)"); on: !!setup.d.micBoost; onToggled: (v) => setup.set("micBoost", v) }
+                    // App-side trim of this device's microphone before it reaches
+                    // the radio (100 = as captured); the TX tab's Mic level is the
+                    // radio's and is the one to adjust normally.
+                    Level {
+                        visible: Engine.canUseDeviceMicrophone
+                        label: qsTr("This device's microphone (trim)")
+                        unit: " %"
+                        current: Engine.micGain
+                        onCommitted: (v) => Engine.micGain = v
+                    }
                     Heading { text: qsTr("CW keyer") }
                     Level {
                         label: qsTr("Break-in delay")
