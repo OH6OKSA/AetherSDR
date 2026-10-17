@@ -406,11 +406,31 @@ Item {
                 color: Theme.textDim
                 font.pixelSize: Math.round(Theme.buttonFont * 0.9)
             }
+            // The rows follow the slice ids only: a status echo (each volume
+            // change sends one) must not rebuild the rows mid-drag, or the
+            // slider loses the finger and jumps to the echoed value.
+            QtObject {
+                id: sliceAudioIds
+                property var ids: []
+                function refresh() {
+                    const now = Engine.slices.map(s => s.id)
+                    if (JSON.stringify(now) !== JSON.stringify(ids)) {
+                        ids = now
+                    }
+                }
+                Component.onCompleted: refresh()
+            }
+            Connections {
+                target: Engine
+                function onSlicesChanged() { sliceAudioIds.refresh() }
+            }
             Repeater {
-                model: Engine.slices
+                model: sliceAudioIds.ids
                 delegate: ColumnLayout {
                     id: sliceAudio
                     required property var modelData
+                    readonly property int sliceId: modelData
+                    readonly property var info: Engine.slices.find(s => s.id === sliceAudio.sliceId) || ({})
                     Layout.fillWidth: true
                     spacing: 0
                     RowLayout {
@@ -419,11 +439,11 @@ Item {
                             implicitWidth: sliceLetter.implicitWidth + 10
                             implicitHeight: sliceLetter.implicitHeight + 4
                             radius: 4
-                            color: sliceAudio.modelData.active ? "#2f7fd6" : Theme.surfaceRaised
+                            color: sliceAudio.info.active ? "#2f7fd6" : Theme.surfaceRaised
                             Text {
                                 id: sliceLetter
                                 anchors.centerIn: parent
-                                text: sliceAudio.modelData.letter + (sliceAudio.modelData.tx ? " TX" : "")
+                                text: sliceAudio.info.letter + (sliceAudio.info.tx ? " TX" : "")
                                 font.pixelSize: Math.round(Theme.buttonFont * 0.85)
                                 font.bold: true
                                 color: "#ffffff"
@@ -434,10 +454,10 @@ Item {
                             Layout.fillWidth: true
                             from: 0; to: 100
                             focusPolicy: Qt.NoFocus
-                            onMoved: Engine.setSliceAudio(sliceAudio.modelData.id, "gain", value)
+                            onMoved: Engine.setSliceAudio(sliceAudio.sliceId, "gain", value)
                             Binding on value {
                                 when: !gainSlider.pressed
-                                value: sliceAudio.modelData.gain
+                                value: sliceAudio.info.gain
                             }
                         }
                         Label {
@@ -448,11 +468,11 @@ Item {
                             horizontalAlignment: Text.AlignRight
                         }
                         AppButton {
-                            text: sliceAudio.modelData.mute ? qsTr("Unmute") : qsTr("Mute")
-                            checked: sliceAudio.modelData.mute
+                            text: sliceAudio.info.mute ? qsTr("Unmute") : qsTr("Mute")
+                            checked: sliceAudio.info.mute
                             Layout.preferredHeight: Theme.touchTarget
-                            onClicked: Engine.setSliceAudio(sliceAudio.modelData.id, "mute",
-                                                            sliceAudio.modelData.mute ? 0 : 1)
+                            onClicked: Engine.setSliceAudio(sliceAudio.sliceId, "mute",
+                                                            sliceAudio.info.mute ? 0 : 1)
                         }
                     }
                     RowLayout {
@@ -463,14 +483,14 @@ Item {
                             Layout.fillWidth: true
                             from: 0; to: 100; stepSize: 1
                             focusPolicy: Qt.NoFocus
-                            onMoved: Engine.setSliceAudio(sliceAudio.modelData.id, "pan", value)
+                            onMoved: Engine.setSliceAudio(sliceAudio.sliceId, "pan", value)
                             // Double-tap centres.
                             TapHandler {
-                                onDoubleTapped: Engine.setSliceAudio(sliceAudio.modelData.id, "pan", 50)
+                                onDoubleTapped: Engine.setSliceAudio(sliceAudio.sliceId, "pan", 50)
                             }
                             Binding on value {
                                 when: !panSlider.pressed
-                                value: sliceAudio.modelData.pan
+                                value: sliceAudio.info.pan
                             }
                         }
                         Label { text: "R"; color: Theme.textDim; font.pixelSize: Math.round(Theme.buttonFont * 0.75) }

@@ -215,8 +215,10 @@ Page {
                 // the low screen keeps its height for the spectrum.
                 AppButton {
                     visible: page.landscape
-                    text: qsTr("☰")
-                    font.pixelSize: 20
+                    Accessible.name: qsTr("Controls")
+                    contentItem: Item {
+                        MenuIcon { anchors.centerIn: parent; width: 20; height: 16 }
+                    }
                     Layout.preferredWidth: Theme.touchTarget * 1.2
                     Layout.preferredHeight: Theme.touchTarget
                     onClicked: controlsDrawer.open()
@@ -261,7 +263,7 @@ Page {
                 Layout.fillWidth: true
                 spacing: Theme.spacing / 2
                 AppButton {
-                    text: qsTr("☰ Controls")
+                    text: qsTr("Controls")
                     Layout.preferredWidth: Math.max(110, page.width * 0.22)
                     Layout.preferredHeight: page.pttHeight
                     onClicked: controlsDrawer.open()
