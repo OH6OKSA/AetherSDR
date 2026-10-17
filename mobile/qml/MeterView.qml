@@ -43,7 +43,7 @@ Item {
             return { v: Engine.alcDbfs, min: -20, max: 0, live: tx && Engine.alcAvailable,
                      text: "ALC " + meter.dbText(Engine.alcDbfs, -20), red: -3 }
         case "Mic":
-            return { v: Engine.micLevelDbfs, min: -40, max: 0, live: true,
+            return { v: Engine.micLevelDbfs, min: -40, max: 0, live: Engine.micMeterLive,
                      text: "Mic " + meter.dbText(Engine.micLevelDbfs, -40), red: -3 }
         case "Comp":
             return { v: Engine.compressionDb, min: 0, max: 25, live: tx && Engine.procEnabled,
@@ -76,13 +76,16 @@ Item {
         peak = currentValue
         peakHoldUntil = 0
     }
-    onScaleKeyChanged: resetPeak()
-    onCurrentValueChanged: {
+    onScaleKeyChanged: Qt.callLater(resetPeak)
+    // Deferred: written while currentValue's binding evaluates (e.g. for
+    // the peak tick's visibility), peak would loop back into that binding.
+    function updatePeak() {
         if (currentValue >= peak) {
             peak = currentValue
             peakHoldUntil = Date.now() + 1500
         }
     }
+    onCurrentValueChanged: Qt.callLater(updatePeak)
     Timer {
         interval: 100
         repeat: true

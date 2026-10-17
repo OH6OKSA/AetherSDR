@@ -125,6 +125,7 @@ class MobileEngine : public QObject {
     Q_PROPERTY(int rfGainStep READ rfGainStep NOTIFY rfGainChanged)
     // The radio's memory channels: {index, name, freq, mode, group}, by frequency.
     Q_PROPERTY(QVariantList memories READ memories NOTIFY memoriesChanged)
+    Q_PROPERTY(bool memoriesWritable READ memoriesWritable NOTIFY memoriesChanged)
     Q_PROPERTY(QStringList agcModes READ agcModes CONSTANT)
     Q_PROPERTY(int stepHz READ stepHz NOTIFY stepChanged)
     // The slice's step list from the radio (Hz), for the step chooser.
@@ -214,6 +215,10 @@ class MobileEngine : public QObject {
     Q_PROPERTY(int micGain READ micGain WRITE setMicGain NOTIFY micGainChanged)
     Q_PROPERTY(double micLevelDbfs READ micLevelDbfs NOTIFY txMetersChanged)
     Q_PROPERTY(double micPeakDbfs READ micPeakDbfs NOTIFY txMetersChanged)
+    // Whether the Mic level reads now: the radio meters a mic on its own
+    // jacks all the time; this device's microphone is measured here, while
+    // it is sent (on the air).
+    Q_PROPERTY(bool micMeterLive READ micMeterLive NOTIFY txMetersChanged)
     Q_PROPERTY(double forwardPowerW READ forwardPowerW NOTIFY txMetersChanged)
     Q_PROPERTY(double swr READ swr NOTIFY txMetersChanged)
     Q_PROPERTY(bool swrValid READ swrValid NOTIFY txMetersChanged)
@@ -427,6 +432,9 @@ public:
     Q_INVOKABLE void recallMemory(int index);
     Q_INVOKABLE void saveMemory(const QString& name);
     Q_INVOKABLE void removeMemory(int index);
+    // Changes a memory's name, frequency (MHz) and mode; other fields stay.
+    Q_INVOKABLE void editMemory(int index, const QString& name, double freqMhz, const QString& mode);
+    bool memoriesWritable() const;
     QStringList globalProfiles() const;
     QString activeGlobalProfile() const;
     QStringList txProfiles() const;
@@ -532,6 +540,7 @@ public:
     void setMicGain(int gain);
     double micLevelDbfs() const { return m_micLevelDbfs; }
     double micPeakDbfs() const { return m_micPeakDbfs; }
+    bool micMeterLive() const;
     double forwardPowerW() const { return m_forwardPowerW; }
     double swr() const { return m_swr; }
     bool swrValid() const { return m_swrValid; }

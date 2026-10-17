@@ -27,6 +27,29 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+
+// Objects named `name` under `root`, including inside Loader-made items
+// (those have no QObject parent, so findChildren() alone misses them):
+// the visual tree is walked too.
+static QList<QObject*> findNamedObjects(QObject* root, const QString& name)
+{
+    QList<QObject*> found = root->findChildren<QObject*>(name);
+    std::function<void(QQuickItem*)> walk = [&](QQuickItem* item) {
+        for (QObject* child : item->children()) {
+            if (child->objectName() == name && !found.contains(child)) {
+                found << child;
+            }
+        }
+        for (QQuickItem* child : item->childItems()) {
+            walk(child);
+        }
+    };
+    if (auto* window = qobject_cast<QQuickWindow*>(root)) {
+        walk(window->contentItem());
+    }
+    return found;
+}
 
 #ifdef Q_OS_ANDROID
 Q_LOGGING_CATEGORY(lcFonts, "aether.mobile.android")
@@ -125,6 +148,11 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: key TUNE (the radio's tune power) 10 s after start for <ms>, then unkey. "
                        "Transmits: only with the operator's consent."), QStringLiteral("ms"));
     parser.addOption(tuneTestOption);
+    const QCommandLineOption pttTestOption(QStringLiteral("ptt-test"),
+        QStringLiteral("Development: transmit for <ms> with this device's microphone at 10 W on 14.250 MHz "
+                       "(only if this app's slice transmits), logging the Mic meter; power restored after."),
+        QStringLiteral("ms"));
+    parser.addOption(pttTestOption);
     const QCommandLineOption panDisplayOption(QStringLiteral("pan-display"),
         QStringLiteral("Development: 12 s after start set this app's pan display setting <key>=<value> "
                        "(average, fps, wfRate)."), QStringLiteral("setting"));
@@ -133,6 +161,10 @@ int main(int argc, char* argv[])
         QStringLiteral("Development: change each radio setting a little, check the radio's status brings it "
                        "back, restore it, then quit (no keying; VOX, antennas, MTU, callsign left out)."));
     parser.addOption(echoAuditOption);
+    const QCommandLineOption memoryEditTestOption(QStringLiteral("memory-edit-test"),
+        QStringLiteral("Development: save a memory \"OksaSDR test\", edit its name, frequency and mode, "
+                       "log what the radio holds, remove it, then quit (other memories untouched)."));
+    parser.addOption(memoryEditTestOption);
     const QCommandLineOption spectrum3dOption(QStringLiteral("spectrum3d"),
         QStringLiteral("2D waterfall or 3D stacked trace: on or off (remembered)."), QStringLiteral("state"));
     parser.addOption(spectrum3dOption);
@@ -302,6 +334,38 @@ int main(int argc, char* argv[])
             });
         }
     }
+    if (parser.isSet(memoryEditTestOption)) {
+        auto findTest = [&engine](const QString& name) {
+            for (const QVariant& v : engine.memories()) {
+                const QVariantMap m = v.toMap();
+                if (m.value(QStringLiteral("name")).toString() == name) {
+                    return m;
+                }
+            }
+            return QVariantMap();
+        };
+        QTimer::singleShot(8000, &app, [&engine] { engine.saveMemory(QStringLiteral("OksaSDR test")); });
+        QTimer::singleShot(11000, &app, [&engine, findTest] {
+            const QVariantMap m = findTest(QStringLiteral("OksaSDR test"));
+            qInfo() << "memory-edit-test: saved" << m;
+            if (!m.isEmpty()) {
+                engine.editMemory(m.value(QStringLiteral("index")).toInt(), QStringLiteral("OksaSDR edited"), 14.2345,
+                                  QStringLiteral("CW"));
+            }
+        });
+        QTimer::singleShot(14000, &app, [&engine, findTest] {
+            const QVariantMap m = findTest(QStringLiteral("OksaSDR edited"));
+            qInfo() << "memory-edit-test: edited" << m;
+            const QVariantMap left = m.isEmpty() ? findTest(QStringLiteral("OksaSDR test")) : m;
+            if (!left.isEmpty()) {
+                engine.removeMemory(left.value(QStringLiteral("index")).toInt());
+            }
+        });
+        QTimer::singleShot(17000, &app, [&engine] {
+            qInfo() << "memory-edit-test: left" << engine.memories().size() << "memories";
+            QCoreApplication::quit();
+        });
+    }
     if (parser.isSet(tuneTestOption)) {
         const int ms = std::clamp(parser.value(tuneTestOption).toInt(), 500, 5000);
         // A clear frequency first (never the 14.100 beacon), and only when
@@ -332,6 +396,47 @@ int main(int argc, char* argv[])
             });
         });
     }
+    if (parser.isSet(pttTestOption)) {
+        const int ms = std::clamp(parser.value(pttTestOption).toInt(), 500, 5000);
+        QTimer::singleShot(8000, &app, [&engine] { engine.setFrequencyMhz(14.250); });
+        QTimer::singleShot(10000, &app, [&engine, ms] {
+            bool ownTx = false;
+            for (const QVariant& v : engine.slices()) {
+                const QVariantMap m = v.toMap();
+                if (m.value(QStringLiteral("id")).toInt() == engine.activeSliceId()) {
+                    ownTx = m.value(QStringLiteral("tx")).toBool();
+                }
+            }
+            if (!ownTx || std::abs(engine.frequencyMhz() - 14.250) > 0.0005) {
+                qWarning() << "ptt-test: not keying (own slice transmits:" << ownTx
+                           << "frequency:" << engine.frequencyMhz() << ")";
+                return;
+            }
+            const int power = engine.rfPower();
+            engine.setRfPower(10);
+            auto* sampler = new QTimer(&engine);
+            QObject::connect(sampler, &QTimer::timeout, &engine, [&engine] {
+                qInfo().noquote() << QStringLiteral("ptt-test: tx=%1 micLive=%2 mic=%3 dB peak=%4 dB power=%5 W")
+                                         .arg(engine.radioTransmitting()).arg(engine.micMeterLive())
+                                         .arg(engine.micLevelDbfs(), 0, 'f', 1).arg(engine.micPeakDbfs(), 0, 'f', 1)
+                                         .arg(engine.forwardPowerW(), 0, 'f', 1);
+            });
+            QTimer::singleShot(1000, &engine, [&engine, sampler, ms, power] {
+                qInfo() << "ptt-test: PTT on for" << ms << "ms";
+                sampler->start(250);
+                engine.setPtt(true, QStringLiteral("ptt-test"));
+                QTimer::singleShot(ms, &engine, [&engine, sampler, power] {
+                    engine.setPtt(false, QStringLiteral("ptt-test"));
+                    qInfo() << "ptt-test: PTT off";
+                    QTimer::singleShot(1500, &engine, [&engine, sampler, power] {
+                        sampler->stop();
+                        engine.setRfPower(power);
+                        qInfo() << "ptt-test: power back to" << power;
+                    });
+                });
+            });
+        });
+    }
     if (parser.isSet(previewNoSliceOption)) {
         QTimer::singleShot(6000, &app, [&qml] {
             for (QObject* root : qml.rootObjects()) {
@@ -343,14 +448,17 @@ int main(int argc, char* argv[])
     }
     if (parser.isSet(meterChooserOption)) {
         const QString name = parser.value(meterChooserOption);
-        QTimer::singleShot(6000, &app, [&qml, name] {
+        // After --controls drawer (6 s) has shown its tab.
+        QTimer::singleShot(7000, &app, [&qml, name] {
             for (QObject* root : qml.rootObjects()) {
                 // Every match: a page can hold a hidden twin (e.g. the info
                 // panel's one-line copy); only the visible one shows.
-                for (QObject* chooser : root->findChildren<QObject*>(name)) {
+                for (QObject* chooser : findNamedObjects(root, name)) {
                     const auto* host = qvariant_cast<QQuickItem*>(chooser->property("parent"));
                     if (!host || host->isVisible()) {
-                        QMetaObject::invokeMethod(chooser, "open");
+                        // A dialog that needs content offers preview() with sample data.
+                        const bool hasPreview = chooser->metaObject()->indexOfMethod("preview()") >= 0;
+                        QMetaObject::invokeMethod(chooser, hasPreview ? "preview" : "open");
                     }
                 }
             }

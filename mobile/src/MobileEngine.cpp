@@ -110,6 +110,19 @@ MobileEngine::MobileEngine(QObject* parent)
     m_audio->moveToThread(m_audioThread);
     connect(m_audio, &AudioEngine::txClipRecorded, this, &MobileEngine::onVoiceClipRecorded);
     connect(m_audio, &AudioEngine::txClipFinished, this, &MobileEngine::onVoiceClipFinished);
+    // This device's microphone: the radio's MIC meter only sees its own
+    // jacks, so the level is measured from what is sent (as AetherSDR's
+    // P/CW applet), with VU ballistics: fast attack, ~20 dB/s decay.
+    connect(m_audio, &AudioEngine::pcMicLevelChanged, this, [this](float peakDb, float avgDb) {
+        if (!m_connected || m_session.radioModel().transmitModel().micSelection() != kDeviceMicSelection) {
+            return;
+        }
+        constexpr double kDecayPerUpdate = 1.0;
+        m_micLevelDbfs = avgDb > m_micLevelDbfs ? avgDb : std::max<double>(avgDb, m_micLevelDbfs - kDecayPerUpdate);
+        m_micPeakDbfs = peakDb > m_micPeakDbfs ? peakDb
+                                               : std::max(m_micLevelDbfs, m_micPeakDbfs - kDecayPerUpdate / 2);
+        emit txMetersChanged();
+    });
     // Receive audio: the chosen buffer, and a line in the log whenever the
     // playback buffer ran dry in the last 10 s (with what the link did), so
     // stutter can be told apart: late packets or too short a buffer.
@@ -744,8 +757,11 @@ void MobileEngine::wireTransmit()
     connect(&rm.equalizerModel(), &EqualizerModel::rxStateChanged, this, &MobileEngine::eqChanged);
     connect(&rm.meterModel(), &MeterModel::micMetersChanged, this,
             [this](float micLevel, float, float micPeak, float compPeak) {
-        m_micLevelDbfs = micLevel;
-        m_micPeakDbfs = micPeak;
+        // This device's microphone is metered from the sent audio instead.
+        if (m_session.radioModel().transmitModel().micSelection() != kDeviceMicSelection) {
+            m_micLevelDbfs = micLevel;
+            m_micPeakDbfs = micPeak;
+        }
         m_compressionDb = std::clamp(static_cast<double>(compPeak), 0.0, 25.0);
         emit txMetersChanged();
     });
@@ -941,6 +957,14 @@ void MobileEngine::stopDeviceMicrophoneCapture()
             audio->stopTxStream();
         }
     }, Qt::QueuedConnection);
+}
+
+bool MobileEngine::micMeterLive() const
+{
+    if (!m_connected) {
+        return false;
+    }
+    return m_session.radioModel().transmitModel().micSelection() != kDeviceMicSelection || radioTransmitting();
 }
 
 bool MobileEngine::transmitAvailable() const
@@ -1635,6 +1659,9 @@ void MobileEngine::setPtt(bool down, const QString& reason)
     // keys: opened after keying, the first ~0.6 s went out as silence or the
     // capture's start-up noise.
     m_txSendStats->reset();
+    // The device mic's level starts over (it is metered only while sent).
+    m_micLevelDbfs = -100.0;
+    m_micPeakDbfs = -100.0;
     startDeviceMicrophoneCapture();
     m_pttInput = m_session.radioModel().localTxController()->capture(TxController::Activity::Mox);
     m_pttHeld = true;
@@ -2595,6 +2622,40 @@ void MobileEngine::removeMemory(int index)
     }
 }
 
+void MobileEngine::editMemory(int index, const QString& name, double freqMhz, const QString& mode)
+{
+    if (!m_connected) {
+        return;
+    }
+    RadioModel& rm = m_session.radioModel();
+    const auto it = rm.memories().constFind(index);
+    if (it == rm.memories().constEnd() || !rm.memoriesWritable() || freqMhz <= 0.0) {
+        return;
+    }
+    MemoryEntry e = it.value();
+    e.name = name.trimmed();
+    e.freq = freqMhz;
+    if (!mode.isEmpty()) {
+        e.mode = mode;
+    }
+    const MemoryUpdateData update = buildMemoryUpdateData(e);
+    qCInfo(lcMobile) << "edit memory" << index << e.freq << e.mode;
+    rm.sendCmdPublic(QStringLiteral("memory set %1 %2").arg(index).arg(update.commandSuffix),
+                     [this, &rm, index, kvs = update.kvs](int code, const QString& body) {
+                         if (code == 0) {
+                             rm.handleMemoryStatus(index, kvs);
+                         } else {
+                             setLastError(tr("The radio did not change the memory: %1").arg(body));
+                         }
+                         emit memoriesChanged();
+                     });
+}
+
+bool MobileEngine::memoriesWritable() const
+{
+    return m_connected && m_session.radioModel().memoriesWritable();
+}
+
 bool MobileEngine::locked() const
 {
     return m_slice && m_slice->isLocked();
@@ -3109,6 +3170,7 @@ void MobileEngine::onConnectionStateChanged(bool connected)
     m_sentPanId.clear();
     m_sentPanWidth = 0;
     emit networkChanged();
+    emit memoriesChanged();
     if (connected) {
         defaultMicToDevice();
         // Display diagnostics for the Log page (e.g. SmartLink without a
